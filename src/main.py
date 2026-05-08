@@ -1,0 +1,165 @@
+"""HL Weekly Planner — главный оркестратор.
+
+Запуск: `python -m src.main` (по cron в субботу 07:00 UTC = 10:00 MSK).
+"""
+from __future__ import annotations
+
+import json
+import sys
+import traceback
+from datetime import datetime, timezone
+from pathlib import Path
+
+import yaml
+
+from . import oracai, hl_api, ta, scoring, render, telegram_sender
+
+
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+WHITELIST_PATH = _REPO_ROOT / "whitelist.yaml"
+DECISIONS_PATH = _REPO_ROOT / "decisions.jsonl"
+WEEKLY_BUDGET_USD = 200.0
+
+
+def run() -> None:
+    started = datetime.now(timezone.utc)
+
+    # 1. OracAI snapshot → сигнал
+    snapshot = oracai.fetch_snapshot()
+    signal = oracai.derive_signal_strength(snapshot)
+    print(f"[oracai] signal={signal['signal']} leverage={signal['leverage']}", flush=True)
+
+    # Если SKIP/EXIT — короткий отчёт, без анализа кандидатов
+    if signal["signal"] in ("SKIP", "EXIT"):
+        msg = render.render_report(signal=signal, picks=[], skipped=[])
+        telegram_sender.send_messages([msg])
+        _persist_decision(started, signal, picks=[], skipped=[])
+        return
+
+    # 2. Whitelist + HL meta
+    whitelist = _load_whitelist()
+    rules = whitelist["rules"]
+    meta = hl_api.fetch_meta_and_ctxs()
+    print(f"[hl] universe size: {len(meta)}", flush=True)
+
+    # 3. Для каждого токена whitelist — ТА + скоринг
+    candidates: list[dict] = []
+    skipped: list[dict] = []
+
+    for sym, info in whitelist["tokens"].items():
+        hl_sym = hl_api.resolve_symbol(info.get("hl_symbol") or sym, meta)
+        if hl_sym is None:
+            skipped.append({"symbol": sym, "reason": "не листится на HL"})
+            continue
+        hl_ctx = meta.get(hl_sym, {})
+
+        try:
+            candles = hl_api.fetch_candles(hl_sym, interval="1d", lookback_days=220)
+        except Exception as e:
+            skipped.append({"symbol": sym, "reason": f"HL candles error: {e}"})
+            continue
+
+        if len(candles) < 200:
+            skipped.append({"symbol": sym, "reason": f"мало истории ({len(candles)} свечей)"})
+            continue
+
+        ind = ta.compute_indicators(candles)
+        ok, reason = scoring.passes_filters(ind, hl_ctx, rules, signal["signal"])
+        if not ok:
+            skipped.append({"symbol": sym, "reason": reason})
+            continue
+
+        score = scoring.score_candidate(ind, hl_ctx, info["tier"])
+        candidates.append({
+            "symbol": sym,
+            "hl_symbol": hl_sym,
+            "tier": info["tier"],
+            "thesis": info.get("thesis", ""),
+            "entry": ind["last"],
+            "score": score,
+            "rsi_d1": ind["rsi_d1"],
+            "ema50": ind["ema50"],
+            "ema200": ind["ema200"],
+            "vs_ema50_pct": ind["vs_ema50_pct"],
+            "vs_ema200_pct": ind["vs_ema200_pct"],
+            "momentum_7d": ind["momentum_7d"],
+            "momentum_30d": ind["momentum_30d"],
+            "atr14": ind["atr14"],
+            "swing_low_20": ind["swing_low_20"],
+            "funding_apr_pct": round(hl_ctx.get("funding_apr_pct") or 0, 2),
+            "ind": ind,
+            "hl_ctx": hl_ctx,
+        })
+
+    # 4. Ranking + sizing + SL
+    candidates.sort(key=lambda x: x["score"], reverse=True)
+    picks_raw = scoring.allocate_budget(candidates, signal["signal"], WEEKLY_BUDGET_USD)
+
+    picks = []
+    for p in picks_raw:
+        sl = scoring.calculate_sl(p["entry"], p["ind"], rules)
+        picks.append({
+            **{k: v for k, v in p.items() if k not in ("ind", "hl_ctx")},
+            "sl_price": sl["sl_price"],
+            "sl_pct": sl["sl_pct"],
+            "sl_method": sl["method"],
+        })
+
+    # Если после фильтров не нашлось ни одного кандидата — SKIP
+    if not picks:
+        signal_fallback = {
+            "signal": "SKIP", "leverage": 0,
+            "reasons": signal["reasons"] + ["После фильтров не осталось ни одного кандидата"],
+            "raw": signal["raw"],
+        }
+        msg = render.render_report(signal=signal_fallback, picks=[], skipped=skipped)
+        telegram_sender.send_messages([msg])
+        _persist_decision(started, signal_fallback, picks=[], skipped=skipped)
+        return
+
+    # 5. Render + send
+    msg = render.render_report(signal=signal, picks=picks, skipped=skipped)
+    telegram_sender.send_messages([msg])
+    _persist_decision(started, signal, picks=picks, skipped=skipped)
+
+
+def _load_whitelist() -> dict:
+    with WHITELIST_PATH.open(encoding="utf-8") as f:
+        return yaml.safe_load(f)
+
+
+def _persist_decision(started, signal: dict, *, picks: list, skipped: list) -> None:
+    """История решений — для последующего анализа точности."""
+    rec = {
+        "ts": started.isoformat(),
+        "signal": signal["signal"],
+        "leverage": signal["leverage"],
+        "reasons": signal.get("reasons"),
+        "oracai": signal.get("raw"),
+        "picks": [
+            {k: v for k, v in p.items() if k not in ("ind", "hl_ctx")} for p in picks
+        ],
+        "skipped": skipped,
+    }
+    with DECISIONS_PATH.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(rec, ensure_ascii=False, default=str) + "\n")
+
+
+def main() -> int:
+    try:
+        run()
+        return 0
+    except Exception:
+        tb = traceback.format_exc()
+        print(tb, file=sys.stderr)
+        try:
+            telegram_sender.alert_owner(
+                f"❌ hl_weekly_planner упал:\n<pre>{tb[-2500:]}</pre>"
+            )
+        except Exception:
+            pass
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

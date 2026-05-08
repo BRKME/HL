@@ -1,0 +1,83 @@
+# Whitelist токенов для HL Weekly Planner
+# Каноническое определение whitelist.html в LP_Wallet_Tracker, но в YAML для машинной обработки.
+# tier: 1=якорь (BTC/ETH), 2=крупный альт, 3=narrative bet
+# hl_symbol: имя на Hyperliquid; null если перп не листится (бот пропустит)
+# coingecko_id: для запасного источника цен/MA, если HL не отдаёт historical OHLC
+# thesis: твоё обоснование, почему этот токен в whitelist (выводится в отчёт)
+
+last_updated: 2026-05
+version: 1
+
+rules:
+  hl_perp_max_leverage_strong: 2
+  hl_perp_max_leverage_moderate: 1
+  funding_apr_skip_above: 60         # %, годовых
+  rsi_d1_overheated: 80
+  sl_hard_floor_pct: 20              # max -20% от entry
+  atr_multiplier: 2.0
+  ema_short: 50
+  ema_long: 200
+
+tokens:
+  BTC:
+    tier: 1
+    hl_symbol: BTC
+    coingecko_id: bitcoin
+    thesis: "Reserve asset, regime anchor"
+  ETH:
+    tier: 1
+    hl_symbol: ETH
+    coingecko_id: ethereum
+    thesis: "Programmable money, ETH/BTC regime hedge"
+  BNB:
+    tier: 2
+    hl_symbol: BNB
+    coingecko_id: binancecoin
+    thesis: "CEX flow proxy, sticky volume"
+  HYPE:
+    tier: 3
+    hl_symbol: HYPE
+    coingecko_id: hyperliquid
+    thesis: "HL native token — fee/buyback flywheel"
+  ASTER:
+    tier: 3
+    hl_symbol: ASTER
+    coingecko_id: aster
+    thesis: "Perp DEX competitor, narrative bet"
+  PUMP:
+    tier: 3
+    hl_symbol: PUMP
+    coingecko_id: pump-fun
+    thesis: "Memecoin launchpad fee narrative"
+  DOGE:
+    tier: 2
+    hl_symbol: DOGE
+    coingecko_id: dogecoin
+    thesis: "Mega-cap meme, retail proxy"
+  LINK:
+    tier: 2
+    hl_symbol: LINK
+    coingecko_id: chainlink
+    thesis: "Oracle infra, institutional pipeline"
+  PEPE:
+    # Внимание: на HL мемкоины часто торгуются как kPEPE (×1000)
+    # Если бот не найдёт PEPE в meta — попробует kPEPE автоматически
+    tier: 3
+    hl_symbol: PEPE
+    coingecko_id: pepe
+    thesis: "Top-tier meme, beta proxy on risk-on"
+  MORPHO:
+    tier: 3
+    hl_symbol: MORPHO
+    coingecko_id: morpho
+    thesis: "DeFi credit primitive, real revenue"
+  TAO:
+    tier: 3
+    hl_symbol: TAO
+    coingecko_id: bittensor
+    thesis: "AI-narrative L1, real subnet usage"
+  ZEC:
+    tier: 3
+    hl_symbol: ZEC
+    coingecko_id: zcash
+    thesis: "Privacy hedge — Arthur Hayes thesis: 1/10 BTC price target"
