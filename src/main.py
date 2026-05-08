@@ -12,7 +12,7 @@ from pathlib import Path
 
 import yaml
 
-from . import oracai, hl_api, ta, scoring, render, telegram_sender
+from . import oracai, hl_api, ta, scoring, render, telegram_sender, lp_summary
 
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -42,6 +42,7 @@ def run() -> None:
     if signal["signal"] in ("SKIP", "EXIT"):
         msg = render.render_report(signal=signal, picks=[], skipped=[])
         telegram_sender.send_messages([msg])
+        _send_lp_summary()
         _persist_decision(started, signal, picks=[], skipped=[])
         return
 
@@ -130,13 +131,30 @@ def run() -> None:
         }
         msg = render.render_report(signal=signal_fallback, picks=[], skipped=skipped)
         telegram_sender.send_messages([msg])
+        _send_lp_summary()
         _persist_decision(started, signal_fallback, picks=[], skipped=skipped)
         return
 
     # 5. Render + send
     msg = render.render_report(signal=signal, picks=picks, skipped=skipped)
     telegram_sender.send_messages([msg])
+    _send_lp_summary()
     _persist_decision(started, signal, picks=picks, skipped=skipped)
+
+
+def _send_lp_summary() -> None:
+    """Отдельным сообщением — LP-резюме из OracAI. Не ломаем основной отчёт."""
+    try:
+        report = lp_summary.fetch_lp_report()
+        if not report:
+            print("[lp] нет свежего отчёта, пропускаем", flush=True)
+            return
+        msg = lp_summary.render_lp_summary(report)
+        if msg:
+            telegram_sender.send_messages([msg])
+    except Exception as e:
+        # LP-секция не должна валить основной отчёт
+        print(f"[lp] не удалось отправить LP-резюме: {e}", flush=True)
 
 
 def _count_recent_skip_streak() -> int:
