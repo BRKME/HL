@@ -1,42 +1,22 @@
 {{ signal_emoji }} <b>План на неделю {{ week_window | e }}</b>
 <i>{{ date_str | e }}, 10:00 MSK</i>
 
-<b>🎯 Сигнал: {{ signal_label | e }}</b>
-{% if raw.defensive %}<b>🛡 Режим: DEFENSIVE</b> — заходим осторожно из-за конфликта сигналов
-{% endif %}
-{% for r in reasons %}↳ {{ r | e }}
+<b>{{ headline | e }}</b>
+{% for r in reasons %}
+{{ r | e }}
 {% endfor %}
-{% if raw.conflict and not raw.defensive %}
-⚠️ <b>OracAI в противоречии:</b> regime и cycle расходятся.
-{% endif %}
 
-<b>📊 Контекст OracAI:</b>
-• Режим: {{ raw.regime | e }}
-{% if raw.confidence is not none %}• Уверенность: {{ '{:.0%}'.format(raw.confidence) | e }}
-{% endif %}
-{% if raw.phase %}• Фаза цикла: {{ raw.phase | e }}
-{% endif %}
-{% if raw.bottom_proximity is not none and raw.top_proximity is not none %}• Bottom {{ '{:.0%}'.format(raw.bottom_proximity) | e }} / Top {{ '{:.0%}'.format(raw.top_proximity) | e }}
-{% endif %}
-{% if raw.risk_state %}• Риск: {{ raw.risk_state | e }}
-{% endif %}
-{% if raw.action %}• OracAI рекомендует: {{ raw.action | e }}
-{% endif %}
-
-<b>💰 Распределение $200 ({{ leverage }}× плечо = ${{ (200 * leverage) | e }} нотионал):</b>
+<b>💰 Что покупаем — $200, плечо {{ leverage }}× (нотионал ${{ (200 * leverage) | int | e }}):</b>
 
 {% for p in picks %}
-▶ <b>{{ p.symbol | e }}</b> — ${{ p.alloc_usd | e }} ({{ p.alloc_pct | e }}%)
-   Цена входа: ~${{ p.entry | e }}
-   <b>SL: ${{ p.sl_price | e }} ({{ p.sl_pct | e }}%)</b> [{{ p.sl_method | e }}]
-   Скор: {{ p.score | e }}
-   RSI(D1): {{ p.rsi_d1 | e }} · vs EMA50: {{ p.vs_ema50_pct | e }}% · vs EMA200: {{ p.vs_ema200_pct | e }}%
-   Momentum 30d: {{ p.momentum_30d | e }}%  ·  Funding: {{ p.funding_apr_pct | e }}% APR
-   <i>{{ p.thesis | e }}</i>
+▶️ <b>{{ p.symbol | e }}</b> — ${{ p.alloc_usd | int | e }} ({{ p.alloc_pct | e }}%)
+   Вход: ~${{ p.entry_fmt | e }}
+   <b>Стоп-лосс: ${{ p.sl_fmt | e }}</b> ({{ p.sl_pct | e }}%)
+   {{ p.thesis | e }}
+{% endfor %}
+{% if skipped %}
+<b>🚫 Не покупаем (из whitelist):</b>
+{% for s in skipped %}• <b>{{ s.symbol | e }}</b> — {{ s.reason_human | e }}
+{% endfor %}{% endif %}
 
-{% endfor %}
-{% if skipped %}<b>🚫 Скипнуты:</b>
-{% for s in skipped %}• <b>{{ s.symbol | e }}</b> — {{ s.reason | e }}
-{% endfor %}
-{% endif %}
 <i>Следующая проверка: суббота через 7 дней.</i>

@@ -1,33 +1,15 @@
 {{ signal_emoji }} <b>План на неделю {{ week_window | e }}</b>
 <i>{{ date_str | e }}, 10:00 MSK</i>
 
-<b>🎯 Сигнал: {{ signal_label | e }}</b>
-{% for r in reasons %}↳ {{ r | e }}
+<b>{{ headline | e }}</b>
+{% for r in reasons %}
+{{ r | e }}
 {% endfor %}
-{% if raw.conflict %}
-⚠️ <b>OracAI в противоречии:</b> regime detector и cycle engine дают противоположные сигналы. Консервативно ждём.
-{% endif %}
 
 <b>🛑 Эту неделю не покупаем. $200 → стейбл (USDC).</b>
 
-<b>📊 Контекст OracAI:</b>
-• Режим: {{ raw.regime | e }}
-{% if raw.confidence is not none %}• Уверенность: {{ '{:.0%}'.format(raw.confidence) | e }}
-{% endif %}
-{% if raw.phase %}• Фаза цикла: {{ raw.phase | e }}
-{% endif %}
-{% if raw.bottom_proximity is not none and raw.top_proximity is not none %}• Bottom {{ '{:.0%}'.format(raw.bottom_proximity) | e }} / Top {{ '{:.0%}'.format(raw.top_proximity) | e }}
-{% endif %}
-{% if raw.risk_state %}• Риск: {{ raw.risk_state | e }}
-{% endif %}
-{% if raw.action %}• OracAI рекомендует: {{ raw.action | e }}
-{% endif %}
-
-<b>Что делать:</b>
-{% if signal_type == 'EXIT' %}• Закрыть открытые перпы на HL
+{% if signal_type == 'EXIT' %}<b>Что делать:</b>
+• Закрыть открытые перпы на HL
 • Свежие $200 → USDC
-• Ждать сигнала возврата (regime≠BEAR, risk≤ELEVATED)
-{% else %}• Свежие $200 → USDC, ждать
-• Открытые позиции — следить за SL, не двигать
 {% endif %}
 <i>Следующая проверка: суббота через 7 дней.</i>

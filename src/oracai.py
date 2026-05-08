@@ -100,43 +100,36 @@ def derive_signal_strength(snapshot: dict[str, Any]) -> dict[str, Any]:
 
     # === 1. EXIT — системный риск или согласованный bear ===
     if risk_state in ("CRISIS", "TAIL"):
-        reasons.append(f"Риск = {risk_state} (системный)")
+        reasons.append(f"Системный риск: {risk_state}")
         return _build("EXIT", 0, reasons, snapshot, conflict, defensive)
 
     if regime in bearish_regimes and (
         risk_state == "RISK_OFF" or action in bear_actions
     ):
-        reasons.append(f"Согласованный bear: режим={regime}, "
-                       f"риск={risk_state}, действие={action or '-'}")
+        reasons.append(f"Рынок развернулся вниз — выходим в стейбл")
         return _build("EXIT", 0, reasons, snapshot, conflict, defensive)
 
-    # === 2. SKIP — regime сам по себе bearish (без cycle согласия) ===
+    # === 2. SKIP — regime сам по себе bearish ===
     if regime in bearish_regimes:
-        reasons.append(
-            f"Режим = {regime} — недельное окно ушло в bear, не входим даже "
-            f"при cycle.phase={phase or '?'}"
-        )
+        reasons.append(f"Рынок не в бычьей фазе — пропускаем неделю")
         return _build("SKIP", 0, reasons, snapshot, conflict, defensive)
 
-    # === 3. SKIP — близко к топу (явный перегрев) ===
+    # === 3. SKIP — близко к топу ===
     if top_pct >= 0.70:
-        reasons.append(f"Top% = {top_pct:.0%} (порог skip = 70%)")
+        reasons.append(f"Цена близко к локальному максимуму ({top_pct:.0%})")
+        reasons.append("Покупать здесь — плохой риск/доходность")
         return _build("SKIP", 0, reasons, snapshot, conflict, defensive)
 
-    # === 4. SKIP — низкая уверенность regime ===
+    # === 4. SKIP — низкая уверенность ===
     if conf < 0.30:
-        reasons.append(f"Низкая уверенность OracAI: {conf:.0%}")
+        reasons.append(f"OracAI не уверен в сигнале ({conf:.0%}) — ждём")
         return _build("SKIP", 0, reasons, snapshot, conflict, defensive)
 
-    # === 5. DEFENSIVE MODERATE — regime BULL, cycle bear (конфликт) ===
-    # Не пропускаем неделю целиком, но заходим осторожно: 1×, BTC-only
+    # === 5. DEFENSIVE — конфликт сигналов ===
     if regime in bullish_regimes and conflict:
         defensive = True
-        reasons.append(
-            f"Конфликт regime={regime} vs phase={phase}: "
-            f"входим защитно (1× только BTC)"
-        )
-        reasons.append(f"Регим-приоритет: 20-д окно ещё bullish")
+        reasons.append("Сигналы расходятся: рынок бычий, но цикл показывает разворот")
+        reasons.append("Заходим осторожно — только BTC, без плеча")
         return _build("MODERATE", 1, reasons, snapshot, conflict, defensive)
 
     # === 6. STRONG — согласованный bull + явная покупка ===
@@ -145,25 +138,19 @@ def derive_signal_strength(snapshot: dict[str, Any]) -> dict[str, Any]:
             and risk_state in bullish_risk
             and bot_pct >= 0.30
             and not conflict):
-        reasons.append(f"Согласованный bull: режим={regime}, действие={action}")
-        reasons.append(f"Риск = {risk_state}, Bottom% = {bot_pct:.0%}")
+        reasons.append("Полный bullish — рынок и цикл согласны")
+        reasons.append(f"Цена далеко от пика ({top_pct:.0%}), есть пространство роста")
         return _build("STRONG", 2, reasons, snapshot, conflict, defensive)
 
     # === 7. MODERATE — обычный bull без явной покупки ===
     if (regime in bullish_regimes
             and risk_state in bullish_risk + ("ELEVATED",)
             and top_pct < 0.70):
-        reasons.append(f"Режим = {regime}, риск = {risk_state}, conf {conf:.0%}")
-        if action:
-            reasons.append(f"Действие OracAI: {action}")
+        reasons.append("Рынок в бычьей фазе, но без сильного сигнала на докупку")
         return _build("MODERATE", 1, reasons, snapshot, conflict, defensive)
 
     # === 8. Default fallback ===
-    reasons.append(
-        f"Не выполнено условие STRONG/MODERATE/DEFENSIVE: "
-        f"режим={regime}, риск={risk_state}, conf={conf:.0%}, "
-        f"top%={top_pct:.0%}, bot%={bot_pct:.0%}, фаза={phase}, action={action}"
-    )
+    reasons.append("Не выполнены условия для покупки — пропускаем")
     return _build("SKIP", 0, reasons, snapshot, conflict, defensive)
 
 
