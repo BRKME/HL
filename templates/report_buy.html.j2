@@ -4,6 +4,9 @@
 <b>🎯 Сигнал: {{ signal_label | e }}</b>
 {% for r in reasons %}↳ {{ r | e }}
 {% endfor %}
+{% if raw.conflict %}
+⚠️ <b>OracAI в противоречии:</b> regime и cycle расходятся. Действуем консервативно.
+{% endif %}
 
 <b>📊 Контекст OracAI:</b>
 • Режим: {{ raw.regime | e }}
