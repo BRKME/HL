@@ -13,8 +13,9 @@ rules:
   hl_perp_max_leverage_moderate: 1
   funding_apr_skip_above: 60         # %, годовых
   rsi_d1_overheated: 80
-  sl_hard_floor_pct: 20              # max -20% от entry
-  atr_multiplier: 2.0
+  sl_hard_floor_pct: 25              # max -25% от entry (недельное окно требует запаса)
+  atr_multiplier: 2.5                # шире чем дефолт 2.0 — пережить недельную волатильность
+  swing_low_lookback: 30             # окно swing low в днях (≈ месяц)
   ema_short: 50
   ema_long: 200
 

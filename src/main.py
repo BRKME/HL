@@ -27,9 +27,18 @@ def run() -> None:
     # 1. OracAI snapshot → сигнал
     snapshot = oracai.fetch_snapshot()
     signal = oracai.derive_signal_strength(snapshot)
-    print(f"[oracai] signal={signal['signal']} leverage={signal['leverage']}", flush=True)
+    print(f"[oracai] signal={signal['signal']} leverage={signal['leverage']} "
+          f"defensive={signal.get('defensive', False)}", flush=True)
 
-    # Если SKIP/EXIT — короткий отчёт, без анализа кандидатов
+    # Sanity check: сколько SKIP подряд было до этого
+    skip_streak = _count_recent_skip_streak()
+    if skip_streak >= 3 and signal["signal"] == "SKIP":
+        signal["reasons"].append(
+            f"⚠️ Это {skip_streak + 1}-й SKIP подряд — "
+            f"проверь регим OracAI вручную, возможно стоит пересмотреть DCA-план"
+        )
+
+    # SKIP/EXIT — короткий отчёт без анализа кандидатов
     if signal["signal"] in ("SKIP", "EXIT"):
         msg = render.render_report(signal=signal, picks=[], skipped=[])
         telegram_sender.send_messages([msg])
@@ -39,6 +48,7 @@ def run() -> None:
     # 2. Whitelist + HL meta
     whitelist = _load_whitelist()
     rules = whitelist["rules"]
+    swing_lookback = rules.get("swing_low_lookback", 30)
     meta = hl_api.fetch_meta_and_ctxs()
     print(f"[hl] universe size: {len(meta)}", flush=True)
 
@@ -63,7 +73,7 @@ def run() -> None:
             skipped.append({"symbol": sym, "reason": f"мало истории ({len(candles)} свечей)"})
             continue
 
-        ind = ta.compute_indicators(candles)
+        ind = ta.compute_indicators(candles, swing_lookback=swing_lookback)
         ok, reason = scoring.passes_filters(ind, hl_ctx, rules, signal["signal"])
         if not ok:
             skipped.append({"symbol": sym, "reason": reason})
@@ -85,7 +95,7 @@ def run() -> None:
             "momentum_7d": ind["momentum_7d"],
             "momentum_30d": ind["momentum_30d"],
             "atr14": ind["atr14"],
-            "swing_low_20": ind["swing_low_20"],
+            "swing_low": ind["swing_low"],
             "funding_apr_pct": round(hl_ctx.get("funding_apr_pct") or 0, 2),
             "ind": ind,
             "hl_ctx": hl_ctx,
@@ -93,7 +103,12 @@ def run() -> None:
 
     # 4. Ranking + sizing + SL
     candidates.sort(key=lambda x: x["score"], reverse=True)
-    picks_raw = scoring.allocate_budget(candidates, signal["signal"], WEEKLY_BUDGET_USD)
+    picks_raw = scoring.allocate_budget(
+        candidates,
+        signal["signal"],
+        defensive=signal.get("defensive", False),
+        weekly_budget=WEEKLY_BUDGET_USD,
+    )
 
     picks = []
     for p in picks_raw:
@@ -111,6 +126,7 @@ def run() -> None:
             "signal": "SKIP", "leverage": 0,
             "reasons": signal["reasons"] + ["После фильтров не осталось ни одного кандидата"],
             "raw": signal["raw"],
+            "defensive": False,
         }
         msg = render.render_report(signal=signal_fallback, picks=[], skipped=skipped)
         telegram_sender.send_messages([msg])
@@ -121,6 +137,34 @@ def run() -> None:
     msg = render.render_report(signal=signal, picks=picks, skipped=skipped)
     telegram_sender.send_messages([msg])
     _persist_decision(started, signal, picks=picks, skipped=skipped)
+
+
+def _count_recent_skip_streak() -> int:
+    """Сколько SKIP подряд было до текущего запуска (по decisions.jsonl).
+
+    Считает с конца до первого не-SKIP.
+    """
+    if not DECISIONS_PATH.exists():
+        return 0
+    try:
+        with DECISIONS_PATH.open(encoding="utf-8") as f:
+            lines = f.readlines()
+    except Exception:
+        return 0
+    streak = 0
+    for line in reversed(lines):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            rec = json.loads(line)
+        except Exception:
+            break
+        if rec.get("signal") == "SKIP":
+            streak += 1
+        else:
+            break
+    return streak
 
 
 def _load_whitelist() -> dict:

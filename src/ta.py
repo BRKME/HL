@@ -81,7 +81,7 @@ def momentum_pct(closes: Sequence[float], lookback: int) -> float | None:
     return round((new - old) / old * 100, 2)
 
 
-def compute_indicators(candles: list[dict]) -> dict:
+def compute_indicators(candles: list[dict], swing_lookback: int = 30) -> dict:
     """Все индикаторы за один проход. Возвращает dict с None если данных мало."""
     closes = [c["c"] for c in candles]
     last = closes[-1] if closes else None
@@ -107,7 +107,7 @@ def compute_indicators(candles: list[dict]) -> dict:
             else None
         ),
         "atr14": atr(candles, 14),
-        "swing_low_20": swing_low(candles, 20),
+        "swing_low": swing_low(candles, swing_lookback),
         "momentum_7d": momentum_pct(closes, 7),
         "momentum_30d": momentum_pct(closes, 30),
     }

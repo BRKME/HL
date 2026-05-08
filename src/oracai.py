@@ -53,18 +53,23 @@ def fetch_snapshot() -> dict[str, Any]:
 
 
 def derive_signal_strength(snapshot: dict[str, Any]) -> dict[str, Any]:
-    """Преобразует OracAI snapshot в сигнал: STRONG / MODERATE / SKIP / EXIT.
+    """Преобразует OracAI snapshot в недельный сигнал.
 
-    Логика учитывает что у OracAI два независимых движка:
-      - regime detector → BULL/BEAR/RANGE/TRANS + risk_state (RISK_ON/RISK_OFF
-        или редко NORMAL/ELEVATED/CRISIS/TAIL)
-      - cycle engine → phase (EARLY_BEAR/MID_BULL/etc) + action (BUY/SELL/HOLD/etc)
+    КЛЮЧЕВОЙ КОНТЕКСТ: запуск раз в неделю. Пропустить вход = пропустить
+    неделю DCA (необратимо). Пропустить выход = ничего, SL сработает сам
+    в любой момент. Поэтому логика смещена в сторону входа.
 
-    Они могут конфликтовать. Когда конфликтуют — НЕ доверяем ни одному в отдельности,
-    идём в SKIP. EXIT — только когда сигналы согласованы.
+    Приоритет: regime > cycle (regime ловит 20-дневное окно — как раз
+    наш горизонт; cycle лагирует на разворотах и шумит на конфликтах).
 
-    Сигнал согласован = (regime в BEAR/TRANS) И (cycle.action в SELL/STRONG_SELL)
-                      ИЛИ risk_state в (CRISIS, TAIL).
+    EXIT     : согласованный bear (regime BEAR/TRANS + risk RISK_OFF)
+               ИЛИ системный риск (CRISIS/TAIL)
+    SKIP     : top% ≥ 0.70 (явный перегрев)
+               ИЛИ regime BEAR/TRANS (даже если cycle bull — не лезем)
+    DEFENSIVE: regime BULL, но cycle bear (конфликт) → 1× только в BTC
+               (через signal=MODERATE с пометкой defensive в reasons)
+    MODERATE : regime BULL без конфликта, обычный bull без явной покупки
+    STRONG   : regime BULL + cycle bull + явная покупка от OracAI
     """
     cycle = snapshot.get("cycle") or {}
     risk = snapshot.get("risk") or {}
@@ -82,89 +87,97 @@ def derive_signal_strength(snapshot: dict[str, Any]) -> dict[str, Any]:
     bear_phases = ("EARLY_BEAR", "MID_BEAR", "LATE_BEAR", "DISTRIBUTION")
     bull_phases = ("EARLY_BULL", "MID_BULL", "LATE_BULL", "ACCUMULATION", "MARKUP")
     bullish_regimes = ("BULL",)
-    bearish_regimes = ("BEAR", "TRANS")  # TRANS чаще ведёт вниз чем вверх
-    bearish_risk = ("RISK_OFF", "CRISIS", "TAIL")
-    elevated_risk = ("ELEVATED",)
+    bearish_regimes = ("BEAR", "TRANS")
     bullish_risk = ("RISK_ON", "NORMAL")
 
     reasons: list[str] = []
+    defensive = False
 
-    # Конфликт между regime и cycle.phase — отмечаем для отчёта
     conflict = (
         (regime in bullish_regimes and phase in bear_phases) or
         (regime in bearish_regimes and phase in bull_phases)
     )
 
-    # === 1. EXIT — только при согласованных bear-сигналах ===
+    # === 1. EXIT — системный риск или согласованный bear ===
     if risk_state in ("CRISIS", "TAIL"):
         reasons.append(f"Риск = {risk_state} (системный)")
-        return _build("EXIT", 0, reasons, snapshot, conflict)
+        return _build("EXIT", 0, reasons, snapshot, conflict, defensive)
 
-    if regime in bearish_regimes and action in bear_actions:
-        reasons.append(f"Согласованный bear: режим={regime}, действие={action}")
-        return _build("EXIT", 0, reasons, snapshot, conflict)
+    if regime in bearish_regimes and (
+        risk_state == "RISK_OFF" or action in bear_actions
+    ):
+        reasons.append(f"Согласованный bear: режим={regime}, "
+                       f"риск={risk_state}, действие={action or '-'}")
+        return _build("EXIT", 0, reasons, snapshot, conflict, defensive)
 
-    if regime in bearish_regimes and risk_state == "RISK_OFF":
-        reasons.append(f"Режим={regime} + RISK_OFF")
-        return _build("EXIT", 0, reasons, snapshot, conflict)
-
-    # === 2. SKIP — конфликт сигналов ===
-    if conflict:
+    # === 2. SKIP — regime сам по себе bearish (без cycle согласия) ===
+    if regime in bearish_regimes:
         reasons.append(
-            f"Конфликт сигналов: режим={regime}, фаза={phase} → ждём разрешения"
+            f"Режим = {regime} — недельное окно ушло в bear, не входим даже "
+            f"при cycle.phase={phase or '?'}"
         )
-        return _build("SKIP", 0, reasons, snapshot, conflict)
+        return _build("SKIP", 0, reasons, snapshot, conflict, defensive)
 
-    # === 3. SKIP — близко к топу или низкая уверенность у топа ===
+    # === 3. SKIP — близко к топу (явный перегрев) ===
     if top_pct >= 0.70:
         reasons.append(f"Top% = {top_pct:.0%} (порог skip = 70%)")
-        return _build("SKIP", 0, reasons, snapshot, conflict)
-    if risk_state in elevated_risk and conf < 0.30:
-        reasons.append(f"Риск=ELEVATED + низкая уверенность {conf:.0%}")
-        return _build("SKIP", 0, reasons, snapshot, conflict)
-    if action in ("FIX", "ФИКСИРОВАТЬ"):
-        reasons.append(f"OracAI: {action}")
-        return _build("SKIP", 0, reasons, snapshot, conflict)
+        return _build("SKIP", 0, reasons, snapshot, conflict, defensive)
 
-    # === 4. STRONG — согласованный bull + явная покупка ===
+    # === 4. SKIP — низкая уверенность regime ===
+    if conf < 0.30:
+        reasons.append(f"Низкая уверенность OracAI: {conf:.0%}")
+        return _build("SKIP", 0, reasons, snapshot, conflict, defensive)
+
+    # === 5. DEFENSIVE MODERATE — regime BULL, cycle bear (конфликт) ===
+    # Не пропускаем неделю целиком, но заходим осторожно: 1×, BTC-only
+    if regime in bullish_regimes and conflict:
+        defensive = True
+        reasons.append(
+            f"Конфликт regime={regime} vs phase={phase}: "
+            f"входим защитно (1× только BTC)"
+        )
+        reasons.append(f"Регим-приоритет: 20-д окно ещё bullish")
+        return _build("MODERATE", 1, reasons, snapshot, conflict, defensive)
+
+    # === 6. STRONG — согласованный bull + явная покупка ===
     if (regime in bullish_regimes
             and action in buy_actions
             and risk_state in bullish_risk
-            and bot_pct >= 0.30):
+            and bot_pct >= 0.30
+            and not conflict):
         reasons.append(f"Согласованный bull: режим={regime}, действие={action}")
-        reasons.append(f"Риск = {risk_state}")
-        reasons.append(f"Bottom% = {bot_pct:.0%} (≥30%)")
-        return _build("STRONG", 2, reasons, snapshot, conflict)
+        reasons.append(f"Риск = {risk_state}, Bottom% = {bot_pct:.0%}")
+        return _build("STRONG", 2, reasons, snapshot, conflict, defensive)
 
-    # === 5. MODERATE — bull регим без покупки, но и без перегрева ===
+    # === 7. MODERATE — обычный bull без явной покупки ===
     if (regime in bullish_regimes
-            and risk_state in bullish_risk + elevated_risk
-            and conf >= 0.50
+            and risk_state in bullish_risk + ("ELEVATED",)
             and top_pct < 0.70):
         reasons.append(f"Режим = {regime}, риск = {risk_state}, conf {conf:.0%}")
-        reasons.append(f"Top% = {top_pct:.0%} (<70%)")
         if action:
             reasons.append(f"Действие OracAI: {action}")
-        return _build("MODERATE", 1, reasons, snapshot, conflict)
+        return _build("MODERATE", 1, reasons, snapshot, conflict, defensive)
 
-    # === 6. Default fallback — SKIP ===
+    # === 8. Default fallback ===
     reasons.append(
-        f"Не выполнено условие STRONG/MODERATE: "
+        f"Не выполнено условие STRONG/MODERATE/DEFENSIVE: "
         f"режим={regime}, риск={risk_state}, conf={conf:.0%}, "
         f"top%={top_pct:.0%}, bot%={bot_pct:.0%}, фаза={phase}, action={action}"
     )
-    return _build("SKIP", 0, reasons, snapshot, conflict)
+    return _build("SKIP", 0, reasons, snapshot, conflict, defensive)
 
 
 def _build(signal: str, leverage: int, reasons: list[str],
-           snapshot: dict, conflict: bool) -> dict[str, Any]:
+           snapshot: dict, conflict: bool, defensive: bool) -> dict[str, Any]:
     raw = _raw_subset(snapshot)
     raw["conflict"] = conflict
+    raw["defensive"] = defensive
     return {
         "signal": signal,
         "leverage": leverage,
         "reasons": reasons,
         "raw": raw,
+        "defensive": defensive,
     }
 
 

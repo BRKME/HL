@@ -2,10 +2,12 @@
 <i>{{ date_str | e }}, 10:00 MSK</i>
 
 <b>🎯 Сигнал: {{ signal_label | e }}</b>
+{% if raw.defensive %}<b>🛡 Режим: DEFENSIVE</b> — заходим осторожно из-за конфликта сигналов
+{% endif %}
 {% for r in reasons %}↳ {{ r | e }}
 {% endfor %}
-{% if raw.conflict %}
-⚠️ <b>OracAI в противоречии:</b> regime и cycle расходятся. Действуем консервативно.
+{% if raw.conflict and not raw.defensive %}
+⚠️ <b>OracAI в противоречии:</b> regime и cycle расходятся.
 {% endif %}
 
 <b>📊 Контекст OracAI:</b>

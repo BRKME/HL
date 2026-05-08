@@ -91,11 +91,15 @@ def passes_filters(ind: dict, hl_ctx: dict, rules: dict, signal: str) -> tuple[b
 
 
 def calculate_sl(entry: float, ind: dict, rules: dict) -> dict:
-    """SL = max(entry − 2×ATR, swing_low_20), но не дальше -hard_floor%."""
+    """SL = max(entry − 2.5×ATR, swing_low_30), но не дальше -hard_floor%.
+
+    Для недельного бота окно подобрано так чтобы SL не выбивался обычной
+    недельной волатильностью, но сработал на настоящих разворотах.
+    """
     atr = ind.get("atr14") or 0
-    swing = ind.get("swing_low_20") or 0
-    multiplier = rules.get("atr_multiplier", 2.0)
-    floor_pct = rules.get("sl_hard_floor_pct", 20) / 100
+    swing = ind.get("swing_low") or 0
+    multiplier = rules.get("atr_multiplier", 2.5)
+    floor_pct = rules.get("sl_hard_floor_pct", 25) / 100
 
     atr_sl = entry - multiplier * atr if atr else None
     floor_sl = entry * (1 - floor_pct)
@@ -118,13 +122,27 @@ def calculate_sl(entry: float, ind: dict, rules: dict) -> dict:
     }
 
 
-def allocate_budget(ranked: list[dict], signal: str, weekly_budget: float = 200.0) -> list[dict]:
+def allocate_budget(
+    ranked: list[dict], signal: str, defensive: bool = False, weekly_budget: float = 200.0,
+) -> list[dict]:
     """Распределяет $200 по топ-кандидатам.
 
-    STRONG: топ-1 = 60%, топ-2 = 40%
-    MODERATE: топ-1 = 100%
+    DEFENSIVE: всё в BTC (если есть в кандидатах), 100%
+    STRONG:    топ-1 = 60%, топ-2 = 40%
+    MODERATE:  топ-1 = 100%
     SKIP/EXIT: ничего
     """
+    if signal in ("SKIP", "EXIT"):
+        return []
+
+    if defensive:
+        # Только BTC. Если BTC не прошёл фильтры — никого, апстрим скипнет неделю.
+        btc_only = [c for c in ranked if c.get("symbol") == "BTC"]
+        if not btc_only:
+            return []
+        return [{**btc_only[0], "alloc_usd": round(weekly_budget, 2),
+                 "alloc_pct": 100}]
+
     if signal == "STRONG":
         weights = [0.6, 0.4]
     elif signal == "MODERATE":
