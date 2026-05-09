@@ -16,7 +16,10 @@ _LP_URL = os.environ.get(
     "ORACAI_LP_URL",
     "https://raw.githubusercontent.com/BRKME/OracAI/main/state/lp_advisor_report.json",
 )
-_STALE_HOURS = 48  # отчёт старше 48ч = считаем что LP-движок не работает
+_STALE_HOURS = 14 * 24  # 14 дней. OracAI Advisor бежит в weekly compact
+                        # mode (lp_system.py STAGE 3 skip в ежедневке),
+                        # поэтому lp_advisor_report.json обновляется
+                        # раз в неделю.
 
 
 class LPSnapshotError(RuntimeError):
@@ -24,7 +27,7 @@ class LPSnapshotError(RuntimeError):
 
 
 def fetch_lp_report() -> dict[str, Any] | None:
-    """Возвращает LP-отчёт или None если файл недоступен/устарел."""
+    """Возвращает LP-отчёт. Помечает stale-флагом если устарел."""
     try:
         r = requests.get(_LP_URL, timeout=20)
         r.raise_for_status()
@@ -33,22 +36,21 @@ def fetch_lp_report() -> dict[str, Any] | None:
         print(f"[lp] недоступен: {e}", flush=True)
         return None
 
-    # Проверка свежести
+    # Проверка свежести — но не скипаем, а помечаем флагом
+    age_h = None
     ts = data.get("timestamp")
     if ts:
         try:
-            # parse — формат может быть iso или unix
             if isinstance(ts, (int, float)):
                 age_h = (datetime.now(timezone.utc).timestamp() - ts) / 3600
             else:
                 dt = datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
                 age_h = (datetime.now(timezone.utc) - dt).total_seconds() / 3600
-            if age_h > _STALE_HOURS:
-                print(f"[lp] отчёт устарел ({age_h:.0f}ч), скипаем", flush=True)
-                return None
         except Exception:
-            pass  # не парсится — продолжаем как есть
+            pass
 
+    data["_age_hours"] = age_h
+    data["_stale"] = age_h is not None and age_h > _STALE_HOURS
     return data
 
 
@@ -137,6 +139,20 @@ def render_lp_summary(report: dict[str, Any]) -> str:
 
     lines: list[str] = []
     lines.append(f"💧 <b>LP портфель</b>")
+    
+    # Stale warning — если данные старые, ставим в самом верху
+    if report.get("_stale"):
+        age_h = report.get("_age_hours") or 0
+        age_days = age_h / 24
+        if age_days >= 1:
+            age_str = f"{age_days:.0f} дней"
+        else:
+            age_str = f"{age_h:.0f} часов"
+        lines.append(
+            f"⚠️ <i>Данные устарели на {age_str} — Advisor в OracAI давно не "
+            f"запускался. Цифры ниже могут не отражать текущую ситуацию.</i>"
+        )
+    
     lines.append(
         f"💰 TVL: ${_fmt_money(total_tvl)} · "
         f"📈 Fees: ${total_fees:.2f}"
