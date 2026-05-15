@@ -48,6 +48,8 @@ class Decision:
     sl_method: str         # "atr" | "swing" | "floor"
     atr14: float           # 14-day ATR at decision time
     side: str = "long"
+    regime_at_entry: Optional[str] = None    # OracAI regime when trade was recommended
+    phase_at_entry: Optional[str] = None     # OracAI cycle.phase when trade was recommended
 
 
 def parse_decision_row(row: dict) -> list[Decision]:
@@ -65,6 +67,9 @@ def parse_decision_row(row: dict) -> list[Decision]:
         return []
 
     signal = row.get("signal", "")
+    oracai_data = row.get("oracai") or {}
+    regime_at_entry = oracai_data.get("regime")
+    phase_at_entry = oracai_data.get("phase")
     out: list[Decision] = []
     for p in picks:
         try:
@@ -86,6 +91,8 @@ def parse_decision_row(row: dict) -> list[Decision]:
                 sl_pct=float(p.get("sl_pct", 0) or 0),
                 sl_method=str(p.get("sl_method", "atr")),
                 atr14=float(p.get("atr14", 0) or 0),
+                regime_at_entry=regime_at_entry,
+                phase_at_entry=phase_at_entry,
             ))
         except (KeyError, TypeError, ValueError):
             # skip individual malformed picks but continue with the rest

@@ -111,6 +111,36 @@ def test_parse_row_falls_back_to_symbol_without_hl_symbol():
     assert parse_decision_row(row)[0].coin == "BTC"
 
 
+def test_parse_row_extracts_regime_and_phase_from_oracai():
+    row = {
+        "ts": "2026-05-09T07:54:54.746596+00:00",
+        "signal": "MODERATE",
+        "oracai": {"regime": "BULL", "phase": "MID_BULL", "confidence": 0.6},
+        "picks": [{
+            "symbol": "BTC", "hl_symbol": "BTC", "entry": 80000, "alloc_usd": 200,
+            "sl_price": 76000, "sl_pct": -5.0, "atr14": 2000.0,
+        }],
+    }
+    d = parse_decision_row(row)[0]
+    assert d.regime_at_entry == "BULL"
+    assert d.phase_at_entry == "MID_BULL"
+
+
+def test_parse_row_handles_missing_oracai_block():
+    """Old rows without oracai metadata — regime/phase = None, no crash."""
+    row = {
+        "ts": "2026-05-09T07:54:54.746596+00:00",
+        "signal": "MODERATE",
+        "picks": [{
+            "symbol": "BTC", "hl_symbol": "BTC", "entry": 80000, "alloc_usd": 200,
+            "sl_price": 76000, "sl_pct": -5.0, "atr14": 2000.0,
+        }],
+    }
+    d = parse_decision_row(row)[0]
+    assert d.regime_at_entry is None
+    assert d.phase_at_entry is None
+
+
 # ---------- decisions_log: file loading ----------
 
 def test_load_decisions_from_file(tmp_path):
