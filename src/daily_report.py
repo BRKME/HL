@@ -118,10 +118,21 @@ def _pnl_pct(net_size: float, entry: float, pnl: float) -> Optional[float]:
     return pnl / notional * 100
 
 
-def _render_tracked(matches: list[MatchResult], marks: dict[str, float]) -> Optional[str]:
+def _daily_change_pct(mark: float, prev_day: Optional[float]) -> Optional[float]:
+    if not prev_day or prev_day <= 0 or mark <= 0:
+        return None
+    return (mark - prev_day) / prev_day * 100
+
+
+def _render_tracked(
+    matches: list[MatchResult],
+    marks: dict[str, float],
+    prev_day_marks: Optional[dict[str, float]] = None,
+) -> Optional[str]:
     tracked = [m for m in matches if m.status == "tracked"]
     if not tracked:
         return None
+    prev_day_marks = prev_day_marks or {}
     lines = ["", "<b>📍 Отслеживаемые позиции</b>"]
     for m in tracked:
         pos = m.position
@@ -131,10 +142,14 @@ def _render_tracked(matches: list[MatchResult], marks: dict[str, float]) -> Opti
         side = "LONG" if pos.net_size > 0 else "SHORT"
         pnl_str = _fmt_pct(pnl_p) if pnl_p is not None else "—"
         days = m.days_in_position if m.days_in_position is not None else "?"
+
+        daily_p = _daily_change_pct(mark, prev_day_marks.get(pos.coin))
+        daily_str = f" [24h {_fmt_pct(daily_p)}]" if daily_p is not None else ""
+
         line = (
             f"<code>{_e(pos.coin)}</code> {side} {abs(pos.net_size):g} @ "
             f"${_fmt_price(pos.weighted_entry)} ({days}d) → "
-            f"${_fmt_price(mark)} ({pnl_str})"
+            f"${_fmt_price(mark)} ({pnl_str}){daily_str}"
         )
         if dec and dec.sl_price > 0:
             sl_dist = abs(mark - dec.sl_price) / mark * 100 if mark > 0 else 0
@@ -143,10 +158,15 @@ def _render_tracked(matches: list[MatchResult], marks: dict[str, float]) -> Opti
     return "\n".join(lines)
 
 
-def _render_orphan(matches: list[MatchResult], marks: dict[str, float]) -> Optional[str]:
+def _render_orphan(
+    matches: list[MatchResult],
+    marks: dict[str, float],
+    prev_day_marks: Optional[dict[str, float]] = None,
+) -> Optional[str]:
     orphans = [m for m in matches if m.status == "orphan"]
     if not orphans:
         return None
+    prev_day_marks = prev_day_marks or {}
     lines = ["", "<b>🤚 Ручные / orphan позиции</b>"]
     for m in orphans:
         pos = m.position
@@ -155,10 +175,15 @@ def _render_orphan(matches: list[MatchResult], marks: dict[str, float]) -> Optio
         side = "LONG" if pos.net_size > 0 else "SHORT"
         pnl_str = _fmt_pct(pnl_p) if pnl_p is not None else "—"
         liq = pos.max_liquidation_distance_pct
-        liq_str = f" | liq {_fmt_pct(liq, sign=False)}" if liq > 0 else ""
+        liq_str = f" | до liq {_fmt_pct(liq, sign=False)}" if liq > 0 else ""
+
+        daily_p = _daily_change_pct(mark, prev_day_marks.get(pos.coin))
+        daily_str = f" [24h {_fmt_pct(daily_p)}]" if daily_p is not None else ""
+
         lines.append(
             f"<code>{_e(pos.coin)}</code> {side} {abs(pos.net_size):g} @ "
-            f"${_fmt_price(pos.weighted_entry)} → ${_fmt_price(mark)} ({pnl_str}){liq_str}"
+            f"${_fmt_price(pos.weighted_entry)} → ${_fmt_price(mark)} "
+            f"({pnl_str}){daily_str}{liq_str}"
         )
     return "\n".join(lines)
 
@@ -172,11 +197,20 @@ def _render_spot(spot: list[SpotPosition], marks: dict[str, float]) -> Optional[
         avg = s.avg_entry
         if avg and mark > 0:
             pnl_p = (mark - avg) / avg * 100
+            usd_value = s.total * mark
             lines.append(
                 f"<code>{_e(s.coin)}</code> {s.total:g} @ ${_fmt_price(avg)} → "
-                f"${_fmt_price(mark)} ({_fmt_pct(pnl_p)})"
+                f"${_fmt_price(mark)} ({_fmt_pct(pnl_p)}) • ${_fmt_money(usd_value)}"
+            )
+        elif mark > 0:
+            # have current mark but no cost basis (e.g. airdrop) — show USD value at least
+            usd_value = s.total * mark
+            lines.append(
+                f"<code>{_e(s.coin)}</code> {s.total:g} @ ${_fmt_price(mark)} "
+                f"• ${_fmt_money(usd_value)}"
             )
         else:
+            # no mark — fallback to size only
             lines.append(f"<code>{_e(s.coin)}</code> {s.total:g}")
     return "\n".join(lines)
 
@@ -232,6 +266,7 @@ def render_daily_report(
     now: datetime,
     spot: Optional[list[SpotPosition]] = None,
     wallet_count: int = 3,
+    prev_day_marks: Optional[dict[str, float]] = None,
 ) -> list[str]:
     """Build the Telegram report. Returns a list of message-sized chunks."""
     parts: list[str] = [_render_header(now, total_account_value, wallet_count)]
@@ -242,11 +277,11 @@ def render_daily_report(
     elif matches or (spot and any(spot)):
         parts.append("\n✅ Без алертов, всё спокойно")
 
-    tracked_block = _render_tracked(matches, marks)
+    tracked_block = _render_tracked(matches, marks, prev_day_marks)
     if tracked_block:
         parts.append(tracked_block)
 
-    orphan_block = _render_orphan(matches, marks)
+    orphan_block = _render_orphan(matches, marks, prev_day_marks)
     if orphan_block:
         parts.append(orphan_block)
 
