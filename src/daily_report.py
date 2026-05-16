@@ -79,13 +79,75 @@ def _alert_marker(a: Alert) -> str:
     return _RULE_MARKER.get(a.rule, _SEVERITY_MARKER.get(a.severity, "•"))
 
 
-def _render_header(now: datetime, total_value: float, wallet_count: int) -> str:
+def _render_header(
+    now: datetime,
+    total_value: float,
+    wallet_count: int,
+    matches: Optional[list[MatchResult]] = None,
+    marks: Optional[dict[str, float]] = None,
+    performance=None,
+) -> str:
+    """Compact executive summary header.
+
+    Lines:
+      📊 HL Portfolio — 16 мая 2026, 16:04 MSK
+      $1 573 • Day -$64 (-2.6%) • Exposure 2.0× • Top: ETH 100%
+
+    'Day' is here in the header (replaces the 'Сегодня' row in the perf
+    block) so the most actionable PnL is at the top. 'Exposure' = sum of
+    abs notional / total account value — shows real leverage from cross-
+    margin. 'Top:' = largest position by USD value with concentration %.
+    """
     msk = now.astimezone(_MOSCOW)
+    matches = matches or []
+    marks = marks or {}
+
+    parts: list[str] = []
+    parts.append(f"${_fmt_money(total_value)}")
+
+    # Day PnL — from performance.day if available
+    if performance is not None and performance.day.start_value > 0:
+        money = _fmt_money_signed(performance.day.pnl)
+        roi = _fmt_pct(performance.day.roi_pct)
+        parts.append(f"Day <code>{money}</code> ({roi})")
+
+    # Exposure + top position concentration
+    if total_value > 0 and matches:
+        exposures = _compute_exposures(matches, marks)
+        if exposures:
+            total_exposure = sum(e["value"] for e in exposures)
+            leverage = total_exposure / total_value
+            parts.append(f"Exposure {leverage:.1f}×")
+            top = max(exposures, key=lambda e: e["value"])
+            top_pct = top["value"] / total_value * 100
+            parts.append(f"Top: {_e(top['coin'])} {top_pct:.0f}%")
+
+    summary = " • ".join(parts)
+
     return (
         f"📊 <b>HL Portfolio</b> — {_ru_date(msk)}, {msk.strftime('%H:%M')} MSK\n"
-        f"{wallet_count} кошельк{_plural(wallet_count, 'а', 'а', 'ов')} • "
-        f"${_fmt_money(total_value)} total"
+        f"{wallet_count} кошельк{_plural(wallet_count, 'а', 'а', 'ов')} • {summary}"
     )
+
+
+def _compute_exposures(
+    matches: list[MatchResult],
+    marks: dict[str, float],
+) -> list[dict]:
+    """For each position: USD value = |net_size| × mark (fallback to entry).
+
+    Used by header (leverage + top concentration) and by orphan renderer
+    (per-position '$X (Y%)').
+    """
+    out: list[dict] = []
+    for m in matches:
+        pos = m.position
+        mark = marks.get(pos.coin) or pos.weighted_entry
+        value = abs(pos.net_size) * mark
+        if value <= 0:
+            continue
+        out.append({"coin": pos.coin, "value": value, "match": m})
+    return out
 
 
 def _plural(n: int, one: str, few: str, many: str) -> str:
@@ -163,14 +225,24 @@ def _render_orphan(
     marks: dict[str, float],
     prev_day_marks: Optional[dict[str, float]] = None,
     sl_orders: Optional[list] = None,
+    total_account_value: float = 0.0,
 ) -> Optional[str]:
+    """Two-line per orphan:
+
+      ETH LONG 0.7238 @ $2 173 → $2 175 (+0.0%) [24h -3.5%]  $1 575 (100%)
+        SL $2 122 (2.4%) ⚠️ • liq buffer 88%
+
+    Line 1 = position + USD value + concentration %
+    Line 2 = risk (SL + liq buffer). Concentration % omitted when
+    total_account_value is 0 (defensive).
+    """
     orphans = [m for m in matches if m.status == "orphan"]
     if not orphans:
         return None
     prev_day_marks = prev_day_marks or {}
     sl_orders = sl_orders or []
-    # late-import to keep daily_report decoupled from sl_visibility module
     from src.sl_visibility import find_sl_for_position
+
     lines = ["", "<b>🤚 Ручные / orphan позиции</b>"]
     for m in orphans:
         pos = m.position
@@ -178,25 +250,44 @@ def _render_orphan(
         pnl_p = _pnl_pct(pos.net_size, pos.weighted_entry, pos.total_pnl)
         side = "LONG" if pos.net_size > 0 else "SHORT"
         pnl_str = _fmt_pct(pnl_p) if pnl_p is not None else "—"
-        liq = pos.max_liquidation_distance_pct
-        liq_str = f" | до liq {_fmt_pct(liq, sign=False)}" if liq > 0 else ""
 
-        # SL detection: tightest active stop on this coin/side
-        sl = find_sl_for_position(pos, sl_orders)
-        if sl is not None and mark > 0:
-            sl_dist_pct = abs(mark - sl.trigger_px) / mark * 100
-            sl_str = f" | SL ${_fmt_price(sl.trigger_px)} ({_fmt_pct(sl_dist_pct, sign=False)})"
+        # USD value of position + concentration %
+        eff_mark = mark or pos.weighted_entry
+        usd_value = abs(pos.net_size) * eff_mark
+        if total_account_value > 0:
+            concentration = usd_value / total_account_value * 100
+            value_str = f"  ${_fmt_money(usd_value)} ({concentration:.0f}%)"
         else:
-            sl_str = " | ⚠️ нет SL"
+            value_str = f"  ${_fmt_money(usd_value)}"
 
         daily_p = _daily_change_pct(mark, prev_day_marks.get(pos.coin))
         daily_str = f" [24h {_fmt_pct(daily_p)}]" if daily_p is not None else ""
 
+        # Line 1: position
         lines.append(
             f"<code>{_e(pos.coin)}</code> {side} {abs(pos.net_size):g} @ "
             f"${_fmt_price(pos.weighted_entry)} → ${_fmt_price(mark)} "
-            f"({pnl_str}){daily_str}{sl_str}{liq_str}"
+            f"({pnl_str}){daily_str}{value_str}"
         )
+
+        # Line 2: risk
+        risk_bits: list[str] = []
+        sl = find_sl_for_position(pos, sl_orders)
+        if sl is not None and mark > 0:
+            sl_dist_pct = abs(mark - sl.trigger_px) / mark * 100
+            # warn marker when within 3% of SL
+            sl_warn = " ⚠️" if sl_dist_pct <= 3.0 else ""
+            risk_bits.append(
+                f"SL ${_fmt_price(sl.trigger_px)} ({_fmt_pct(sl_dist_pct, sign=False)}){sl_warn}"
+            )
+        else:
+            risk_bits.append("⚠️ нет SL")
+
+        liq = pos.max_liquidation_distance_pct
+        if liq > 0:
+            risk_bits.append(f"liq buffer {_fmt_pct(liq, sign=False)}")
+
+        lines.append("  " + " • ".join(risk_bits))
     return "\n".join(lines)
 
 
@@ -244,26 +335,26 @@ def _fmt_money_signed(v: float) -> str:
     return f"{sign}${abs(v):,.0f}".replace(",", " ")
 
 
-def _render_performance(perf) -> Optional[str]:
+def _render_performance(perf, day_already_shown: bool = False) -> Optional[str]:
     """Render the 📈 Доходность block from a PerformanceSnapshot.
 
-    perf is duck-typed (PerformanceSnapshot from portfolio_performance) —
-    we don't import it here to keep daily_report decoupled.
+    When day_already_shown=True (the common case — header shows it),
+    'Сегодня' is omitted to avoid duplication.
     """
     if perf is None:
         return None
-    # everything zero → wallet hasn't traded yet; skip the block
     if (perf.day.pnl == 0 and perf.week.pnl == 0
             and perf.month.pnl == 0 and perf.all_time.pnl == 0):
         return None
 
     lines = ["", "<b>📈 Доходность</b>"]
-    rows = [
-        ("Сегодня", perf.day),
-        ("Неделя ", perf.week),
-        ("Месяц  ", perf.month),
-        ("All-time", perf.all_time),
-    ]
+    rows: list[tuple[str, object]] = []
+    if not day_already_shown:
+        rows.append(("Сегодня ", perf.day))
+    rows.append(("Неделя  ", perf.week))
+    rows.append(("Месяц   ", perf.month))
+    rows.append(("All-time", perf.all_time))
+
     for label, ps in rows:
         money = _fmt_money_signed(ps.pnl)
         roi = f"({_fmt_pct(ps.roi_pct)})" if ps.start_value > 0 else ""
@@ -351,9 +442,14 @@ def render_daily_report(
     sl_orders: Optional[list] = None,
 ) -> list[str]:
     """Build the Telegram report. Returns a list of message-sized chunks."""
-    parts: list[str] = [_render_header(now, total_account_value, wallet_count)]
+    parts: list[str] = [_render_header(
+        now, total_account_value, wallet_count,
+        matches=matches, marks=marks, performance=performance,
+    )]
 
-    perf_block = _render_performance(performance)
+    # If header surfaced day PnL, don't repeat it in the perf block
+    day_in_header = performance is not None and performance.day.start_value > 0
+    perf_block = _render_performance(performance, day_already_shown=day_in_header)
     if perf_block:
         parts.append(perf_block)
 
@@ -367,7 +463,11 @@ def render_daily_report(
     if tracked_block:
         parts.append(tracked_block)
 
-    orphan_block = _render_orphan(matches, marks, prev_day_marks, sl_orders=sl_orders)
+    orphan_block = _render_orphan(
+        matches, marks, prev_day_marks,
+        sl_orders=sl_orders,
+        total_account_value=total_account_value,
+    )
     if orphan_block:
         parts.append(orphan_block)
 
