@@ -226,6 +226,66 @@ def test_render_liquidation_uses_unambiguous_label():
     assert any(word in text for word in ("запас", "до ликвидации", "buffer", "до liq"))
 
 
+# ---------- performance block ----------
+
+def _perf(day_pnl=0, week_pnl=0, month_pnl=0, alltime_pnl=0,
+         day_start=1000, week_start=1000, month_start=1000, alltime_start=1000,
+         failed=None):
+    from src.portfolio_performance import PerformanceSnapshot, PeriodStats
+    def mk(name, pnl, start):
+        return PeriodStats(period=name, pnl=pnl, start_value=start,
+                           end_value=start + pnl, vlm=0,
+                           roi_pct=(pnl / start * 100) if start > 0 else 0)
+    return PerformanceSnapshot(
+        address="combined",
+        day=mk("day", day_pnl, day_start),
+        week=mk("week", week_pnl, week_start),
+        month=mk("month", month_pnl, month_start),
+        all_time=mk("allTime", alltime_pnl, alltime_start),
+        current_account_value=1000 + day_pnl,
+        failed_wallets=failed or [],
+    )
+
+
+def test_performance_block_appears_when_provided():
+    perf = _perf(day_pnl=45, week_pnl=120, month_pnl=300, alltime_pnl=600)
+    msgs = render_daily_report([], [], {}, None, 1605.0, now=NOW, performance=perf)
+    text = "\n".join(msgs)
+    assert "Доходность" in text
+    assert "+$45" in text or "+$45" in text.replace(" ", "")
+    assert "+$120" in text or "120" in text
+
+
+def test_performance_block_skipped_when_all_zero():
+    """Wallet hasn't traded → don't show empty block."""
+    perf = _perf()  # all zeros
+    msgs = render_daily_report([], [], {}, None, 1000.0, now=NOW, performance=perf)
+    text = "\n".join(msgs)
+    assert "Доходность" not in text
+
+
+def test_performance_block_shows_negative_pnl():
+    perf = _perf(day_pnl=-30, week_pnl=-80)
+    msgs = render_daily_report([], [], {}, None, 970.0, now=NOW, performance=perf)
+    text = "\n".join(msgs)
+    assert "-$30" in text or "-$30" in text.replace(" ", "")
+
+
+def test_performance_block_includes_roi_percent():
+    perf = _perf(day_pnl=50, day_start=1000)
+    msgs = render_daily_report([], [], {}, None, 1050, now=NOW, performance=perf)
+    text = "\n".join(msgs)
+    # ROI = +5.0%
+    assert "+5.0%" in text
+
+
+def test_performance_block_notes_failed_wallets():
+    perf = _perf(day_pnl=20, failed=["0xaaa", "0xbbb"])
+    msgs = render_daily_report([], [], {}, None, 500, now=NOW, performance=perf)
+    text = "\n".join(msgs)
+    assert "2" in text and ("не удалось" in text or "failed" in text.lower())
+
+
 # ---------- footer / regime ----------
 
 def test_render_footer_mentions_current_regime_when_snapshot_present():

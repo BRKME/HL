@@ -215,7 +215,63 @@ def _render_spot(spot: list[SpotPosition], marks: dict[str, float]) -> Optional[
     return "\n".join(lines)
 
 
+def _fmt_money_signed(v: float) -> str:
+    sign = "+" if v >= 0 else "-"
+    return f"{sign}${abs(v):,.0f}".replace(",", " ")
+
+
+def _render_performance(perf) -> Optional[str]:
+    """Render the 📈 Доходность block from a PerformanceSnapshot.
+
+    perf is duck-typed (PerformanceSnapshot from portfolio_performance) —
+    we don't import it here to keep daily_report decoupled.
+    """
+    if perf is None:
+        return None
+    # everything zero → wallet hasn't traded yet; skip the block
+    if (perf.day.pnl == 0 and perf.week.pnl == 0
+            and perf.month.pnl == 0 and perf.all_time.pnl == 0):
+        return None
+
+    lines = ["", "<b>📈 Доходность</b>"]
+    rows = [
+        ("Сегодня", perf.day),
+        ("Неделя ", perf.week),
+        ("Месяц  ", perf.month),
+        ("All-time", perf.all_time),
+    ]
+    for label, ps in rows:
+        money = _fmt_money_signed(ps.pnl)
+        roi = f"({_fmt_pct(ps.roi_pct)})" if ps.start_value > 0 else ""
+        lines.append(f"  {label}: <code>{money}</code> {roi}".rstrip())
+    if perf.failed_wallets:
+        lines.append(f"  <i>⚠️ не удалось получить данные по "
+                     f"{len(perf.failed_wallets)} кошельк{_plural(len(perf.failed_wallets), 'у', 'ам', 'ам')}</i>")
+    return "\n".join(lines)
+
+
 def _render_footer(snapshot: Optional[dict]) -> Optional[str]:
+    if not snapshot:
+        return None
+    regime = snapshot.get("regime")
+    phase = (snapshot.get("cycle") or {}).get("phase")
+    confidence = snapshot.get("confidence")
+    bits = []
+    if regime:
+        bits.append(f"regime <b>{_e(regime)}</b>")
+    if phase:
+        bits.append(f"phase <b>{_e(phase)}</b>")
+    if confidence is not None:
+        try:
+            bits.append(f"conf {float(confidence):.0%}")
+        except (TypeError, ValueError):
+            pass
+    if not bits:
+        return None
+    return "\n———\n" + " · ".join(bits)
+
+
+
     if not snapshot:
         return None
     regime = snapshot.get("regime")
@@ -267,9 +323,14 @@ def render_daily_report(
     spot: Optional[list[SpotPosition]] = None,
     wallet_count: int = 3,
     prev_day_marks: Optional[dict[str, float]] = None,
+    performance=None,
 ) -> list[str]:
     """Build the Telegram report. Returns a list of message-sized chunks."""
     parts: list[str] = [_render_header(now, total_account_value, wallet_count)]
+
+    perf_block = _render_performance(performance)
+    if perf_block:
+        parts.append(perf_block)
 
     alerts_block = _render_alerts(alerts)
     if alerts_block:
