@@ -75,6 +75,18 @@ class HLClient:
         """Last ~2000 fills for the user."""
         return self._post({"type": "userFills", "user": self._norm_addr(address)})
 
+    def get_frontend_open_orders(self, address: str) -> list:
+        """Open orders with frontend-friendly metadata (orderType, triggerCondition, etc).
+
+        Used by sl_visibility to detect stop-loss triggers on the user's
+        active positions.
+        """
+        result = self._post({
+            "type": "frontendOpenOrders",
+            "user": self._norm_addr(address),
+        })
+        return result if isinstance(result, list) else []
+
     def get_user_fills_by_time(
         self,
         address: str,

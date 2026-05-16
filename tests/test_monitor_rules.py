@@ -222,6 +222,112 @@ def test_liquidation_close_skipped_when_distance_zero():
     assert alerts == []
 
 
+# ---------- ORPHAN_SL_APPROACH / NO_SL_ORDER (Phase 3.0.x) ----------
+
+class _StubSL:
+    def __init__(self, trigger_px, protects_side="long"):
+        self.trigger_px = trigger_px
+        self.protects_side = protects_side
+
+
+def test_orphan_sl_approach_silent_for_tracked():
+    """Tracked positions go through rule_sl_approach with rec_sl, not this rule."""
+    from src.monitor_rules import rule_orphan_sl_approach
+    sl = _StubSL(trigger_px=2100.0)
+    alerts = rule_orphan_sl_approach(_tracked(), current_mark=2110.0, sl_order=sl)
+    assert alerts == []
+
+
+def test_orphan_sl_approach_silent_without_sl_order():
+    from src.monitor_rules import rule_orphan_sl_approach
+    alerts = rule_orphan_sl_approach(_orphan(), current_mark=2110.0, sl_order=None)
+    assert alerts == []
+
+
+def test_orphan_sl_approach_warns_when_close():
+    """Mark $2110 vs SL $2100 = 0.47% distance — within 3%."""
+    from src.monitor_rules import rule_orphan_sl_approach
+    sl = _StubSL(trigger_px=2100.0, protects_side="long")
+    pos = _pos(net_size=0.5, entry=2173.0)
+    alerts = rule_orphan_sl_approach(_orphan(pos=pos), current_mark=2110.0, sl_order=sl)
+    assert len(alerts) == 1
+    assert alerts[0].rule == "ORPHAN_SL_APPROACH"
+    assert alerts[0].severity == SEV_WARN
+
+
+def test_orphan_sl_approach_critical_when_below_sl():
+    from src.monitor_rules import rule_orphan_sl_approach
+    sl = _StubSL(trigger_px=2100.0, protects_side="long")
+    alerts = rule_orphan_sl_approach(_orphan(), current_mark=2080.0, sl_order=sl)
+    assert len(alerts) == 1
+    assert alerts[0].severity == SEV_CRITICAL
+
+
+def test_orphan_sl_approach_for_short():
+    """For short: SL above mark. Mark $80k, SL $82k = 2.5% distance."""
+    from src.monitor_rules import rule_orphan_sl_approach
+    sl = _StubSL(trigger_px=82000.0, protects_side="short")
+    pos = _pos(net_size=-0.5, entry=80000.0)
+    alerts = rule_orphan_sl_approach(_orphan(pos=pos), current_mark=80000.0, sl_order=sl)
+    assert len(alerts) == 1
+    assert alerts[0].severity == SEV_WARN
+
+
+def test_no_sl_order_warns_orphan_without_sl():
+    from src.monitor_rules import rule_no_sl_order
+    alerts = rule_no_sl_order(_orphan(), sl_order=None)
+    assert len(alerts) == 1
+    assert alerts[0].rule == "NO_SL_ORDER"
+    assert alerts[0].severity == SEV_WARN
+
+
+def test_no_sl_order_silent_when_sl_present():
+    from src.monitor_rules import rule_no_sl_order
+    sl = _StubSL(trigger_px=2100.0)
+    alerts = rule_no_sl_order(_orphan(), sl_order=sl)
+    assert alerts == []
+
+
+def test_no_sl_order_silent_for_tracked():
+    """Tracked positions have rec_sl; their SL absence is signalled differently."""
+    from src.monitor_rules import rule_no_sl_order
+    alerts = rule_no_sl_order(_tracked(), sl_order=None)
+    assert alerts == []
+
+
+def test_evaluate_all_passes_sl_orders_to_orphan_rules():
+    """End-to-end: passing sl_orders enables the new orphan rules."""
+    from src.sl_visibility import SLOrder
+    pos = _pos(coin="ETH", net_size=0.7, entry=2173.0, liq_dist_pct=80.0)
+    orphan = _orphan(pos=pos)
+    sl = SLOrder(coin="ETH", trigger_px=2100.0, size=0.7, protects_side="long",
+                 order_type="Stop Market", oid=1, account="main")
+    alerts = evaluate_all(
+        matches=[orphan],
+        marks={"ETH": 2110.0},
+        current_snapshot=None,
+        yesterday_snapshot=None,
+        sl_orders=[sl],
+    )
+    rules_seen = {a.rule for a in alerts}
+    # mark $2110 within 3% of SL $2100 → ORPHAN_SL_APPROACH fires
+    assert "ORPHAN_SL_APPROACH" in rules_seen
+    assert "NO_SL_ORDER" not in rules_seen  # because we provided an SL
+
+
+def test_evaluate_all_emits_no_sl_when_orphan_has_no_sl():
+    pos = _pos(coin="ETH", net_size=0.7, entry=2173.0, liq_dist_pct=80.0)
+    alerts = evaluate_all(
+        matches=[_orphan(pos=pos)],
+        marks={"ETH": 2200.0},
+        current_snapshot=None,
+        yesterday_snapshot=None,
+        sl_orders=[],
+    )
+    rules_seen = {a.rule for a in alerts}
+    assert "NO_SL_ORDER" in rules_seen
+
+
 # ---------- REGIME_FLIP_DAILY (portfolio-wide) ----------
 
 def test_regime_flip_daily_alerts_on_regime_change():

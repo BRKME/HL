@@ -162,11 +162,15 @@ def _render_orphan(
     matches: list[MatchResult],
     marks: dict[str, float],
     prev_day_marks: Optional[dict[str, float]] = None,
+    sl_orders: Optional[list] = None,
 ) -> Optional[str]:
     orphans = [m for m in matches if m.status == "orphan"]
     if not orphans:
         return None
     prev_day_marks = prev_day_marks or {}
+    sl_orders = sl_orders or []
+    # late-import to keep daily_report decoupled from sl_visibility module
+    from src.sl_visibility import find_sl_for_position
     lines = ["", "<b>🤚 Ручные / orphan позиции</b>"]
     for m in orphans:
         pos = m.position
@@ -177,13 +181,21 @@ def _render_orphan(
         liq = pos.max_liquidation_distance_pct
         liq_str = f" | до liq {_fmt_pct(liq, sign=False)}" if liq > 0 else ""
 
+        # SL detection: tightest active stop on this coin/side
+        sl = find_sl_for_position(pos, sl_orders)
+        if sl is not None and mark > 0:
+            sl_dist_pct = abs(mark - sl.trigger_px) / mark * 100
+            sl_str = f" | SL ${_fmt_price(sl.trigger_px)} ({_fmt_pct(sl_dist_pct, sign=False)})"
+        else:
+            sl_str = " | ⚠️ нет SL"
+
         daily_p = _daily_change_pct(mark, prev_day_marks.get(pos.coin))
         daily_str = f" [24h {_fmt_pct(daily_p)}]" if daily_p is not None else ""
 
         lines.append(
             f"<code>{_e(pos.coin)}</code> {side} {abs(pos.net_size):g} @ "
             f"${_fmt_price(pos.weighted_entry)} → ${_fmt_price(mark)} "
-            f"({pnl_str}){daily_str}{liq_str}"
+            f"({pnl_str}){daily_str}{sl_str}{liq_str}"
         )
     return "\n".join(lines)
 
@@ -324,6 +336,7 @@ def render_daily_report(
     wallet_count: int = 3,
     prev_day_marks: Optional[dict[str, float]] = None,
     performance=None,
+    sl_orders: Optional[list] = None,
 ) -> list[str]:
     """Build the Telegram report. Returns a list of message-sized chunks."""
     parts: list[str] = [_render_header(now, total_account_value, wallet_count)]
@@ -342,7 +355,7 @@ def render_daily_report(
     if tracked_block:
         parts.append(tracked_block)
 
-    orphan_block = _render_orphan(matches, marks, prev_day_marks)
+    orphan_block = _render_orphan(matches, marks, prev_day_marks, sl_orders=sl_orders)
     if orphan_block:
         parts.append(orphan_block)
 

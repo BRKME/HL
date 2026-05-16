@@ -165,6 +165,69 @@ def rule_liquidation_close(match: MatchResult, critical_pct: float = 15.0) -> li
     )]
 
 
+def rule_orphan_sl_approach(
+    match: MatchResult,
+    current_mark: float,
+    sl_order,  # SLOrder | None
+    warning_pct: float = 3.0,
+) -> list[Alert]:
+    """Alert when an orphan position's *real* SL on HL is close.
+
+    Phase 3.0.x: tracked positions use rule_sl_approach against rec_sl from
+    decisions.jsonl. Orphans don't have a rec_sl — but if user has placed
+    a hard SL on HL, we can use that. sl_order comes from find_sl_for_position.
+    """
+    if match.status != "orphan" or sl_order is None:
+        return []
+    if current_mark <= 0 or sl_order.trigger_px <= 0:
+        return []
+    pos = match.position
+    if pos.side == "long":
+        distance_pct = (current_mark - sl_order.trigger_px) / current_mark * 100
+    else:
+        distance_pct = (sl_order.trigger_px - current_mark) / current_mark * 100
+
+    if distance_pct < 0:
+        return [Alert(
+            rule="ORPHAN_SL_APPROACH",
+            severity=SEV_CRITICAL,
+            coin=pos.coin,
+            message=f"{pos.coin}: mark ${current_mark:.2f} BEYOND SL ${sl_order.trigger_px:.2f}",
+            details={"sl_price": sl_order.trigger_px, "mark": current_mark,
+                     "distance_pct": distance_pct},
+        )]
+    if distance_pct <= warning_pct:
+        return [Alert(
+            rule="ORPHAN_SL_APPROACH",
+            severity=SEV_WARN,
+            coin=pos.coin,
+            message=(f"{pos.coin}: mark ${current_mark:.2f} within "
+                     f"{distance_pct:.1f}% of SL ${sl_order.trigger_px:.2f}"),
+            details={"sl_price": sl_order.trigger_px, "mark": current_mark,
+                     "distance_pct": distance_pct},
+        )]
+    return []
+
+
+def rule_no_sl_order(match: MatchResult, sl_order) -> list[Alert]:
+    """Warn if an orphan position has no SL on HL — user is unprotected.
+
+    Tracked positions go through rule_sl_approach with rec_sl, so they're
+    excluded. For orphans, no SL = no bottom on loss.
+    """
+    if match.status != "orphan" or sl_order is not None:
+        return []
+    pos = match.position
+    notional = abs(pos.net_size) * pos.weighted_entry
+    return [Alert(
+        rule="NO_SL_ORDER",
+        severity=SEV_WARN,
+        coin=pos.coin,
+        message=f"{pos.coin}: позиция без SL на бирже",
+        details={"coin": pos.coin, "side": pos.side, "notional_usd": notional},
+    )]
+
+
 # ---------- portfolio-wide rule ----------
 
 def rule_regime_flip_daily(
@@ -217,20 +280,31 @@ def evaluate_all(
     current_snapshot: Optional[dict],
     yesterday_snapshot: Optional[dict],
     config: Optional[RuleConfig] = None,
+    sl_orders: Optional[list] = None,
 ) -> list[Alert]:
     """Run every rule against every position and aggregate alerts."""
     config = config or RuleConfig()
+    sl_orders = sl_orders or []
     current_regime = (current_snapshot or {}).get("regime")
     out: list[Alert] = []
 
     # portfolio-wide first (so it appears at top after sort)
     out.extend(rule_regime_flip_daily(yesterday_snapshot, current_snapshot))
 
+    # late-import to avoid cycle
+    from src.sl_visibility import find_sl_for_position
+
     for m in matches:
         coin = m.position.coin
         mark = marks.get(coin, 0.0)
+        sl_for_pos = find_sl_for_position(m.position, sl_orders)
         out.extend(rule_liquidation_close(m, critical_pct=config.liquidation_critical_pct))
         out.extend(rule_sl_approach(m, current_mark=mark, warning_pct=config.sl_warning_pct))
+        out.extend(rule_orphan_sl_approach(
+            m, current_mark=mark, sl_order=sl_for_pos,
+            warning_pct=config.sl_warning_pct,
+        ))
+        out.extend(rule_no_sl_order(m, sl_order=sl_for_pos))
         out.extend(rule_time_stop(m, max_days=config.time_stop_days))
         out.extend(rule_regime_flip_since_entry(m, current_regime=current_regime))
         out.extend(rule_profit_trail(m, threshold_pct=config.profit_trail_pct))
