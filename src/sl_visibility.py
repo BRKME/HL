@@ -39,6 +39,7 @@ class SLOrder:
     order_type: str           # 'Stop Market' | 'Stop Limit' | etc
     oid: int
     account: str              # wallet label
+    is_position_attached: bool = False  # isPositionTpsl: dynamic size = whole position
 
 
 # ----------------------------------------------------------- classification
@@ -113,9 +114,18 @@ def parse_sl_order(raw: dict, account: str) -> Optional[SLOrder]:
     if trigger_px is None or trigger_px <= 0:
         return None
 
-    size = _to_float(raw.get("sz") or raw.get("origSz"))
-    if size is None or size <= 0:
+    is_position_attached = bool(raw.get("isPositionTpsl"))
+
+    # Position-attached SLs are dynamic-sized: HL stores sz=0 because the
+    # protected size = whatever the position is at the moment of trigger.
+    # For ordinary SLs (manually placed via order entry), we still require
+    # a positive size as a sanity check.
+    raw_size = _to_float(raw.get("sz") or raw.get("origSz"))
+    if raw_size is None:
         return None
+    if raw_size <= 0 and not is_position_attached:
+        return None
+    size = max(raw_size, 0.0)  # normalise; 0.0 is fine for attached
 
     side = str(raw.get("side", "") or "")
     # Side semantics:
@@ -143,6 +153,7 @@ def parse_sl_order(raw: dict, account: str) -> Optional[SLOrder]:
         order_type=str(raw.get("orderType", "") or ""),
         oid=int(raw.get("oid", 0) or 0),
         account=account,
+        is_position_attached=is_position_attached,
     )
 
 
