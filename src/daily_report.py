@@ -277,8 +277,11 @@ def _render_orphan(
             sl_dist_pct = abs(mark - sl.trigger_px) / mark * 100
             # warn marker when within 3% of SL
             sl_warn = " ⚠️" if sl_dist_pct <= 3.0 else ""
+            # max loss in USD if SL hits: |mark - sl| × size
+            max_loss = abs(mark - sl.trigger_px) * abs(pos.net_size)
+            loss_str = f" = ${_fmt_money(max_loss)} if hit"
             risk_bits.append(
-                f"SL ${_fmt_price(sl.trigger_px)} ({_fmt_pct(sl_dist_pct, sign=False)}){sl_warn}"
+                f"SL ${_fmt_price(sl.trigger_px)} ({_fmt_pct(sl_dist_pct, sign=False)}{loss_str}){sl_warn}"
             )
         else:
             risk_bits.append("⚠️ нет SL")
@@ -357,7 +360,19 @@ def _render_performance(perf, day_already_shown: bool = False) -> Optional[str]:
 
     for label, ps in rows:
         money = _fmt_money_signed(ps.pnl)
-        roi = f"({_fmt_pct(ps.roi_pct)})" if ps.start_value > 0 else ""
+        # primary: HL-provided ROI from start_value
+        if ps.start_value > 0:
+            roi = f"({_fmt_pct(ps.roi_pct)})"
+        else:
+            # fallback: derive ROI from pnl and end_value when HL didn't
+            # return start_value (happens for all-time on accounts with
+            # incomplete history). Implied start = end_value - pnl.
+            implied_start = ps.end_value - ps.pnl
+            if implied_start > 0:
+                roi_calc = ps.pnl / implied_start * 100
+                roi = f"({_fmt_pct(roi_calc)})"
+            else:
+                roi = ""
         lines.append(f"  {label}: <code>{money}</code> {roi}".rstrip())
     if perf.failed_wallets:
         lines.append(f"  <i>⚠️ не удалось получить данные по "

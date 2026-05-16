@@ -309,6 +309,15 @@ def evaluate_all(
         out.extend(rule_regime_flip_since_entry(m, current_regime=current_regime))
         out.extend(rule_profit_trail(m, threshold_pct=config.profit_trail_pct))
 
-    # sort: critical first, then warn, then info; within tier preserve order
-    out.sort(key=lambda a: -a.severity)
+    # sort: critical first, then warn, then info; within same severity,
+    # tighter SL distance comes first (most urgent risk on top)
+    def _sort_key(a):
+        # primary: severity descending (higher = first)
+        # secondary: distance_pct ascending (smaller distance = first)
+        dist = a.details.get("distance_pct") if a.details else None
+        # Use a large sentinel for alerts without distance so they sort
+        # to the bottom within their severity tier
+        dist_key = abs(float(dist)) if dist is not None else 1e9
+        return (-a.severity, dist_key)
+    out.sort(key=_sort_key)
     return out
