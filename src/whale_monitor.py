@@ -29,6 +29,15 @@ import yaml
 
 from src.daily_monitor import load_accounts, _build_portfolio
 from src.hl_client import HLClient
+from src.leaderboard_ranks import (
+    append_history_snapshot,
+    cleanup_old_history_archives,
+    detect_rank_signals,
+    load_ranks_state,
+    rotate_history_if_month_changed,
+    save_ranks_state,
+    update_ranks_state,
+)
 from src.telegram_sender import send_messages
 from src.whale_correlation import (
     CorrelationConfig,
@@ -222,6 +231,36 @@ def run_whale_monitor(
     logger.info("picked %d candidates from %d leaderboard rows",
                 len(candidates), len(all_candidates))
 
+    # ---- Phase 3.3: leaderboard rank tracking
+    #   * snapshot top-N for history
+    #   * advance per-address state (runs_in_top / consecutive_in_top)
+    #   * detect NEW_ENTRANT / DROP_OFF
+    ranks_path = state_dir / "leaderboard_ranks.json"
+    history_path = state_dir / "leaderboard_history.jsonl"
+
+    # rotate history archive at month change
+    rotate_history_if_month_changed(history_path, now=now)
+    cleanup_old_history_archives(state_dir, retention_days=90, now=now)
+
+    ranks_state = load_ranks_state(ranks_path)
+    prev_addresses = {
+        a for a, e in ranks_state.entries.items() if e.consecutive_in_top > 0
+    }
+    update_ranks_state(ranks_state, candidates, now=now)
+    current_addresses = {c.address for c in candidates}
+
+    rank_signals = detect_rank_signals(
+        ranks_state, prev_addresses=prev_addresses,
+        current_addresses=current_addresses, now=now,
+    )
+    append_history_snapshot(candidates, history_path, run_ts=now)
+    save_ranks_state(ranks_state, ranks_path)
+
+    if rank_signals:
+        # park in pending — they're digest-class (info), not instant
+        _append_rank_signals_pending(rank_signals, pending_path, run_ts=now)
+        logger.info("emitted %d rank signals (NEW_ENTRANT/DROP_OFF)", len(rank_signals))
+
     if not candidates:
         _write_run_meta(meta_path, now, candidate_count=0, status="no_candidates")
         return
@@ -304,9 +343,6 @@ def run_whale_monitor(
             })
         save_seen_signals(seen, seen_path)
 
-    pending_path = state_dir / "whale_pending_info.jsonl"
-    last_digest_path = state_dir / "whale_last_digest.json"
-
     instant, info = split_by_mode(signals)
 
     # Instant: send immediately
@@ -353,6 +389,43 @@ def _append_pending(signals: list[Signal], path: Path, run_ts: datetime) -> None
                 "coin": s.coin,
                 "message": s.message,
                 "details": s.details,
+            }, separators=(",", ":")) + "\n")
+
+
+def _append_rank_signals_pending(
+    rank_signals: list[dict], path: Path, run_ts: datetime,
+) -> None:
+    """Park rank signals (NEW_ENTRANT/DROP_OFF) into the digest pending file.
+
+    They use 'coin' = '*' because rank events are about a whale, not a coin.
+    Severity = SEV_INFO (1) so they ride in the daily digest, not instant.
+    """
+    if not rank_signals:
+        return
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    run_iso = run_ts.isoformat()
+    with path.open("a", encoding="utf-8") as fh:
+        for rs in rank_signals:
+            short_addr = rs["address"][:10]
+            if rs["rule"] == "WHALE_NEW_ENTRANT":
+                msg = (f"новый кит в топе: {short_addr}… "
+                       f"({rs['consecutive_in_top']} запусков подряд, ранг {rs['last_rank']})")
+            else:  # WHALE_DROP_OFF
+                msg = (f"кит ушёл из топа: {short_addr}… "
+                       f"(был в топе {rs['runs_in_top']} запусков, последний ранг {rs['last_rank']})")
+            fh.write(json.dumps({
+                "run_ts": run_iso,
+                "rule": rs["rule"],
+                "severity": 1,  # SEV_INFO -> digest
+                "coin": "*",
+                "message": msg,
+                "details": {
+                    "whale": rs["address"],
+                    "runs_in_top": rs.get("runs_in_top", 0),
+                    "consecutive_in_top": rs.get("consecutive_in_top", 0),
+                    "last_rank": rs.get("last_rank", 0),
+                },
             }, separators=(",", ":")) + "\n")
 
 

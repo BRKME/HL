@@ -192,6 +192,27 @@ def _digest_new_open_section(signals: list[Signal]) -> Optional[str]:
     return "\n".join(lines)
 
 
+def _digest_rank_section(signals: list[Signal]) -> Optional[str]:
+    """Render NEW_ENTRANT / DROP_OFF block in digest."""
+    new_entrants = [s for s in signals if s.rule == "WHALE_NEW_ENTRANT"]
+    drop_offs = [s for s in signals if s.rule == "WHALE_DROP_OFF"]
+    if not new_entrants and not drop_offs:
+        return None
+
+    lines = ["", "<b>📊 Изменения в топе</b>"]
+    for s in new_entrants[:_MAX_LINES_PER_SECTION]:
+        whale = _e(_short_whale(s.details.get("whale", "")))
+        rank = s.details.get("last_rank", "?")
+        runs = s.details.get("consecutive_in_top", 0)
+        lines.append(f"🆕 <code>{whale}</code> вошёл в топ (rank {rank}, {runs} запусков подряд)")
+    for s in drop_offs[:_MAX_LINES_PER_SECTION]:
+        whale = _e(_short_whale(s.details.get("whale", "")))
+        runs = s.details.get("runs_in_top", 0)
+        last_rank = s.details.get("last_rank", "?")
+        lines.append(f"📉 <code>{whale}</code> ушёл из топа (был {runs} запусков, последний rank {last_rank})")
+    return "\n".join(lines)
+
+
 def render_digest(signals: list[Signal], now: datetime) -> Optional[str]:
     """Build the daily digest for info-level signals."""
     if not signals:
@@ -199,6 +220,7 @@ def render_digest(signals: list[Signal], now: datetime) -> Optional[str]:
 
     overlap = [s for s in signals if s.rule == SIG_OVERLAP]
     new_open = [s for s in signals if s.rule == SIG_NEW_OPEN]
+    rank_signals = [s for s in signals if s.rule in ("WHALE_NEW_ENTRANT", "WHALE_DROP_OFF")]
 
     msk = now.astimezone(_MOSCOW)
     parts = [
@@ -212,10 +234,14 @@ def render_digest(signals: list[Signal], now: datetime) -> Optional[str]:
     block = _digest_new_open_section(new_open)
     if block:
         parts.append(block)
+    block = _digest_rank_section(rank_signals)
+    if block:
+        parts.append(block)
 
-    # other info-level rules — generic fallback (we don't expect this today
-    # but it keeps the renderer future-proof)
-    other = [s for s in signals if s.rule not in (SIG_OVERLAP, SIG_NEW_OPEN)]
+    # other info-level rules — generic fallback
+    other = [s for s in signals if s.rule not in (
+        SIG_OVERLAP, SIG_NEW_OPEN, "WHALE_NEW_ENTRANT", "WHALE_DROP_OFF",
+    )]
     if other:
         parts.append("\n<b>Прочее</b>")
         for s in other[:_MAX_LINES_PER_SECTION]:
@@ -223,7 +249,6 @@ def render_digest(signals: list[Signal], now: datetime) -> Optional[str]:
 
     msg = "\n".join(parts)
     if len(msg) > _TG_LIMIT:
-        # cut trailing sections progressively until it fits
         while len(msg) > _TG_LIMIT and len(parts) > 2:
             parts.pop()
             parts.append("…")

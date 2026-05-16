@@ -184,3 +184,46 @@ def test_render_digest_sorts_by_count_descending():
     btc_pos = msg.find("BTC")
     assert eth_pos != -1 and btc_pos != -1
     assert eth_pos < btc_pos
+
+
+# ---------- rank-events section ----------
+
+def test_digest_includes_new_entrant_section():
+    sigs = [Signal(
+        rule="WHALE_NEW_ENTRANT", severity=SEV_INFO, coin="*",
+        message="новый кит",
+        details={"whale": "0xabc123def456abc123def456abc123def456abcd",
+                 "last_rank": 23, "consecutive_in_top": 3, "runs_in_top": 3},
+    )]
+    msg = render_digest(sigs, now=NOW)
+    assert "🆕" in msg
+    assert "0xabc123" in msg
+    assert "rank 23" in msg or "23" in msg
+
+
+def test_digest_includes_drop_off_section():
+    sigs = [Signal(
+        rule="WHALE_DROP_OFF", severity=SEV_INFO, coin="*",
+        message="кит ушёл",
+        details={"whale": "0xdef789abc123def789abc123def789abc123def7",
+                 "last_rank": 47, "runs_in_top": 25, "consecutive_in_top": 0},
+    )]
+    msg = render_digest(sigs, now=NOW)
+    assert "📉" in msg
+    assert "0xdef789" in msg
+    assert "25" in msg  # runs_in_top
+    assert "Изменения" in msg or "топ" in msg.lower()
+
+
+def test_digest_combines_rank_events_with_other_sections():
+    sigs = [
+        Signal(rule=SIG_NEW_OPEN, severity=SEV_INFO, coin="ETH",
+               message="x", details={"whale": "0xa", "direction": "long",
+                                     "notional_usd": 200_000, "winrate_used": 0.65}),
+        Signal(rule="WHALE_NEW_ENTRANT", severity=SEV_INFO, coin="*",
+               message="y", details={"whale": "0xb111aaaa222222222222222222222222222222aa",
+                                     "last_rank": 15, "consecutive_in_top": 4, "runs_in_top": 4}),
+    ]
+    msg = render_digest(sigs, now=NOW)
+    assert "ETH" in msg
+    assert "🆕" in msg
