@@ -123,6 +123,7 @@ def test_run_daily_monitor_smoke(temp_repo):
     with patch("src.daily_monitor.HLClient", return_value=_stub_hl_client()), \
          patch("src.daily_monitor.fetch_meta_and_ctxs", return_value=fake_marks), \
          patch("src.daily_monitor.fetch_spot_meta_and_ctxs", return_value={}), \
+         patch("src.daily_monitor.fetch_combined_performance", return_value=None), \
          patch("src.daily_monitor.fetch_oracai_snapshot", return_value=fake_today), \
          patch("src.daily_monitor.fetch_snapshot_days_ago", return_value=fake_yesterday), \
          patch("src.daily_monitor.send_messages", side_effect=lambda m: sent_messages.append(m)):
@@ -155,6 +156,7 @@ def test_run_daily_monitor_no_positions_still_sends_report(temp_repo):
     with patch("src.daily_monitor.HLClient", return_value=empty_client), \
          patch("src.daily_monitor.fetch_meta_and_ctxs", return_value={}), \
          patch("src.daily_monitor.fetch_spot_meta_and_ctxs", return_value={}), \
+         patch("src.daily_monitor.fetch_combined_performance", return_value=None), \
          patch("src.daily_monitor.fetch_oracai_snapshot", return_value=None), \
          patch("src.daily_monitor.fetch_snapshot_days_ago", return_value=None), \
          patch("src.daily_monitor.send_messages", side_effect=lambda m: sent.append(m)):
@@ -179,6 +181,7 @@ def test_run_daily_monitor_survives_oracai_failure(temp_repo):
     with patch("src.daily_monitor.HLClient", return_value=_stub_hl_client()), \
          patch("src.daily_monitor.fetch_meta_and_ctxs", return_value={"BTC": {"mark": 82000.0}}), \
          patch("src.daily_monitor.fetch_spot_meta_and_ctxs", return_value={}), \
+         patch("src.daily_monitor.fetch_combined_performance", return_value=None), \
          patch("src.daily_monitor.fetch_oracai_snapshot", side_effect=oracai_boom), \
          patch("src.daily_monitor.fetch_snapshot_days_ago", side_effect=OracAIHistoryError("gh down")), \
          patch("src.daily_monitor.send_messages", side_effect=lambda m: sent.append(m)):
@@ -212,6 +215,7 @@ def test_run_daily_monitor_survives_one_wallet_failure(temp_repo):
     with patch("src.daily_monitor.HLClient", return_value=flaky), \
          patch("src.daily_monitor.fetch_meta_and_ctxs", return_value={}), \
          patch("src.daily_monitor.fetch_spot_meta_and_ctxs", return_value={}), \
+         patch("src.daily_monitor.fetch_combined_performance", return_value=None), \
          patch("src.daily_monitor.fetch_oracai_snapshot", return_value=None), \
          patch("src.daily_monitor.fetch_snapshot_days_ago", return_value=None), \
          patch("src.daily_monitor.send_messages", side_effect=lambda m: sent.append(m)):

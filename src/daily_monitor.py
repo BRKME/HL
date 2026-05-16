@@ -34,6 +34,7 @@ from src.monitor_rules import evaluate_all, RuleConfig
 from src.oracai import fetch_snapshot as fetch_oracai_snapshot
 from src.oracai_history import fetch_snapshot_days_ago
 from src.portfolio import Portfolio
+from src.portfolio_performance import fetch_combined_performance
 from src.telegram_sender import send_messages, alert_owner
 
 
@@ -168,6 +169,13 @@ def run_daily_monitor(
 
     marks, prev_day_marks = _safe_fetch_marks()
 
+    # Phase 3.1: per-period PnL across all 3 wallets (one HL call per wallet)
+    try:
+        performance = fetch_combined_performance([a["address"] for a in accounts])
+    except Exception as e:
+        logger.warning("portfolio performance fetch failed: %s", e)
+        performance = None
+
     alerts = evaluate_all(
         matches=matches,
         marks=marks,
@@ -186,6 +194,7 @@ def run_daily_monitor(
         spot=portfolio.spot,
         wallet_count=len(accounts),
         prev_day_marks=prev_day_marks,
+        performance=performance,
     )
     send_messages(messages)
 
