@@ -173,6 +173,44 @@ def test_parse_accepts_long_sl_with_below_trigger():
     assert sl.trigger_px == 2100.0
 
 
+def test_parse_accepts_position_tpsl_with_zero_size():
+    """Real-world: HL attached SL stores sz=0 because size = whole position.
+
+    Captured from a debug_sl dump on 16 May 2026:
+      {coin:'ETH', side:'A', isTrigger:true, reduceOnly:true,
+       orderType:'Stop Market', triggerPx:'2122.0', sz:'0.0',
+       origSz:'0.0', isPositionTpsl:true,
+       triggerCondition:'Price below 2122'}
+
+    Before this fix, my parser rejected these because sz <= 0.
+    """
+    raw = {
+        "coin": "ETH", "side": "A", "limitPx": "1952.2", "sz": "0.0",
+        "oid": 428497613853, "timestamp": 1778925345505,
+        "triggerCondition": "Price below 2122", "isTrigger": True,
+        "triggerPx": "2122.0", "children": [], "isPositionTpsl": True,
+        "reduceOnly": True, "orderType": "Stop Market", "origSz": "0.0",
+    }
+    sl = parse_sl_order(raw, account="main")
+    assert sl is not None
+    assert sl.coin == "ETH"
+    assert sl.trigger_px == 2122.0
+    assert sl.protects_side == "long"
+    assert sl.is_position_attached is True
+    assert sl.size == 0.0  # signals 'whole position' to downstream
+
+
+def test_parse_still_rejects_zero_size_when_not_position_attached():
+    """Sanity: a regular SL (not attached) with sz=0 is still rejected."""
+    raw = {
+        "coin": "ETH", "side": "A", "isTrigger": True, "reduceOnly": True,
+        "orderType": "Stop Market", "triggerPx": "2100.0", "sz": "0.0",
+        "origSz": "0.0", "isPositionTpsl": False,
+        "triggerCondition": "Price below 2100",
+    }
+    assert parse_sl_order(raw, account="main") is None
+
+
 # ---------- children scanning ----------
 
 def test_fetch_picks_up_attached_sl_in_children(monkeypatch):
