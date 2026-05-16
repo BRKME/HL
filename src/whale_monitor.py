@@ -123,6 +123,26 @@ def load_whitelist_coins(path: Path) -> set[str]:
     return out
 
 
+def load_focus_coins(path: Path) -> frozenset[str]:
+    """Read focus_coins list from whitelist.yaml.
+
+    Format:
+      focus_coins: [ETH]
+      # or
+      focus_coins: ["ETH", "SOL"]
+
+    Missing/empty -> empty frozenset (Phase 2 default behavior).
+    """
+    try:
+        data = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
+    except (FileNotFoundError, OSError):
+        return frozenset()
+    fc = data.get("focus_coins")
+    if not isinstance(fc, list):
+        return frozenset()
+    return frozenset(str(c) for c in fc if isinstance(c, str))
+
+
 # ---------------------------------------------------------- signals log
 
 def append_signals_log(signals: list[Signal], path: Path, run_ts: datetime) -> None:
@@ -251,6 +271,7 @@ def run_whale_monitor(
 
     # ---- 6. correlation
     whitelist_coins = load_whitelist_coins(whitelist_path)
+    focus_coins = load_focus_coins(whitelist_path)
     seen = load_seen_signals(seen_path, now=now)
 
     # We need the *recent* fills (since cursor advanced) — re-read just the
@@ -263,7 +284,7 @@ def run_whale_monitor(
         scores=scores,
         user_positions=user_positions,
         whitelist=whitelist_coins,
-        config=CorrelationConfig(),
+        config=CorrelationConfig(focus_coins=focus_coins),
         seen_signals=seen.recent,
     )
 

@@ -18,6 +18,11 @@ accounts:
   - address: "0x305220d077474c5cab839E7C1cB3264Aca19f1B9"
     label: third
 
+# Phase 3.2 — focus coins получают мягкие пороги для whale-сигналов
+# и повышенную severity (critical вместо warn), чтобы алерты сразу шли
+# в Telegram. Идея: приоритезировать один актив (ETH) для специализации.
+focus_coins: [ETH]
+
 rules:
   hl_perp_max_leverage_strong: 2
   hl_perp_max_leverage_moderate: 1

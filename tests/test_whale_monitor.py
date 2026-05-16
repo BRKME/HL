@@ -65,6 +65,34 @@ def test_load_whitelist_coins_empty_when_no_tokens(tmp_path):
     assert load_whitelist_coins(wl) == set()
 
 
+def test_load_focus_coins_reads_list(tmp_path):
+    from src.whale_monitor import load_focus_coins
+    wl = tmp_path / "whitelist.yaml"
+    wl.write_text("focus_coins: [ETH]\ntokens: {}\n")
+    assert load_focus_coins(wl) == frozenset({"ETH"})
+
+
+def test_load_focus_coins_supports_multiple(tmp_path):
+    from src.whale_monitor import load_focus_coins
+    wl = tmp_path / "whitelist.yaml"
+    wl.write_text("focus_coins: ['ETH', 'SOL']\n")
+    assert load_focus_coins(wl) == frozenset({"ETH", "SOL"})
+
+
+def test_load_focus_coins_empty_when_section_missing(tmp_path):
+    from src.whale_monitor import load_focus_coins
+    wl = tmp_path / "whitelist.yaml"
+    wl.write_text("tokens: {BTC: {hl_symbol: BTC}}\n")
+    assert load_focus_coins(wl) == frozenset()
+
+
+def test_load_focus_coins_ignores_non_string_entries(tmp_path):
+    from src.whale_monitor import load_focus_coins
+    wl = tmp_path / "whitelist.yaml"
+    wl.write_text("focus_coins: [ETH, 123, null, BTC]\n")
+    assert load_focus_coins(wl) == frozenset({"ETH", "BTC"})
+
+
 # ---------- seen_signals persistence ----------
 
 def test_load_seen_signals_missing_file_returns_empty(tmp_path):

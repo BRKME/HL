@@ -58,6 +58,13 @@ class CorrelationConfig:
     flip_min_winrate: float = 0.50
     flip_window_minutes: int = 240
 
+    # Phase 3.2: focus coins get softer thresholds + bumped severity.
+    # Default empty = Phase 2 behavior (no special treatment).
+    focus_coins: frozenset[str] = field(default_factory=frozenset)
+    focus_cluster_min_whales: int = 2
+    focus_min_notional_usd: float = 30_000.0
+    focus_new_open_min_winrate: float = 0.50
+
 
 # --------------------------------------------------------- side derivation
 
@@ -113,13 +120,17 @@ def detect_cluster(
     whitelist: set[str],
     config: CorrelationConfig,
 ) -> list[Signal]:
-    """3+ scored whales opening the same side on the same whitelist coin."""
+    """3+ scored whales opening the same side on the same whitelist coin.
+    Focus coins (CorrelationConfig.focus_coins) need only 2 whales and
+    use the relaxed notional floor; their signals are SEV_CRITICAL."""
     # group: (coin, side) -> set of whales
     by_coin_side: dict[tuple[str, str], set[str]] = {}
     for f in fills:
         if f.coin not in whitelist:
             continue
-        if f.notional_usd < config.min_notional_usd:
+        is_focus = f.coin in config.focus_coins
+        floor = config.focus_min_notional_usd if is_focus else config.min_notional_usd
+        if f.notional_usd < floor:
             continue
         if not _whale_is_scored(scores, f.whale):
             continue
@@ -130,18 +141,25 @@ def detect_cluster(
 
     out: list[Signal] = []
     for (coin, side), whales in by_coin_side.items():
-        if len(whales) < config.cluster_min_whales:
+        is_focus = coin in config.focus_coins
+        min_whales = (
+            config.focus_cluster_min_whales if is_focus else config.cluster_min_whales
+        )
+        if len(whales) < min_whales:
             continue
+        severity = SEV_CRITICAL if is_focus else SEV_WARN
+        focus_marker = "🎯 " if is_focus else ""
         out.append(Signal(
             rule=SIG_CLUSTER,
-            severity=SEV_WARN,
+            severity=severity,
             coin=coin,
-            message=f"{coin}: {len(whales)} китов открыли {side.upper()}",
+            message=f"{focus_marker}{coin}: {len(whales)} китов открыли {side.upper()}",
             details={
                 "coin": coin,
                 "direction": side,
                 "whale_count": len(whales),
                 "whales": sorted(whales),
+                "focus": is_focus,
             },
         ))
     return out
@@ -208,19 +226,31 @@ def detect_new_open(
             continue
         if not _is_open(f.direction):
             continue
-        if f.notional_usd < config.new_open_min_notional_usd:
+        is_focus = f.coin in config.focus_coins
+        notional_floor = (
+            config.focus_min_notional_usd if is_focus else config.new_open_min_notional_usd
+        )
+        if f.notional_usd < notional_floor:
             continue
         if not _whale_is_scored(scores, f.whale):
             continue
+        wr_threshold = (
+            config.focus_new_open_min_winrate if is_focus else config.new_open_min_winrate
+        )
         wr = _effective_winrate(scores, f.whale, f.coin)
-        if wr < config.new_open_min_winrate:
+        if wr < wr_threshold:
             continue
         side = _side_from_direction(f.direction)
+        severity = SEV_WARN if is_focus else SEV_INFO
+        focus_marker = "🎯 " if is_focus else ""
         out.append(Signal(
             rule=SIG_NEW_OPEN,
-            severity=SEV_INFO,
+            severity=severity,
             coin=f.coin,
-            message=f"{f.coin}: кит {f.whale[:10]}… открыл {side.upper()} ${f.notional_usd:,.0f} (WR {wr:.0%})",
+            message=(
+                f"{focus_marker}{f.coin}: кит {f.whale[:10]}… открыл "
+                f"{side.upper()} ${f.notional_usd:,.0f} (WR {wr:.0%})"
+            ),
             details={
                 "coin": f.coin,
                 "whale": f.whale,
@@ -228,6 +258,7 @@ def detect_new_open(
                 "notional_usd": f.notional_usd,
                 "winrate_used": wr,
                 "tid": f.tid,
+                "focus": is_focus,
             },
         ))
     return out
@@ -256,6 +287,7 @@ def detect_flip(
 
     out: list[Signal] = []
     for (whale, coin), pair_fills in by_pair.items():
+        is_focus = coin in config.focus_coins
         # sort by time, walk looking for close followed by opposite open
         ordered = sorted(pair_fills, key=lambda x: x.time_ms)
         last_closed_side: Optional[str] = None
@@ -270,13 +302,15 @@ def detect_flip(
             if open_side is None or last_closed_side is None:
                 continue
             if open_side != last_closed_side:
+                severity = SEV_CRITICAL if is_focus else SEV_WARN
+                focus_marker = "🎯 " if is_focus else ""
                 # we have flip: was last_closed_side, now open_side
                 out.append(Signal(
                     rule=SIG_FLIP,
-                    severity=SEV_WARN,
+                    severity=severity,
                     coin=coin,
                     message=(
-                        f"{coin}: кит {whale[:10]}… перевернулся "
+                        f"{focus_marker}{coin}: кит {whale[:10]}… перевернулся "
                         f"{last_closed_side.upper()} → {open_side.upper()}"
                     ),
                     details={
@@ -287,6 +321,7 @@ def detect_flip(
                         "close_time_ms": last_close_time,
                         "open_time_ms": f.time_ms,
                         "notional_usd": f.notional_usd,
+                        "focus": is_focus,
                     },
                 ))
                 last_closed_side = None  # consumed
