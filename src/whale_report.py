@@ -74,7 +74,8 @@ def _format_cluster(s: Signal) -> str:
     coin = _e(s.coin)
     side = (d.get("direction") or "").upper()
     n = d.get("whale_count", 0)
-    return f"⚡ <b>CLUSTER {coin}</b> {side} — {n} китов"
+    marker = "🎯⚡" if d.get("focus") else "⚡"
+    return f"{marker} <b>CLUSTER {coin}</b> {side} — {n} китов"
 
 
 def _format_flip(s: Signal) -> str:
@@ -85,7 +86,20 @@ def _format_flip(s: Signal) -> str:
     whale = _e(_short_whale(d.get("whale", "")))
     notional = d.get("notional_usd")
     notional_str = f" • {_fmt_money(float(notional))}" if notional else ""
-    return f"🔄 <b>FLIP {coin}</b> {frm} → {to} • <code>{whale}</code>{notional_str}"
+    marker = "🎯🔄" if d.get("focus") else "🔄"
+    return f"{marker} <b>FLIP {coin}</b> {frm} → {to} • <code>{whale}</code>{notional_str}"
+
+
+def _format_focus_new_open(s: Signal) -> str:
+    """Phase 3.2 new path: focus NEW_OPEN is warn-severity, gets its own line."""
+    d = s.details
+    coin = _e(s.coin)
+    direction = (d.get("direction") or "").upper()
+    whale = _e(_short_whale(d.get("whale", "")))
+    notional = d.get("notional_usd", 0)
+    wr = d.get("winrate_used", 0)
+    return (f"🎯 <b>NEW_OPEN {coin}</b> {direction} • "
+            f"<code>{whale}</code> • {_fmt_money(notional)} (WR {wr:.0%})")
 
 
 def render_instant_alerts(signals: list[Signal], now: datetime) -> Optional[str]:
@@ -106,6 +120,8 @@ def render_instant_alerts(signals: list[Signal], now: datetime) -> Optional[str]
             lines.append(_format_cluster(s))
         elif s.rule == SIG_FLIP:
             lines.append(_format_flip(s))
+        elif s.rule == SIG_NEW_OPEN:
+            lines.append(_format_focus_new_open(s))
         else:
             # any other warn-level rule — fallback to message field
             lines.append(f"• {_e(s.message)}")
