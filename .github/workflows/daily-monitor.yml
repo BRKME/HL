@@ -2,12 +2,17 @@ name: daily-monitor
 
 on:
   schedule:
-    # Каждый день 06:00 UTC = 09:00 MSK (фактическая задержка GH Actions может добавить 5-10 минут)
+    # Каждый день 06:00 UTC = 09:00 MSK
     - cron: "0 6 * * *"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      debug_sl:
+        description: "Dump raw frontendOpenOrders to state/_sl_debug.json"
+        type: boolean
+        default: false
 
 permissions:
-  contents: read
+  contents: write  # needed if DEBUG_SL writes state/_sl_debug.json
 
 concurrency:
   group: hl-daily-monitor
@@ -38,4 +43,17 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run daily monitor
+        env:
+          DEBUG_SL: ${{ inputs.debug_sl && '1' || '' }}
         run: python -m src.daily_monitor
+
+      - name: Commit debug dump if produced
+        if: ${{ inputs.debug_sl }}
+        run: |
+          if [ -f state/_sl_debug.json ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add state/_sl_debug.json
+            git commit -m "debug(daily-monitor): SL dump [skip ci]" || true
+            git push || true
+          fi
