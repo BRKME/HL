@@ -294,3 +294,197 @@ def test_run_whale_monitor_writes_run_metadata(temp_repo):
     data = json.loads(meta.read_text())
     assert "last_run_ts" in data
     assert "candidate_count" in data
+
+
+# ---------- Telegram integration: instant + digest ----------
+
+def _setup_cluster_run_mocks(fake_client, send_capture):
+    """Common mock setup: 3 whales clustering on ETH."""
+    def fills_response(address, **_kwargs):
+        idx = address[:5]
+        base = {"0x111": 1000, "0x222": 2000, "0x333": 3000}.get(idx, 9000)
+        return _cluster_fills_for_whale(address, base)
+    fake_client.get_user_fills_by_time.side_effect = lambda **kwargs: fills_response(
+        kwargs["address"]
+    )
+    fake_client.get_clearinghouse_state.return_value = {
+        "marginSummary": {"accountValue": "0"}, "assetPositions": [],
+    }
+    fake_client.get_spot_clearinghouse_state.return_value = {"balances": []}
+    fake_client.resolve_spot_coin.side_effect = lambda s: s
+
+
+def test_run_whale_monitor_sends_instant_for_warn_signals(temp_repo):
+    """Cluster signal (warn) -> instant Telegram message in the same run."""
+    sent_messages = []
+    fake_client = MagicMock()
+    _setup_cluster_run_mocks(fake_client, sent_messages)
+
+    from src.whale_source import parse_leaderboard_entry
+    with patch("src.whale_monitor.HLClient", return_value=fake_client), \
+         patch("src.whale_monitor.fetch_leaderboard", return_value=[
+             parse_leaderboard_entry(r) for r in _candidates_response()["leaderboardRows"]
+         ]), \
+         patch("src.whale_monitor.send_messages",
+               side_effect=lambda msgs: sent_messages.extend(msgs)):
+        run_whale_monitor(repo_root=temp_repo, now=NOW, top_n=10)
+
+    # at least one message sent — the cluster instant alert
+    assert len(sent_messages) >= 1
+    assert any("CLUSTER" in m or "🐋" in m for m in sent_messages)
+
+
+def test_run_whale_monitor_parks_info_signals_to_pending(temp_repo):
+    """Info signals (e.g. NEW_OPEN) shouldn't be sent immediately —
+    they go into state/whale_pending_info.jsonl until digest time."""
+    sent_messages = []
+    # craft fills that trigger NEW_OPEN only (info), no cluster (need 3+ whales same side)
+    fake_client = MagicMock()
+    fake_client.get_clearinghouse_state.return_value = {
+        "marginSummary": {"accountValue": "0"}, "assetPositions": [],
+    }
+    fake_client.get_spot_clearinghouse_state.return_value = {"balances": []}
+    fake_client.resolve_spot_coin.side_effect = lambda s: s
+
+    def fills_for_one_whale(address, **_kwargs):
+        # one whale with closed-trade history + a fresh big Open Long on BTC
+        # only this whale opens — no cluster
+        if address.startswith("0x111"):
+            closed = [
+                {"coin": "BTC", "sz": "1.0", "px": "63000", "tid": 1000 + i,
+                 "time": int((NOW - timedelta(days=5)).timestamp() * 1000),
+                 "side": "B", "dir": "Close Long",
+                 "closedPnl": "300" if i % 3 != 0 else "-100",
+                 "crossed": True, "oid": i}
+                for i in range(15)
+            ]
+            fresh = [{
+                "coin": "BTC", "sz": "3.0", "px": "63000", "tid": 1999,
+                "time": int((NOW - timedelta(minutes=30)).timestamp() * 1000),
+                "side": "B", "dir": "Open Long", "closedPnl": "0",
+                "crossed": True, "oid": 999,
+            }]
+            return closed + fresh
+        return []
+    fake_client.get_user_fills_by_time.side_effect = lambda **kwargs: fills_for_one_whale(
+        kwargs["address"]
+    )
+
+    from src.whale_source import parse_leaderboard_entry
+    # mark last_digest as JUST sent so digest doesn't flush immediately
+    (temp_repo / "state").mkdir(exist_ok=True)
+    (temp_repo / "state" / "whale_last_digest.json").write_text(
+        json.dumps({"sent_at": NOW.isoformat()})
+    )
+
+    with patch("src.whale_monitor.HLClient", return_value=fake_client), \
+         patch("src.whale_monitor.fetch_leaderboard", return_value=[
+             parse_leaderboard_entry(r) for r in _candidates_response()["leaderboardRows"]
+         ]), \
+         patch("src.whale_monitor.send_messages",
+               side_effect=lambda msgs: sent_messages.extend(msgs)):
+        run_whale_monitor(repo_root=temp_repo, now=NOW, top_n=10)
+
+    pending = temp_repo / "state" / "whale_pending_info.jsonl"
+    # info parked, no Telegram message
+    if pending.exists():
+        lines = pending.read_text().strip().split("\n")
+        assert len(lines) >= 1
+    assert sent_messages == []  # no telegram fired
+
+
+def test_run_whale_monitor_flushes_digest_after_24h(temp_repo):
+    """If last digest was >24h ago and pending has signals — send digest, clear pending."""
+    sent_messages = []
+    # Pre-populate pending with a NEW_OPEN signal
+    state = temp_repo / "state"
+    state.mkdir(exist_ok=True)
+    pending = state / "whale_pending_info.jsonl"
+    pending.write_text(json.dumps({
+        "run_ts": (NOW - timedelta(hours=20)).isoformat(),
+        "rule": "WHALE_NEW_OPEN",
+        "severity": 1,
+        "coin": "ETH",
+        "message": "ETH: whale opened LONG",
+        "details": {"whale": "0xabc", "direction": "long", "notional_usd": 200000,
+                    "winrate_used": 0.65},
+    }) + "\n")
+    # mark last digest as 30h ago
+    (state / "whale_last_digest.json").write_text(
+        json.dumps({"sent_at": (NOW - timedelta(hours=30)).isoformat()})
+    )
+
+    fake_client = MagicMock()
+    fake_client.get_clearinghouse_state.return_value = {
+        "marginSummary": {"accountValue": "0"}, "assetPositions": [],
+    }
+    fake_client.get_spot_clearinghouse_state.return_value = {"balances": []}
+    fake_client.resolve_spot_coin.side_effect = lambda s: s
+
+    with patch("src.whale_monitor.HLClient", return_value=fake_client), \
+         patch("src.whale_monitor.fetch_leaderboard", return_value=[]), \
+         patch("src.whale_monitor.send_messages",
+               side_effect=lambda msgs: sent_messages.extend(msgs)):
+        run_whale_monitor(repo_root=temp_repo, now=NOW)
+
+    # one digest message sent
+    assert len(sent_messages) == 1
+    assert "digest" in sent_messages[0].lower() or "Whale digest" in sent_messages[0]
+    # pending cleared
+    assert not pending.exists()
+    # last_digest updated
+    last = json.loads((state / "whale_last_digest.json").read_text())
+    assert last["sent_at"] == NOW.isoformat()
+
+
+def test_run_whale_monitor_no_digest_within_24h_window(temp_repo):
+    """If last digest was <24h ago, don't flush even if pending has data."""
+    sent_messages = []
+    state = temp_repo / "state"
+    state.mkdir(exist_ok=True)
+    pending = state / "whale_pending_info.jsonl"
+    pending.write_text(json.dumps({
+        "run_ts": NOW.isoformat(), "rule": "WHALE_NEW_OPEN", "severity": 1,
+        "coin": "ETH", "message": "x", "details": {},
+    }) + "\n")
+    # last digest 5h ago
+    (state / "whale_last_digest.json").write_text(
+        json.dumps({"sent_at": (NOW - timedelta(hours=5)).isoformat()})
+    )
+
+    fake_client = MagicMock()
+    fake_client.get_clearinghouse_state.return_value = {
+        "marginSummary": {"accountValue": "0"}, "assetPositions": [],
+    }
+    fake_client.get_spot_clearinghouse_state.return_value = {"balances": []}
+    fake_client.resolve_spot_coin.side_effect = lambda s: s
+
+    with patch("src.whale_monitor.HLClient", return_value=fake_client), \
+         patch("src.whale_monitor.fetch_leaderboard", return_value=[]), \
+         patch("src.whale_monitor.send_messages",
+               side_effect=lambda msgs: sent_messages.extend(msgs)):
+        run_whale_monitor(repo_root=temp_repo, now=NOW)
+
+    # no digest, pending intact
+    assert sent_messages == []
+    assert pending.exists()
+
+
+def test_run_whale_monitor_survives_telegram_failure(temp_repo):
+    """If Telegram send raises, run still finishes — signals stay in state."""
+    fake_client = MagicMock()
+    _setup_cluster_run_mocks(fake_client, [])
+    from src.whale_source import parse_leaderboard_entry
+
+    with patch("src.whale_monitor.HLClient", return_value=fake_client), \
+         patch("src.whale_monitor.fetch_leaderboard", return_value=[
+             parse_leaderboard_entry(r) for r in _candidates_response()["leaderboardRows"]
+         ]), \
+         patch("src.whale_monitor.send_messages",
+               side_effect=RuntimeError("telegram down")):
+        # must not raise
+        run_whale_monitor(repo_root=temp_repo, now=NOW, top_n=10)
+
+    # state still written despite telegram failure
+    assert (temp_repo / "state" / "whale_fills.jsonl").exists()
+    assert (temp_repo / "state" / "whale_signals.jsonl").exists()

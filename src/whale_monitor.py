@@ -29,11 +29,13 @@ import yaml
 
 from src.daily_monitor import load_accounts, _build_portfolio
 from src.hl_client import HLClient
+from src.telegram_sender import send_messages
 from src.whale_correlation import (
     CorrelationConfig,
     Signal,
     detect_all,
 )
+from src.whale_report import render_digest, render_instant_alerts, split_by_mode
 from src.whale_scoring import score_whale, WhaleScore
 from src.whale_source import (
     CandidateFilters,
@@ -57,6 +59,7 @@ logger = logging.getLogger("whale_monitor")
 # Per-run pacing: leaderboard returns lots of whales; we don't want to hammer HL.
 _INTER_WHALE_SLEEP_SEC = 0.15
 _DEDUP_TTL_HOURS = 24
+_DIGEST_INTERVAL_HOURS = 24
 
 
 # ---------------------------------------------------------- seen-signals dedup
@@ -173,6 +176,11 @@ def run_whale_monitor(
     signals_path = state_dir / "whale_signals.jsonl"
     seen_path = state_dir / "whale_seen.json"
     meta_path = state_dir / "whale_run_meta.json"
+    pending_path = state_dir / "whale_pending_info.jsonl"
+    last_digest_path = state_dir / "whale_last_digest.json"
+
+    # Digest first: it must run even on quiet days (no new fills / no candidates).
+    _maybe_flush_digest(pending_path, last_digest_path, now=now)
 
     # rotate + prune old archives BEFORE writing new fills
     rotated = rotate_if_month_changed(fills_path, now=now)
@@ -259,7 +267,10 @@ def run_whale_monitor(
         seen_signals=seen.recent,
     )
 
-    # ---- 7. logging only (Phase 2 observation week)
+    # ---- 7. Telegram delivery
+    #    warn/critical -> instant (every run, if any)
+    #    info          -> accumulate in state/whale_pending_info.jsonl,
+    #                     flush as digest when last digest > 24h ago
     if signals:
         append_signals_log(signals, signals_path, run_ts=now)
         ts_int = int(now.timestamp())
@@ -271,7 +282,28 @@ def run_whale_monitor(
                 "ts": ts_int,
             })
         save_seen_signals(seen, seen_path)
-    logger.info("emitted %d signals", len(signals))
+
+    pending_path = state_dir / "whale_pending_info.jsonl"
+    last_digest_path = state_dir / "whale_last_digest.json"
+
+    instant, info = split_by_mode(signals)
+
+    # Instant: send immediately
+    if instant:
+        msg = render_instant_alerts(instant, now=now)
+        if msg:
+            try:
+                send_messages([msg])
+                logger.info("sent instant alert with %d signals", len(instant))
+            except Exception as e:
+                logger.warning("instant telegram send failed: %s", e)
+
+    # Info: park in pending (digest flush already ran at top of function)
+    if info:
+        _append_pending(info, pending_path, run_ts=now)
+
+    logger.info("emitted %d signals (instant=%d, info=%d)",
+                len(signals), len(instant), len(info))
 
     _write_run_meta(
         meta_path, now,
@@ -283,7 +315,106 @@ def run_whale_monitor(
     )
 
 
+# --------------------------------------------------- pending info / digest
+
+def _append_pending(signals: list[Signal], path: Path, run_ts: datetime) -> None:
+    if not signals:
+        return
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    run_iso = run_ts.isoformat()
+    with path.open("a", encoding="utf-8") as fh:
+        for s in signals:
+            fh.write(json.dumps({
+                "run_ts": run_iso,
+                "rule": s.rule,
+                "severity": s.severity,
+                "coin": s.coin,
+                "message": s.message,
+                "details": s.details,
+            }, separators=(",", ":")) + "\n")
+
+
+def _read_pending(path: Path) -> list[Signal]:
+    path = Path(path)
+    if not path.exists():
+        return []
+    out: list[Signal] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            row = json.loads(line)
+            out.append(Signal(
+                rule=str(row["rule"]),
+                severity=int(row.get("severity", 1)),
+                coin=str(row["coin"]),
+                message=str(row.get("message", "")),
+                details=row.get("details") or {},
+            ))
+        except (json.JSONDecodeError, KeyError, TypeError, ValueError):
+            continue
+    return out
+
+
+def _clear_pending(path: Path) -> None:
+    path = Path(path)
+    if path.exists():
+        path.unlink()
+
+
+def _should_flush_digest(last_digest_path: Path, now: datetime) -> bool:
+    path = Path(last_digest_path)
+    if not path.exists():
+        return True  # never sent — go ahead
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        last_ts = datetime.fromisoformat(data["sent_at"])
+    except (json.JSONDecodeError, KeyError, ValueError, OSError):
+        return True
+    return (now - last_ts) >= timedelta(hours=_DIGEST_INTERVAL_HOURS)
+
+
+def _mark_digest_sent(last_digest_path: Path, now: datetime) -> None:
+    path = Path(last_digest_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"sent_at": now.isoformat()}), encoding="utf-8")
+
+
+def _maybe_flush_digest(pending_path: Path, last_digest_path: Path, now: datetime) -> None:
+    """Send the daily digest if the cadence allows and there's anything to send.
+
+    Called at the top of every run so digest fires on quiet days too.
+    """
+    if not _should_flush_digest(last_digest_path, now=now):
+        return
+    pending = _read_pending(pending_path)
+    if not pending:
+        return
+    digest_msg = render_digest(pending, now=now)
+    if not digest_msg:
+        return
+    try:
+        send_messages([digest_msg])
+        logger.info("sent digest with %d signals", len(pending))
+        _clear_pending(pending_path)
+        _mark_digest_sent(last_digest_path, now=now)
+    except Exception as e:
+        logger.warning("digest telegram send failed: %s", e)
+
+
 def _gather_recent_fills(state_dir: Path, now: datetime, hours: int = 4):
+    """Read state/whale_fills.jsonl, return WhaleFill rows from the last N hours."""
+    from src.whale_scoring import _load_jsonl_fills  # internal helper
+    path = state_dir / "whale_fills.jsonl"
+    if not path.exists():
+        return []
+    cutoff_ms = int((now - timedelta(hours=hours)).timestamp() * 1000)
+    return [f for f in _load_jsonl_fills(path) if f.time_ms >= cutoff_ms]
+
+
+
     """Read state/whale_fills.jsonl, return WhaleFill rows from the last N hours."""
     from src.whale_scoring import _load_jsonl_fills  # internal helper
     path = state_dir / "whale_fills.jsonl"
