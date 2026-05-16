@@ -1,0 +1,77 @@
+name: whale-monitor
+
+on:
+  schedule:
+    # Каждые 4 часа: 00:00 / 04:00 / 08:00 / 12:00 / 16:00 / 20:00 UTC
+    # (03/07/11/15/19/23 MSK). GH Actions может добавить 5-15 минут.
+    - cron: "0 0,4,8,12,16,20 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write  # need to commit state/whale_*.{jsonl,json} back to repo
+
+concurrency:
+  group: hl-whale-monitor
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      # GitHub's default token; bumps unauth rate limit on /commits API
+      # (used by daily_monitor's oracai_history, harmless here)
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install deps
+        run: |
+          python -m pip install -U pip
+          pip install -r requirements.txt
+
+      - name: Run whale monitor
+        run: python -m src.whale_monitor
+
+      - name: Commit state changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Add only the whale state files (don't touch decisions.jsonl / oracai snapshots)
+          git add state/whale_fills.jsonl \
+                  state/whale_fills_*.jsonl.gz \
+                  state/whale_cursor.json \
+                  state/whale_signals.jsonl \
+                  state/whale_seen.json \
+                  state/whale_run_meta.json 2>/dev/null || true
+
+          if git diff --cached --quiet; then
+            echo "no whale-state changes to commit"
+            exit 0
+          fi
+
+          # Compact one-line message with run timestamp
+          TS=$(date -u +"%Y-%m-%dT%H:%MZ")
+          git commit -m "chore(whale-monitor): state update ${TS} [skip ci]"
+
+          # Retry push up to 3 times to absorb conflicts with concurrent runs
+          for i in 1 2 3; do
+            if git push; then
+              break
+            fi
+            echo "push attempt $i failed, rebasing and retrying"
+            git pull --rebase --autostash
+            sleep $((i * 2))
+          done

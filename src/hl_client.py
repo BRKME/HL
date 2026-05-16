@@ -75,6 +75,27 @@ class HLClient:
         """Last ~2000 fills for the user."""
         return self._post({"type": "userFills", "user": self._norm_addr(address)})
 
+    def get_user_fills_by_time(
+        self,
+        address: str,
+        start_time_ms: int,
+        end_time_ms: int | None = None,
+    ) -> list:
+        """Fills in a time window. Used for incremental whale tracking.
+
+        HL returns at most 2000 fills per response. For 4h windows on a single
+        whale this is comfortably under the limit.
+        """
+        payload = {
+            "type": "userFillsByTime",
+            "user": self._norm_addr(address),
+            "startTime": int(start_time_ms),
+        }
+        if end_time_ms is not None:
+            payload["endTime"] = int(end_time_ms)
+        result = self._post(payload)
+        return result if isinstance(result, list) else []
+
     def get_spot_meta(self) -> dict:
         """Cached spot universe + token table.
 
