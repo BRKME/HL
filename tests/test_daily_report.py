@@ -203,6 +203,28 @@ def test_render_spot_without_mark_shows_size_only():
     assert "UNKNOWN" in text
 
 
+def test_render_spot_hides_dust_below_5usd_value():
+    """OMNIX-style dust: large size but value <$5 — skip in display."""
+    spot = [
+        SpotPosition(coin="OMNIX", total=15569.0, hold=0.0, entry_notional=0.0, account="main"),
+        SpotPosition(coin="HYPE", total=10.0, hold=0.0, entry_notional=350.0, account="main"),
+    ]
+    marks = {"OMNIX": 0.00007, "HYPE": 42.0}  # OMNIX value ~= $1, HYPE = $420
+    msgs = render_daily_report([], [], marks, None, 1000.0, now=NOW, spot=spot)
+    text = "\n".join(msgs)
+    assert "HYPE" in text
+    assert "OMNIX" not in text  # dust hidden
+
+
+def test_render_spot_hides_section_entirely_when_all_dust():
+    """If every spot is dust, the whole 🪙 Spot section disappears."""
+    spot = [SpotPosition(coin="OMNIX", total=15569.0, hold=0.0, entry_notional=0.0, account="main")]
+    marks = {"OMNIX": 0.00007}
+    msgs = render_daily_report([], [], marks, None, 1000.0, now=NOW, spot=spot)
+    text = "\n".join(msgs)
+    assert "Spot" not in text and "OMNIX" not in text
+
+
 def test_render_tracked_shows_24h_change_when_prev_day_available():
     """If we have yesterday's mark, show 24h change next to current mark."""
     matches = [_tracked(
