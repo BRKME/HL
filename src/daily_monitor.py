@@ -35,6 +35,7 @@ from src.oracai import fetch_snapshot as fetch_oracai_snapshot
 from src.oracai_history import fetch_snapshot_days_ago
 from src.portfolio import Portfolio
 from src.portfolio_performance import fetch_combined_performance
+from src.sl_visibility import fetch_sl_orders_for_wallets
 from src.telegram_sender import send_messages, alert_owner
 
 
@@ -176,12 +177,21 @@ def run_daily_monitor(
         logger.warning("portfolio performance fetch failed: %s", e)
         performance = None
 
+    # Phase 3.0.x: read user's hard SL orders from HL so we can show real
+    # SL distance for orphan positions and alert on missing SL
+    try:
+        sl_orders = fetch_sl_orders_for_wallets(client, accounts)
+    except Exception as e:
+        logger.warning("SL orders fetch failed: %s", e)
+        sl_orders = []
+
     alerts = evaluate_all(
         matches=matches,
         marks=marks,
         current_snapshot=today_snapshot,
         yesterday_snapshot=yesterday_snapshot,
         config=RuleConfig(),
+        sl_orders=sl_orders,
     )
 
     messages = render_daily_report(
@@ -195,6 +205,7 @@ def run_daily_monitor(
         wallet_count=len(accounts),
         prev_day_marks=prev_day_marks,
         performance=performance,
+        sl_orders=sl_orders,
     )
     send_messages(messages)
 
