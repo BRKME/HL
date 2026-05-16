@@ -35,6 +35,36 @@ def test_classifies_stop_limit_as_sl():
     assert is_stop_loss_order(raw) is True
 
 
+def test_classifies_trigger_market_as_sl():
+    """HL UI TP/SL dialog produces orderType='Trigger Market'."""
+    raw = {
+        "coin": "ETH", "side": "A", "isTrigger": True,
+        "triggerCondition": "Price below 2100.0", "triggerPx": "2100.0",
+        "orderType": "Trigger Market", "sz": "0.5",
+    }
+    assert is_stop_loss_order(raw) is True
+
+
+def test_classifies_sl_without_reduce_only_flag():
+    """Phase 3.0.x: relaxed — many HL SL orders don't have reduceOnly=True."""
+    raw = {
+        "coin": "ETH", "side": "A", "isTrigger": True,
+        "triggerCondition": "Price below 2100.0", "triggerPx": "2100.0",
+        "orderType": "Stop Market", "reduceOnly": False, "sz": "0.5",
+    }
+    assert is_stop_loss_order(raw) is True
+
+
+def test_classifies_position_tpsl_attached_sl():
+    """isPositionTpsl=True marks position-attached TP/SL."""
+    raw = {
+        "coin": "ETH", "side": "A", "isTrigger": True,
+        "triggerCondition": "Price below 2100.0", "triggerPx": "2100.0",
+        "orderType": "", "isPositionTpsl": True, "sz": "0.5",
+    }
+    assert is_stop_loss_order(raw) is True
+
+
 def test_rejects_take_profit_order():
     """Take profit on a long: side='A', orderType='Take Profit Market', trigger ABOVE entry."""
     raw = {
@@ -55,22 +85,12 @@ def test_rejects_non_trigger_order():
     assert is_stop_loss_order(raw) is False
 
 
-def test_rejects_non_reduce_only_trigger():
-    """A trigger order that ADDS exposure (not reduceOnly) isn't a SL."""
-    raw = {
-        "coin": "ETH", "side": "B", "orderType": "Stop Market",
-        "triggerCondition": "Price below 2100.0", "isTrigger": True,
-        "triggerPx": "2100.0", "reduceOnly": False,
-    }
-    assert is_stop_loss_order(raw) is False
-
-
 def test_accepts_via_trigger_condition_text():
-    """Even if orderType is just 'Limit' but it's a trigger with 'Price below' condition."""
+    """Even if orderType is empty but it's a trigger with 'Price below' condition."""
     raw = {
-        "coin": "ETH", "side": "A", "orderType": "Limit",
+        "coin": "ETH", "side": "A", "orderType": "",
         "triggerCondition": "Price below 2100.0", "isTrigger": True,
-        "triggerPx": "2100.0", "reduceOnly": True,
+        "triggerPx": "2100.0",
     }
     assert is_stop_loss_order(raw) is True
 
@@ -119,6 +139,66 @@ def test_parse_sl_handles_malformed_numbers():
     }
     sl = parse_sl_order(raw, account="main")
     assert sl is None  # bad number → reject rather than emit garbage
+
+
+def test_parse_rejects_take_profit_on_long():
+    """side='A' (close long) + 'Price above' = TP, not SL."""
+    raw = {
+        "coin": "ETH", "side": "A", "isTrigger": True,
+        "triggerCondition": "Price above 2500.0", "triggerPx": "2500.0",
+        "orderType": "Trigger Market", "sz": "0.5",
+    }
+    assert parse_sl_order(raw, account="main") is None
+
+
+def test_parse_rejects_take_profit_on_short():
+    """side='B' (close short) + 'Price below' = TP, not SL."""
+    raw = {
+        "coin": "BTC", "side": "B", "isTrigger": True,
+        "triggerCondition": "Price below 60000.0", "triggerPx": "60000.0",
+        "orderType": "Trigger Market", "sz": "0.1",
+    }
+    assert parse_sl_order(raw, account="main") is None
+
+
+def test_parse_accepts_long_sl_with_below_trigger():
+    """The expected combination for long SL."""
+    raw = {
+        "coin": "ETH", "side": "A", "isTrigger": True,
+        "triggerCondition": "Price below 2100.0", "triggerPx": "2100.0",
+        "orderType": "Trigger Market", "sz": "0.5",
+    }
+    sl = parse_sl_order(raw, account="main")
+    assert sl is not None and sl.protects_side == "long"
+    assert sl.trigger_px == 2100.0
+
+
+# ---------- children scanning ----------
+
+def test_fetch_picks_up_attached_sl_in_children(monkeypatch):
+    """HL nests attached SL in 'children' of a parent order."""
+    from unittest.mock import MagicMock
+    client = MagicMock()
+    # parent is a non-trigger limit; child is the actual SL
+    client.get_frontend_open_orders.return_value = [
+        {
+            "coin": "ETH", "side": "B", "isTrigger": False, "orderType": "Limit",
+            "limitPx": "2200.0", "sz": "0.5", "oid": 100,
+            "children": [
+                {
+                    "coin": "ETH", "side": "A", "isTrigger": True,
+                    "orderType": "Trigger Market",
+                    "triggerCondition": "Price below 2100.0",
+                    "triggerPx": "2100.0", "sz": "0.5", "oid": 101,
+                    "isPositionTpsl": True,
+                },
+            ],
+        },
+    ]
+    result = fetch_sl_orders_for_wallets(client, [{"address": "0xaaa", "label": "main"}])
+    assert len(result) == 1
+    assert result[0].trigger_px == 2100.0
+    assert result[0].oid == 101
 
 
 # ---------- find_sl_for_position ----------

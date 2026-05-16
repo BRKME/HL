@@ -200,12 +200,23 @@ def _render_orphan(
     return "\n".join(lines)
 
 
-def _render_spot(spot: list[SpotPosition], marks: dict[str, float]) -> Optional[str]:
+def _render_spot(spot: list[SpotPosition], marks: dict[str, float],
+                 display_dust_usd: float = 5.0) -> Optional[str]:
+    """Render spot block. Filters out positions whose current USD value < threshold.
+
+    This is a *display* dust filter (separate from Portfolio.from_raw's
+    entry_notional filter): catches airdrop holdings with cost-basis 0 that
+    later dust out (e.g. OMNIX dropping to $1 of value).
+    """
     if not spot:
         return None
     lines = ["", "<b>🪙 Spot</b>"]
+    rendered = 0
     for s in spot:
         mark = marks.get(s.coin, 0.0)
+        # USD value gate: if we have a mark, drop anything under threshold
+        if mark > 0 and s.total * mark < display_dust_usd:
+            continue
         avg = s.avg_entry
         if avg and mark > 0:
             pnl_p = (mark - avg) / avg * 100
@@ -215,15 +226,16 @@ def _render_spot(spot: list[SpotPosition], marks: dict[str, float]) -> Optional[
                 f"${_fmt_price(mark)} ({_fmt_pct(pnl_p)}) • ${_fmt_money(usd_value)}"
             )
         elif mark > 0:
-            # have current mark but no cost basis (e.g. airdrop) — show USD value at least
             usd_value = s.total * mark
             lines.append(
                 f"<code>{_e(s.coin)}</code> {s.total:g} @ ${_fmt_price(mark)} "
                 f"• ${_fmt_money(usd_value)}"
             )
         else:
-            # no mark — fallback to size only
             lines.append(f"<code>{_e(s.coin)}</code> {s.total:g}")
+        rendered += 1
+    if rendered == 0:
+        return None
     return "\n".join(lines)
 
 
