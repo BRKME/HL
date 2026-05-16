@@ -63,12 +63,66 @@ def fetch_meta_and_ctxs() -> dict[str, dict[str, Any]]:
             "mark": _maybe_float(ctx.get("markPx")),
             "mid": _maybe_float(ctx.get("midPx")),
             "oracle": _maybe_float(ctx.get("oraclePx")),
+            "prev_day": _maybe_float(ctx.get("prevDayPx")),
             "funding_hourly": funding_hourly,
             "funding_apr_pct": funding_hourly * 24 * 365 * 100,
             "open_interest": _maybe_float(ctx.get("openInterest")),
             "day_volume": _maybe_float(ctx.get("dayBaseVlm")),
             "max_leverage": asset.get("maxLeverage"),
             "sz_decimals": asset.get("szDecimals"),
+        }
+    return out
+
+
+def fetch_spot_meta_and_ctxs() -> dict[str, dict[str, Any]]:
+    """Spot mark/prev_day prices keyed by *resolved* token name.
+
+    HL spot uses '@{index}' (e.g. '@107' for HYPE) or 'PURR/USDC' as the coin.
+    We resolve those to human names via the universe section so the returned
+    dict can be indexed by 'HYPE', 'OMNIX', etc.
+
+    Returns {token_name: {mark, prev_day, mid, day_volume}}.
+    """
+    data = _post({"type": "spotMetaAndAssetCtxs"})
+    if not (isinstance(data, list) and len(data) == 2):
+        raise HyperliquidError(f"Неожиданный формат spotMetaAndAssetCtxs: {type(data)}")
+
+    meta = data[0] or {}
+    ctxs = data[1] or []
+
+    # tokens[i] is metadata for token index i; name lives there
+    tokens_by_index: dict[int, str] = {}
+    for t in meta.get("tokens", []) or []:
+        idx = t.get("index")
+        name = t.get("name")
+        if idx is not None and name:
+            tokens_by_index[int(idx)] = name
+
+    # universe[i] gives pair {name: "@107"|"PURR/USDC", tokens: [base_idx, quote_idx]}
+    # build coin_field -> base_token_name
+    pair_to_token: dict[str, str] = {}
+    for pair in meta.get("universe", []) or []:
+        pair_name = pair.get("name")
+        toks = pair.get("tokens") or []
+        if not pair_name or not toks:
+            continue
+        base_name = tokens_by_index.get(int(toks[0]))
+        if base_name:
+            pair_to_token[pair_name] = base_name
+
+    out: dict[str, dict[str, Any]] = {}
+    for ctx in ctxs:
+        if not ctx:
+            continue
+        coin_field = ctx.get("coin")
+        token_name = pair_to_token.get(coin_field)
+        if not token_name:
+            continue
+        out[token_name] = {
+            "mark": _maybe_float(ctx.get("markPx")),
+            "mid": _maybe_float(ctx.get("midPx")),
+            "prev_day": _maybe_float(ctx.get("prevDayPx")),
+            "day_volume": _maybe_float(ctx.get("dayBaseVlm")),
         }
     return out
 

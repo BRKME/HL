@@ -185,6 +185,47 @@ def test_render_spot_positions_section():
     assert any(word in text.lower() for word in ("spot", "спот"))
 
 
+def test_render_spot_with_mark_shows_usd_value():
+    """Even without entry_notional, mark + size gives USD value — show it."""
+    spot = [SpotPosition(coin="OMNIX", total=15569.0, hold=0.0, entry_notional=0.0, account="main")]
+    msgs = render_daily_report([], [], {"OMNIX": 0.05}, None, 1000.0, now=NOW, spot=spot)
+    text = "\n".join(msgs)
+    assert "OMNIX" in text
+    # 15569 * 0.05 = ~778 USD
+    assert "778" in text or "$778" in text
+
+
+def test_render_spot_without_mark_shows_size_only():
+    """No mark price available — fallback to size-only display, don't crash."""
+    spot = [SpotPosition(coin="UNKNOWN", total=100.0, hold=0.0, entry_notional=0.0, account="main")]
+    msgs = render_daily_report([], [], {}, None, 1000.0, now=NOW, spot=spot)
+    text = "\n".join(msgs)
+    assert "UNKNOWN" in text
+
+
+def test_render_tracked_shows_24h_change_when_prev_day_available():
+    """If we have yesterday's mark, show 24h change next to current mark."""
+    matches = [_tracked(
+        pos=_pos(coin="BTC", net_size=0.5, entry=80000.0, pnl=1000.0),
+        days=3,
+    )]
+    msgs = render_daily_report(
+        matches, [], {"BTC": 82000.0}, None, 1000.0, now=NOW,
+        prev_day_marks={"BTC": 80000.0},  # 24h ago — gives +2.5% daily
+    )
+    text = "\n".join(msgs)
+    # Look for "24h" indicator or a "+2.5" near BTC
+    assert "+2.5" in text or "24h" in text
+
+
+def test_render_liquidation_uses_unambiguous_label():
+    """'liq 73%' is ambiguous — should say 'до ликвидации' or 'buffer' or 'запас'."""
+    matches = [_orphan(pos=_pos(coin="BTC", liq_dist=73.7))]
+    msgs = render_daily_report(matches, [], {"BTC": 80000.0}, None, 1000.0, now=NOW)
+    text = "\n".join(msgs).lower()
+    assert any(word in text for word in ("запас", "до ликвидации", "buffer", "до liq"))
+
+
 # ---------- footer / regime ----------
 
 def test_render_footer_mentions_current_regime_when_snapshot_present():

@@ -27,7 +27,7 @@ import yaml
 
 from src.daily_report import render_daily_report
 from src.decisions_log import load_decisions
-from src.hl_api import fetch_meta_and_ctxs
+from src.hl_api import fetch_meta_and_ctxs, fetch_spot_meta_and_ctxs
 from src.hl_client import HLClient
 from src.matcher import match_positions
 from src.monitor_rules import evaluate_all, RuleConfig
@@ -93,14 +93,41 @@ def _build_portfolio(client: HLClient, accounts: list[dict]) -> Portfolio:
     return Portfolio.from_raw(raw, spot_resolver=client.resolve_spot_coin)
 
 
-def _safe_fetch_marks() -> dict[str, float]:
-    """Pull mark prices, never crash the bot if HL meta endpoint fails."""
+def _safe_fetch_marks() -> tuple[dict[str, float], dict[str, float]]:
+    """Pull mark + prev_day for both perp and spot tokens.
+
+    Returns (marks, prev_day_marks). Spot tokens overwrite perp on collision —
+    in practice they don't overlap (perp 'BTC' vs spot 'UBTC') so order is moot.
+    Never crashes the bot if either endpoint fails.
+    """
+    marks: dict[str, float] = {}
+    prev: dict[str, float] = {}
+
     try:
-        meta = fetch_meta_and_ctxs() or {}
+        perp_meta = fetch_meta_and_ctxs() or {}
+        for sym, ctx in perp_meta.items():
+            mk = ctx.get("mark")
+            pd = ctx.get("prev_day")
+            if mk:
+                marks[sym] = float(mk)
+            if pd:
+                prev[sym] = float(pd)
     except Exception as e:
-        logger.warning("marks fetch failed: %s", e)
-        return {}
-    return {sym: float(ctx.get("mark") or 0.0) for sym, ctx in meta.items() if ctx.get("mark")}
+        logger.warning("perp marks fetch failed: %s", e)
+
+    try:
+        spot_meta = fetch_spot_meta_and_ctxs() or {}
+        for sym, ctx in spot_meta.items():
+            mk = ctx.get("mark")
+            pd = ctx.get("prev_day")
+            if mk and sym not in marks:
+                marks[sym] = float(mk)
+            if pd and sym not in prev:
+                prev[sym] = float(pd)
+    except Exception as e:
+        logger.warning("spot marks fetch failed: %s", e)
+
+    return marks, prev
 
 
 def _safe_oracai_current() -> Optional[dict]:
@@ -139,7 +166,7 @@ def run_daily_monitor(
     today_snapshot = _safe_oracai_current()
     yesterday_snapshot = _safe_oracai_yesterday(now)
 
-    marks = _safe_fetch_marks()
+    marks, prev_day_marks = _safe_fetch_marks()
 
     alerts = evaluate_all(
         matches=matches,
@@ -158,6 +185,7 @@ def run_daily_monitor(
         now=now,
         spot=portfolio.spot,
         wallet_count=len(accounts),
+        prev_day_marks=prev_day_marks,
     )
     send_messages(messages)
 
