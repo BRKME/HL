@@ -51,16 +51,33 @@ jobs:
 
       - name: Commit state changes
         run: |
+          set +e  # don't kill the step on any single command's failure
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          # Add only the whale state files (don't touch decisions.jsonl / oracai snapshots)
-          git add state/whale_fills.jsonl \
-                  state/whale_fills_*.jsonl.gz \
-                  state/whale_cursor.json \
-                  state/whale_signals.jsonl \
-                  state/whale_seen.json \
-                  state/whale_run_meta.json 2>/dev/null || true
+          # Add each state file individually — a missing file (e.g. no
+          # rotated archive yet, no pending_info on quiet runs) must not
+          # abort the entire add chain. We use shopt nullglob so unmatched
+          # globs expand to empty, then loop.
+          shopt -s nullglob
+          STATE_FILES=(
+            state/whale_fills.jsonl
+            state/whale_fills_*.jsonl.gz
+            state/whale_cursor.json
+            state/whale_signals.jsonl
+            state/whale_seen.json
+            state/whale_run_meta.json
+            state/whale_pending_info.jsonl
+            state/whale_last_digest.json
+            state/leaderboard_ranks.json
+            state/leaderboard_history.jsonl
+            state/leaderboard_history_*.jsonl.gz
+          )
+          for f in "${STATE_FILES[@]}"; do
+            if [ -f "$f" ]; then
+              git add "$f" || true
+            fi
+          done
 
           if git diff --cached --quiet; then
             echo "no whale-state changes to commit"
