@@ -148,13 +148,18 @@ def test_performance_block_excludes_today_when_in_header():
         assert "Сегодня" not in perf_section
 
 
-def test_performance_block_shows_alltime_with_roi():
+def test_performance_block_excludes_alltime_for_anchor_bias():
+    """UI refinement round 2: All-time row removed from Доходность block
+    (anchor bias hurts current-EV decision frame)."""
     perf = _perf(day_pnl=-64, week_pnl=-46, month_pnl=-155, alltime_pnl=-3078,
                  alltime_start=4650)
     msgs = render_daily_report([], [], {}, None, 1573.0, NOW, performance=perf)
     text = "\n".join(msgs)
-    # all-time ROI = -3078 / 4650 * 100 = -66.2%
-    assert "-66" in text
+    # All-time absent
+    assert "All-time" not in text
+    # But week/month still there
+    assert "Неделя" in text
+    assert "Месяц" in text
 
 
 # ---------- alerts visually prominent ----------

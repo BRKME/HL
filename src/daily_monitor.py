@@ -27,7 +27,7 @@ import yaml
 
 from src.daily_report import render_daily_report
 from src.decisions_log import load_decisions
-from src.hl_api import fetch_meta_and_ctxs, fetch_spot_meta_and_ctxs
+from src.hl_api import fetch_meta_and_ctxs, fetch_spot_meta_and_ctxs, fetch_candles
 from src.hl_client import HLClient
 from src.matcher import match_positions
 from src.monitor_rules import evaluate_all, RuleConfig
@@ -36,6 +36,7 @@ from src.oracai_history import fetch_snapshot_days_ago
 from src.portfolio import Portfolio
 from src.portfolio_performance import fetch_combined_performance
 from src.sl_visibility import fetch_sl_orders_for_wallets
+from src.ta import atr
 from src.telegram_sender import send_messages, alert_owner
 
 
@@ -185,6 +186,21 @@ def run_daily_monitor(
         logger.warning("SL orders fetch failed: %s", e)
         sl_orders = []
 
+    # UI refinement round 2: compute ATR per orphan coin so the renderer
+    # can show SL distance in volatility units ('0.4× ATR — likely intraday').
+    # 30 D1 candles is enough for ATR(14); one call per orphan coin.
+    coin_atrs: dict[str, float] = {}
+    orphan_coins = {m.position.coin for m in matches if m.status == "orphan"}
+    for coin in orphan_coins:
+        try:
+            candles = fetch_candles(coin, interval="1d", lookback_days=30)
+            if candles and len(candles) >= 15:
+                a = atr(candles, 14)
+                if a is not None and a > 0:
+                    coin_atrs[coin] = a
+        except Exception as e:
+            logger.warning("ATR fetch failed for %s: %s", coin, e)
+
     alerts = evaluate_all(
         matches=matches,
         marks=marks,
@@ -206,6 +222,7 @@ def run_daily_monitor(
         prev_day_marks=prev_day_marks,
         performance=performance,
         sl_orders=sl_orders,
+        coin_atrs=coin_atrs,
     )
     send_messages(messages)
 
