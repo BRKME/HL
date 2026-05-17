@@ -109,26 +109,53 @@ def _perf_alltime_missing_start(day_pnl=0, week_pnl=-19, month_pnl=-24,
     )
 
 
-def test_alltime_roi_falls_back_to_pnl_over_implied_start():
-    """When start_value is missing, derive ROI from pnl/(end - pnl)."""
+def test_alltime_row_removed_no_anchor_bias():
+    """All-time row was removed in UI refinement round 2 (anchor bias).
+    The fallback logic itself stays — applies to other periods that
+    might have start_value=0."""
     perf = _perf_alltime_missing_start(alltime_pnl=-3036, current_value=2336)
     msgs = render_daily_report([], [], {}, None, 2336, NOW, performance=perf)
     text = "\n".join(msgs)
-    # implied start = 2336 - (-3036) = 5372 → ROI = -3036 / 5372 = -56.5%
-    assert "-56" in text
+    # All-time not shown anywhere
+    assert "All-time" not in text
+    assert "-$3 036" not in text
+    # Week/month still shown
+    assert "Неделя" in text
 
 
-def test_alltime_roi_no_fallback_when_start_is_valid():
-    """Normal case: start_value > 0, use HL's value directly."""
-    def mk(name, pnl, start):
+def test_monthly_roi_falls_back_when_start_missing():
+    """ROI fallback applies to month period too (general case).
+    Implied start = end_value - pnl = 2000 - (-200) = 2200 → ROI = -9.1%."""
+    def mk(name, pnl, start, end):
         return PeriodStats(period=name, pnl=pnl, start_value=start,
-                           end_value=start + pnl, vlm=0,
+                           end_value=end, vlm=0,
                            roi_pct=(pnl / start * 100) if start > 0 else 0)
     perf = PerformanceSnapshot(
         address="combined",
-        day=mk("day", 0, 1000), week=mk("week", 0, 1000),
-        month=mk("month", 0, 1000),
-        all_time=mk("allTime", 500, 1000),  # ROI = 50%
+        day=mk("day", 0, 1900, 2000),
+        week=mk("week", 0, 1900, 2000),
+        month=mk("month", -200, 0.0, 2000),  # start=0 → fallback
+        all_time=mk("allTime", 0, 0, 2000),
+        current_account_value=2000,
+    )
+    msgs = render_daily_report([], [], {}, None, 2000, NOW, performance=perf)
+    text = "\n".join(msgs)
+    # Implied start = 2200, ROI = -200/2200 = -9.09% → "-9" in text
+    assert "-9" in text
+
+
+def test_monthly_roi_uses_hl_value_when_start_valid():
+    """Normal case: start_value > 0, use HL's value directly for month."""
+    def mk(name, pnl, start, end):
+        return PeriodStats(period=name, pnl=pnl, start_value=start,
+                           end_value=end, vlm=0,
+                           roi_pct=(pnl / start * 100) if start > 0 else 0)
+    perf = PerformanceSnapshot(
+        address="combined",
+        day=mk("day", 0, 1500, 1500),
+        week=mk("week", 0, 1500, 1500),
+        month=mk("month", 500, 1000, 1500),  # +50%
+        all_time=mk("allTime", 0, 0, 1500),
         current_account_value=1500,
     )
     msgs = render_daily_report([], [], {}, None, 1500, NOW, performance=perf)

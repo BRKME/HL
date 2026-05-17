@@ -35,12 +35,19 @@ def _e(s) -> str:
 
 
 def _fmt_price(p: Optional[float]) -> str:
+    """Format a price for display.
+
+    Round prices to integers for >= 1 (UX feedback: visual noise from
+    decimals on $78101.55, $2186.40 isn't useful for decision-making).
+    Sub-1 prices (memecoins) keep precision because their decimals
+    *are* the price.
+    """
     if p is None or p == 0:
         return "—"
     if p >= 1000:
-        return f"{p:,.0f}".replace(",", " ")
-    if p >= 10:
-        return f"{p:.2f}"
+        return f"{round(p):,}".replace(",", " ")
+    if p >= 1:
+        return f"{round(p)}"
     if p >= 0.01:
         return f"{p:.4f}"
     return f"{p:.8f}".rstrip("0").rstrip(".")
@@ -117,7 +124,10 @@ def _render_header(
         if exposures:
             total_exposure = sum(e["value"] for e in exposures)
             leverage = total_exposure / total_value
-            parts.append(f"Exposure {leverage:.1f}×")
+            # Leverage badge: leveraged >= 1.5× is system-level risk —
+            # call it out with ⚠️ so it doesn't get lost in the line.
+            badge = "⚠️ " if leverage >= 1.5 else ""
+            parts.append(f"{badge}Exposure {leverage:.1f}×")
             top = max(exposures, key=lambda e: e["value"])
             top_pct = top["value"] / total_value * 100
             parts.append(f"Top: {_e(top['coin'])} {top_pct:.0f}%")
@@ -226,25 +236,40 @@ def _render_orphan(
     prev_day_marks: Optional[dict[str, float]] = None,
     sl_orders: Optional[list] = None,
     total_account_value: float = 0.0,
+    coin_atrs: Optional[dict[str, float]] = None,
 ) -> Optional[str]:
     """Two-line per orphan:
 
-      ETH LONG 0.7238 @ $2 173 → $2 175 (+0.0%) [24h -3.5%]  $1 575 (100%)
-        SL $2 122 (2.4%) ⚠️ • liq buffer 88%
+      ETH LONG 0.7238 @ $2173 → $2175 (+0.0%) [24h -3.5%]  $1 575 (100%)
+        SL $2122 (2.4% = $43 if hit • 1.5× ATR) ⚠️ • liq buffer 88%
 
     Line 1 = position + USD value + concentration %
-    Line 2 = risk (SL + liq buffer). Concentration % omitted when
-    total_account_value is 0 (defensive).
+    Line 2 = risk (SL + ATR-relative distance + liq buffer).
+
+    Positions sorted by SL distance ascending (tightest stop = most
+    urgent = on top). Positions without SL go to the bottom.
     """
     orphans = [m for m in matches if m.status == "orphan"]
     if not orphans:
         return None
     prev_day_marks = prev_day_marks or {}
     sl_orders = sl_orders or []
+    coin_atrs = coin_atrs or {}
     from src.sl_visibility import find_sl_for_position
 
+    # Sort by SL distance ascending; no-SL positions go to end.
+    def _sl_dist_for_sort(m: MatchResult) -> float:
+        pos = m.position
+        mark = marks.get(pos.coin, 0.0)
+        sl = find_sl_for_position(pos, sl_orders)
+        if sl is None or mark <= 0:
+            return 1e9  # sentinel: bottom of list
+        return abs(mark - sl.trigger_px) / mark * 100
+
+    orphans_sorted = sorted(orphans, key=_sl_dist_for_sort)
+
     lines = ["", "<b>🤚 Ручные / orphan позиции</b>"]
-    for m in orphans:
+    for m in orphans_sorted:
         pos = m.position
         mark = marks.get(pos.coin, 0.0)
         pnl_p = _pnl_pct(pos.net_size, pos.weighted_entry, pos.total_pnl)
@@ -274,14 +299,32 @@ def _render_orphan(
         risk_bits: list[str] = []
         sl = find_sl_for_position(pos, sl_orders)
         if sl is not None and mark > 0:
-            sl_dist_pct = abs(mark - sl.trigger_px) / mark * 100
+            sl_dist_abs = abs(mark - sl.trigger_px)
+            sl_dist_pct = sl_dist_abs / mark * 100
             # warn marker when within 3% of SL
             sl_warn = " ⚠️" if sl_dist_pct <= 3.0 else ""
             # max loss in USD if SL hits: |mark - sl| × size
-            max_loss = abs(mark - sl.trigger_px) * abs(pos.net_size)
+            max_loss = sl_dist_abs * abs(pos.net_size)
             loss_str = f" = ${_fmt_money(max_loss)} if hit"
+
+            # ATR-relative distance — gives volatility-units context
+            atr_str = ""
+            atr_val = coin_atrs.get(pos.coin)
+            if atr_val and atr_val > 0:
+                atr_mult = sl_dist_abs / atr_val
+                # Categorise: <0.5 ATR = likely intraday, <1 ATR = within a day,
+                # <2 ATR = tight stop, otherwise just the number
+                if atr_mult < 0.5:
+                    qual = " — likely intraday"
+                elif atr_mult < 1.0:
+                    qual = " — within a day"
+                else:
+                    qual = ""
+                atr_str = f" • {atr_mult:.1f}× ATR{qual}"
+
             risk_bits.append(
-                f"SL ${_fmt_price(sl.trigger_px)} ({_fmt_pct(sl_dist_pct, sign=False)}{loss_str}){sl_warn}"
+                f"SL ${_fmt_price(sl.trigger_px)} "
+                f"({_fmt_pct(sl_dist_pct, sign=False)}{loss_str}{atr_str}){sl_warn}"
             )
         else:
             risk_bits.append("⚠️ нет SL")
@@ -356,7 +399,8 @@ def _render_performance(perf, day_already_shown: bool = False) -> Optional[str]:
         rows.append(("Сегодня ", perf.day))
     rows.append(("Неделя  ", perf.week))
     rows.append(("Месяц   ", perf.month))
-    rows.append(("All-time", perf.all_time))
+    # All-time removed (UX feedback round 2): -55% anchor bias hurts
+    # current-EV decision frame for active trading.
 
     for label, ps in rows:
         money = _fmt_money_signed(ps.pnl)
@@ -455,6 +499,7 @@ def render_daily_report(
     prev_day_marks: Optional[dict[str, float]] = None,
     performance=None,
     sl_orders: Optional[list] = None,
+    coin_atrs: Optional[dict[str, float]] = None,
 ) -> list[str]:
     """Build the Telegram report. Returns a list of message-sized chunks."""
     parts: list[str] = [_render_header(
@@ -462,17 +507,18 @@ def render_daily_report(
         matches=matches, marks=marks, performance=performance,
     )]
 
-    # If header surfaced day PnL, don't repeat it in the perf block
-    day_in_header = performance is not None and performance.day.start_value > 0
-    perf_block = _render_performance(performance, day_already_shown=day_in_header)
-    if perf_block:
-        parts.append(perf_block)
-
+    # Action required first (UX feedback round 2): alerts before PnL
     alerts_block = _render_alerts(alerts)
     if alerts_block:
         parts.append(alerts_block)
     elif matches or (spot and any(spot)):
         parts.append("\n✅ Без алертов, всё спокойно")
+
+    # If header surfaced day PnL, don't repeat it in the perf block
+    day_in_header = performance is not None and performance.day.start_value > 0
+    perf_block = _render_performance(performance, day_already_shown=day_in_header)
+    if perf_block:
+        parts.append(perf_block)
 
     tracked_block = _render_tracked(matches, marks, prev_day_marks)
     if tracked_block:
@@ -482,6 +528,7 @@ def render_daily_report(
         matches, marks, prev_day_marks,
         sl_orders=sl_orders,
         total_account_value=total_account_value,
+        coin_atrs=coin_atrs,
     )
     if orphan_block:
         parts.append(orphan_block)
