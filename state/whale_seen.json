@@ -5,6 +5,42 @@
       "whale": "0xecb63caa47c7c4e77f60f1ce858cf28dc2b82b00",
       "coin": "BTC",
       "ts": 1779007621
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0x03b9a189e2480d1e4c3007080b29f362282130fa",
+      "coin": "ZEC",
+      "ts": 1779050830
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0x03b9a189e2480d1e4c3007080b29f362282130fa",
+      "coin": "ZEC",
+      "ts": 1779050830
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0x03b9a189e2480d1e4c3007080b29f362282130fa",
+      "coin": "ZEC",
+      "ts": 1779050830
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0x03b9a189e2480d1e4c3007080b29f362282130fa",
+      "coin": "ZEC",
+      "ts": 1779050830
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0x03b9a189e2480d1e4c3007080b29f362282130fa",
+      "coin": "ZEC",
+      "ts": 1779050830
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0x03b9a189e2480d1e4c3007080b29f362282130fa",
+      "coin": "ZEC",
+      "ts": 1779050830
     }
   ]
 }
