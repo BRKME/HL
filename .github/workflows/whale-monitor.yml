@@ -22,6 +22,11 @@ jobs:
       # GitHub's default token; bumps unauth rate limit on /commits API
       # (used by daily_monitor's oracai_history, harmless here)
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Telegram secrets — whale_monitor (Phase 2.6) sends instant alerts
+      # and the 24h digest through telegram_sender. Without these the
+      # process crashes at import time of src.daily_monitor (transitive).
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
 
     steps:
       - name: Checkout
