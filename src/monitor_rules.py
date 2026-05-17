@@ -38,6 +38,24 @@ class Alert:
     details: dict         # structured fields for the report template
 
 
+def _fmt_alert_price(p: float) -> str:
+    """Format a price for inclusion in an alert message.
+
+    Mirrors daily_report._fmt_price so alerts and orphan rows show the
+    same numbers (integers for >=1, decimals only for sub-1 prices like
+    memecoins).
+    """
+    if p is None or p == 0:
+        return "0"
+    if p >= 1000:
+        return f"{round(p):,}".replace(",", " ")
+    if p >= 1:
+        return f"{round(p)}"
+    if p >= 0.01:
+        return f"{p:.4f}"
+    return f"{p:.8f}".rstrip("0").rstrip(".")
+
+
 # ---------- per-position rules ----------
 
 def rule_sl_approach(
@@ -71,7 +89,7 @@ def rule_sl_approach(
             rule="SL_APPROACH",
             severity=SEV_CRITICAL,
             coin=pos.coin,
-            message=f"{pos.coin}: mark ${current_mark:.2f} BEYOND SL ${sl:.2f}",
+            message=f"{pos.coin}: mark ${_fmt_alert_price(current_mark)} BEYOND SL ${_fmt_alert_price(sl)}",
             details={"sl_price": sl, "mark": current_mark, "distance_pct": distance_pct},
         )]
     if distance_pct <= warning_pct:
@@ -79,7 +97,7 @@ def rule_sl_approach(
             rule="SL_APPROACH",
             severity=SEV_WARN,
             coin=pos.coin,
-            message=f"{pos.coin}: mark ${current_mark:.2f} within {distance_pct:.1f}% of SL ${sl:.2f}",
+            message=f"{pos.coin}: mark ${_fmt_alert_price(current_mark)} within {distance_pct:.1f}% of SL ${_fmt_alert_price(sl)}",
             details={"sl_price": sl, "mark": current_mark, "distance_pct": distance_pct},
         )]
     return []
@@ -192,7 +210,7 @@ def rule_orphan_sl_approach(
             rule="ORPHAN_SL_APPROACH",
             severity=SEV_CRITICAL,
             coin=pos.coin,
-            message=f"{pos.coin}: mark ${current_mark:.2f} BEYOND SL ${sl_order.trigger_px:.2f}",
+            message=f"{pos.coin}: mark ${_fmt_alert_price(current_mark)} BEYOND SL ${_fmt_alert_price(sl_order.trigger_px)}",
             details={"sl_price": sl_order.trigger_px, "mark": current_mark,
                      "distance_pct": distance_pct},
         )]
@@ -201,8 +219,8 @@ def rule_orphan_sl_approach(
             rule="ORPHAN_SL_APPROACH",
             severity=SEV_WARN,
             coin=pos.coin,
-            message=(f"{pos.coin}: mark ${current_mark:.2f} within "
-                     f"{distance_pct:.1f}% of SL ${sl_order.trigger_px:.2f}"),
+            message=(f"{pos.coin}: mark ${_fmt_alert_price(current_mark)} within "
+                     f"{distance_pct:.1f}% of SL ${_fmt_alert_price(sl_order.trigger_px)}"),
             details={"sl_price": sl_order.trigger_px, "mark": current_mark,
                      "distance_pct": distance_pct},
         )]

@@ -275,3 +275,75 @@ def test_sl_prices_also_rounded():
     text = "\n".join(msgs)
     assert "2122.5" not in text
     assert "2 123" in text or "2 122" in text or "2122" in text or "2123" in text
+
+
+def test_alert_message_rounds_prices_for_large_values():
+    """Alert message text should round prices for >=1 — match orphan row format.
+
+    Was: 'BTC: mark $78222.00 within 1.2% of SL $77319.00'
+    Now: 'BTC: mark $78 222 within 1.2% of SL $77 319'
+    """
+    from src.monitor_rules import rule_orphan_sl_approach, _fmt_alert_price
+
+    class _Pos:
+        coin = "BTC"
+        net_size = 0.00779
+        weighted_entry = 78101.0
+        side = "long"
+
+    class _SL:
+        trigger_px = 77319.0
+        protects_side = "long"
+
+    class _M:
+        status = "orphan"
+        position = _Pos()
+
+    alerts = rule_orphan_sl_approach(_M(), current_mark=78222.0, sl_order=_SL())
+    assert len(alerts) == 1
+    msg = alerts[0].message
+    # No decimal noise
+    assert "78222.00" not in msg
+    assert "77319.00" not in msg
+    # Rounded integers with thin-space separators
+    assert "78 222" in msg
+    assert "77 319" in msg
+
+
+def test_alert_message_keeps_precision_for_sub_dollar_prices():
+    """SOPH ~$0.008: decimals are the price, don't round to 0."""
+    from src.monitor_rules import rule_orphan_sl_approach
+
+    class _Pos:
+        coin = "SOPH"
+        net_size = 17179.0
+        weighted_entry = 0.008042
+        side = "long"
+
+    class _SL:
+        trigger_px = 0.0077
+        protects_side = "long"
+
+    class _M:
+        status = "orphan"
+        position = _Pos()
+
+    alerts = rule_orphan_sl_approach(_M(), current_mark=0.00782, sl_order=_SL())
+    assert len(alerts) == 1
+    msg = alerts[0].message
+    # Sub-1 prices keep enough digits to mean something
+    assert "$0" not in msg.replace("$0.", "DOT")  # not a bare $0
+    # Either of these acceptable formattings
+    assert "0.0078" in msg or "0.0077" in msg
+
+
+def test_alert_fmt_helper_matches_daily_report_format():
+    """The helper should produce the same string as daily_report._fmt_price."""
+    from src.monitor_rules import _fmt_alert_price
+    from src.daily_report import _fmt_price
+
+    for price in [78222.0, 77319.0, 2185.7, 271.54, 41.83, 0.008223, 0.0077]:
+        assert _fmt_alert_price(price) == _fmt_price(price), (
+            f"mismatch for {price}: alert={_fmt_alert_price(price)} "
+            f"report={_fmt_price(price)}"
+        )
