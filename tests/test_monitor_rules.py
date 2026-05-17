@@ -264,11 +264,14 @@ def test_orphan_sl_approach_critical_when_below_sl():
 
 
 def test_orphan_sl_approach_for_short():
-    """For short: SL above mark. Mark $80k, SL $82k = 2.5% distance."""
+    """For short: SL above mark. Tight SL by ATR (< 0.5×) → alert."""
     from src.monitor_rules import rule_orphan_sl_approach
-    sl = _StubSL(trigger_px=82000.0, protects_side="short")
+    sl = _StubSL(trigger_px=80800.0, protects_side="short")  # 1% above $80k
     pos = _pos(net_size=-0.5, entry=80000.0)
-    alerts = rule_orphan_sl_approach(_orphan(pos=pos), current_mark=80000.0, sl_order=sl)
+    # ATR=$2000 → distance=$800/2000 = 0.4× ATR (tight)
+    alerts = rule_orphan_sl_approach(
+        _orphan(pos=pos), current_mark=80000.0, sl_order=sl, coin_atr=2000.0,
+    )
     assert len(alerts) == 1
     assert alerts[0].severity == SEV_WARN
 

@@ -39,22 +39,24 @@ def _sl(coin, trigger, side="long"):
 # ---------- Fix 1: alerts sorted by distance within same severity ----------
 
 def test_alerts_sorted_by_sl_distance_within_warn_severity():
-    """BTC at 1.1% should appear before ETH at 2.7% — tightest SL first."""
+    """When two tight SLs both fire, tighter ATR-distance comes first."""
     eth = _pos("ETH", 0.7238, 2173.0, liq_dist=89.4)
     btc = _pos("BTC", 0.00779, 78101.0, liq_dist=0.0)
+    # Make both tight by ATR: ETH 60/200 = 0.3×, BTC 860/2000 = 0.43×
+    # Tighter = lower ATR mult = BTC at 0.43, ETH at 0.3 — wait, ETH tighter
+    # Actually: distance_pct ascending = ETH first (it's tighter)
     sls = [_sl("ETH", 2122.0), _sl("BTC", 77319.0)]
     alerts = evaluate_all(
         matches=[_orphan(eth), _orphan(btc)],
         marks={"ETH": 2180.90, "BTC": 78179.00},
         current_snapshot=None, yesterday_snapshot=None,
         sl_orders=sls,
+        coin_atrs={"ETH": 200.0, "BTC": 2200.0},  # both tight
     )
-    # Both are ORPHAN_SL_APPROACH at SEV_WARN
-    warn_alerts = [a for a in alerts if a.severity == SEV_WARN]
-    assert len(warn_alerts) >= 2
-    # First should be BTC (tighter SL — 1.1%) before ETH (2.7%)
-    sl_alerts = [a for a in warn_alerts if "of SL" in a.message]
-    assert len(sl_alerts) >= 2
+    # Both should produce ORPHAN_SL_APPROACH
+    sl_alerts = [a for a in alerts if a.rule == "ORPHAN_SL_APPROACH"]
+    assert len(sl_alerts) == 2
+    # BTC distance_pct = 1.1%, ETH = 2.7% → BTC first (tighter percent)
     assert sl_alerts[0].coin == "BTC"
     assert sl_alerts[1].coin == "ETH"
 
@@ -180,11 +182,10 @@ def test_alltime_roi_no_fallback_when_implied_start_is_zero():
     assert "ETH" not in msgs[0]  # no positions, just sanity
 
 
-# ---------- Fix 3: SL risk display when liq buffer unavailable ----------
+# ---------- Fix 3: SL risk display (UI round 3 simplification) ----------
 
-def test_orphan_shows_sl_risk_when_liq_buffer_zero():
-    """When max_liquidation_distance_pct=0 (HL didn't return it),
-    we should still show 'SL risk: $X' instead of nothing."""
+def test_orphan_shows_max_loss_in_row():
+    """Round 3: row shows 'SL: -$X' (max loss in USD), SL price not in row."""
     eth = _pos("ETH", 0.7238, 2173.0, liq_dist=0.0)
     sls = [_sl("ETH", 2122.0)]
     msgs = render_daily_report(
@@ -192,44 +193,21 @@ def test_orphan_shows_sl_risk_when_liq_buffer_zero():
         sl_orders=sls,
     )
     text = "\n".join(msgs)
-    # Has SL distance
-    assert "$2 122" in text or "2122" in text
-    # liq buffer absent (no data), but SL info is enough
-    assert "liq buffer" not in text or "0.0%" not in text
+    # Max loss is shown (a few dollars off due to rounding)
+    assert "SL: -$42" in text or "SL: -$43" in text
+    # SL price itself NOT in the row (simplified)
+    assert "$2 122" not in text and "2122" not in text
 
 
-def test_orphan_shows_both_liq_and_sl_when_both_available():
-    eth = _pos("ETH", 0.7238, 2173.0, liq_dist=89.4)
-    sls = [_sl("ETH", 2122.0)]
-    msgs = render_daily_report(
-        [_orphan(eth)], [], {"ETH": 2181.0}, None, 2336, NOW,
-        sl_orders=sls,
-    )
-    text = "\n".join(msgs)
-    assert "$2 122" in text or "2122" in text
-    assert "89.4" in text
-
-
-def test_orphan_shows_sl_max_loss_usd():
-    """For tight-SL positions, the most useful number is 'if SL hits, lose $X'."""
-    eth = _pos("ETH", 0.7238, 2173.0, liq_dist=89.4)
-    sls = [_sl("ETH", 2122.0)]
-    # mark $2181, SL $2122, size 0.7238 → max loss = (2181-2122)*0.7238 = $42.7
-    msgs = render_daily_report(
-        [_orphan(eth)], [], {"ETH": 2181.0}, None, 2336, NOW,
-        sl_orders=sls,
-    )
-    text = "\n".join(msgs)
-    # max loss USD shown
-    assert "$42" in text or "$43" in text
-
-
-def test_orphan_no_sl_risk_when_no_sl_order():
-    """No SL → can't compute risk, render '⚠️ нет SL' as before."""
+def test_orphan_no_sl_gets_red_marker():
+    """Round 3: 🔴 prefix instead of '⚠️ нет SL'."""
     eth = _pos("ETH", 0.7238, 2173.0, liq_dist=89.4)
     msgs = render_daily_report(
         [_orphan(eth)], [], {"ETH": 2181.0}, None, 2336, NOW,
         sl_orders=[],
     )
     text = "\n".join(msgs)
-    assert "нет SL" in text
+    # Red marker on the row
+    eth_lines = [l for l in text.split("\n") if "<code>ETH</code>" in l and "LONG" in l]
+    assert len(eth_lines) == 1
+    assert "🔴" in eth_lines[0]

@@ -94,49 +94,21 @@ def _render_header(
     marks: Optional[dict[str, float]] = None,
     performance=None,
 ) -> str:
-    """Compact executive summary header.
+    """Single-line executive header (UI simplification round 3).
 
-    Lines:
-      📊 HL Portfolio — 16 мая 2026, 16:04 MSK
-      $1 573 • Day -$64 (-2.6%) • Exposure 2.0× • Top: ETH 100%
+    Format:
+      📊 HL Portfolio — 17 мая 2026, 16:46 MSK • $2 347
 
-    'Day' is here in the header (replaces the 'Сегодня' row in the perf
-    block) so the most actionable PnL is at the top. 'Exposure' = sum of
-    abs notional / total account value — shows real leverage from cross-
-    margin. 'Top:' = largest position by USD value with concentration %.
+    Removed (UX feedback round 3):
+    - wallet count ('3 кошелька') — not informational
+    - Day PnL — moved into Доходность block
+    - Exposure leverage badge — user always runs at 2×
+    - Top concentration — replaced by full Веса line below
     """
     msk = now.astimezone(_MOSCOW)
-    matches = matches or []
-    marks = marks or {}
-
-    parts: list[str] = []
-    parts.append(f"${_fmt_money(total_value)}")
-
-    # Day PnL — from performance.day if available
-    if performance is not None and performance.day.start_value > 0:
-        money = _fmt_money_signed(performance.day.pnl)
-        roi = _fmt_pct(performance.day.roi_pct)
-        parts.append(f"Day <code>{money}</code> ({roi})")
-
-    # Exposure + top position concentration
-    if total_value > 0 and matches:
-        exposures = _compute_exposures(matches, marks)
-        if exposures:
-            total_exposure = sum(e["value"] for e in exposures)
-            leverage = total_exposure / total_value
-            # Leverage badge: leveraged >= 1.5× is system-level risk —
-            # call it out with ⚠️ so it doesn't get lost in the line.
-            badge = "⚠️ " if leverage >= 1.5 else ""
-            parts.append(f"{badge}Exposure {leverage:.1f}×")
-            top = max(exposures, key=lambda e: e["value"])
-            top_pct = top["value"] / total_value * 100
-            parts.append(f"Top: {_e(top['coin'])} {top_pct:.0f}%")
-
-    summary = " • ".join(parts)
-
     return (
-        f"📊 <b>HL Portfolio</b> — {_ru_date(msk)}, {msk.strftime('%H:%M')} MSK\n"
-        f"{wallet_count} кошельк{_plural(wallet_count, 'а', 'а', 'ов')} • {summary}"
+        f"📊 <b>HL Portfolio</b> — {_ru_date(msk)}, {msk.strftime('%H:%M')} MSK "
+        f"• ${_fmt_money(total_value)}"
     )
 
 
@@ -160,6 +132,34 @@ def _compute_exposures(
     return out
 
 
+def _render_weights(
+    matches: list[MatchResult],
+    marks: dict[str, float],
+) -> Optional[str]:
+    """Portfolio weights line, normalised to 100% across all positions.
+
+    Format: 'Веса: ETH 34% • TAO 22% • HYPE 19% • BTC 13% • ZEC 9% • SOPH 3%'
+
+    Each weight = pos_notional / total_notional (NOT / account_value).
+    This sums to 100% regardless of leverage — the bar always normalised
+    to 'how is my portfolio distributed' rather than 'what's my leverage'.
+    Leverage info is removed elsewhere (UX feedback round 3: user always
+    operates at 2×, badge wasn't informative).
+    """
+    exposures = _compute_exposures(matches, marks)
+    if not exposures:
+        return None
+    total = sum(e["value"] for e in exposures)
+    if total <= 0:
+        return None
+    exposures.sort(key=lambda e: -e["value"])  # largest first
+    bits = []
+    for e in exposures:
+        pct = e["value"] / total * 100
+        bits.append(f"{_e(e['coin'])} {pct:.0f}%")
+    return "Веса: " + " • ".join(bits)
+
+
 def _plural(n: int, one: str, few: str, many: str) -> str:
     n = abs(n) % 100
     if 10 < n < 20:
@@ -173,13 +173,24 @@ def _plural(n: int, one: str, few: str, many: str) -> str:
 
 
 def _render_alerts(alerts: list[Alert]) -> Optional[str]:
+    """Render alerts block.
+
+    Round 3: SL_APPROACH-family messages are self-contained ('🔴 BTC: SL
+    вышибет внутри дня'). Other rules still emit terse text — we prefix
+    those with a severity marker (⚠️/🔴) and the coin code.
+    """
     if not alerts:
         return None
     lines = ["", "<b>Алерты</b>"]
     for a in alerts:
-        marker = _alert_marker(a)
-        coin_label = "" if a.coin == "*" else f"<code>{_e(a.coin)}</code> "
-        lines.append(f"{marker} {coin_label}{_e(a.message)}")
+        msg = a.message
+        # Self-contained messages already start with their own marker emoji
+        if msg.lstrip().startswith(("🔴", "⚠️", "✅", "🟠")):
+            lines.append(_e(msg))
+        else:
+            marker = _alert_marker(a)
+            coin_label = "" if a.coin == "*" else f"<code>{_e(a.coin)}</code> "
+            lines.append(f"{marker} {coin_label}{_e(msg)}")
     return "\n".join(lines)
 
 
@@ -238,102 +249,69 @@ def _render_orphan(
     total_account_value: float = 0.0,
     coin_atrs: Optional[dict[str, float]] = None,
 ) -> Optional[str]:
-    """Two-line per orphan:
+    """One-line per orphan (UI simplification round 3):
 
-      ETH LONG 0.7238 @ $2173 → $2175 (+0.0%) [24h -3.5%]  $1 575 (100%)
-        SL $2122 (2.4% = $43 if hit • 1.5× ATR) ⚠️ • liq buffer 88%
+      BTC LONG • $609 • [24h +0.5%] • SL: -$7
+      🔴 ETH LONG • $1 587 • [24h +0.7%]    ← no SL
 
-    Line 1 = position + USD value + concentration %
-    Line 2 = risk (SL + ATR-relative distance + liq buffer).
+    Format: COIN SIDE • $value • [24h ±%] • SL: -$max_loss
+    Positions without SL get 🔴 prefix and no SL field.
 
-    Positions sorted by SL distance ascending (tightest stop = most
-    urgent = on top). Positions without SL go to the bottom.
+    Removed (per UX feedback round 3):
+    - entry @ price, mark, current PnL%, concentration %
+    - ATR units in row (still used for alert threshold)
+    - SL price, SL distance %, liq buffer
+
+    Positions sorted by SL distance ascending (tightest stop on top).
+    Positions without SL go to the bottom — they need addressing, but
+    the red marker is the call to action, not sort order.
     """
     orphans = [m for m in matches if m.status == "orphan"]
     if not orphans:
         return None
     prev_day_marks = prev_day_marks or {}
     sl_orders = sl_orders or []
-    coin_atrs = coin_atrs or {}
     from src.sl_visibility import find_sl_for_position
 
-    # Sort by SL distance ascending; no-SL positions go to end.
     def _sl_dist_for_sort(m: MatchResult) -> float:
         pos = m.position
         mark = marks.get(pos.coin, 0.0)
         sl = find_sl_for_position(pos, sl_orders)
         if sl is None or mark <= 0:
-            return 1e9  # sentinel: bottom of list
+            return 1e9  # no-SL → bottom
         return abs(mark - sl.trigger_px) / mark * 100
 
     orphans_sorted = sorted(orphans, key=_sl_dist_for_sort)
 
-    lines = ["", "<b>🤚 Ручные / orphan позиции</b>"]
+    lines = ["", "<b>Ручные позиции</b>"]
     for m in orphans_sorted:
         pos = m.position
         mark = marks.get(pos.coin, 0.0)
-        pnl_p = _pnl_pct(pos.net_size, pos.weighted_entry, pos.total_pnl)
         side = "LONG" if pos.net_size > 0 else "SHORT"
-        pnl_str = _fmt_pct(pnl_p) if pnl_p is not None else "—"
 
-        # USD value of position + concentration %
         eff_mark = mark or pos.weighted_entry
         usd_value = abs(pos.net_size) * eff_mark
-        if total_account_value > 0:
-            concentration = usd_value / total_account_value * 100
-            value_str = f"  ${_fmt_money(usd_value)} ({concentration:.0f}%)"
-        else:
-            value_str = f"  ${_fmt_money(usd_value)}"
+        value_str = f"${_fmt_money(usd_value)}"
 
         daily_p = _daily_change_pct(mark, prev_day_marks.get(pos.coin))
-        daily_str = f" [24h {_fmt_pct(daily_p)}]" if daily_p is not None else ""
+        daily_str = f"[24h {_fmt_pct(daily_p)}]" if daily_p is not None else ""
 
-        # Line 1: position
-        lines.append(
-            f"<code>{_e(pos.coin)}</code> {side} {abs(pos.net_size):g} @ "
-            f"${_fmt_price(pos.weighted_entry)} → ${_fmt_price(mark)} "
-            f"({pnl_str}){daily_str}{value_str}"
-        )
-
-        # Line 2: risk
-        risk_bits: list[str] = []
         sl = find_sl_for_position(pos, sl_orders)
         if sl is not None and mark > 0:
-            sl_dist_abs = abs(mark - sl.trigger_px)
-            sl_dist_pct = sl_dist_abs / mark * 100
-            # warn marker when within 3% of SL
-            sl_warn = " ⚠️" if sl_dist_pct <= 3.0 else ""
-            # max loss in USD if SL hits: |mark - sl| × size
-            max_loss = sl_dist_abs * abs(pos.net_size)
-            loss_str = f" = ${_fmt_money(max_loss)} if hit"
-
-            # ATR-relative distance — gives volatility-units context
-            atr_str = ""
-            atr_val = coin_atrs.get(pos.coin)
-            if atr_val and atr_val > 0:
-                atr_mult = sl_dist_abs / atr_val
-                # Categorise: <0.5 ATR = likely intraday, <1 ATR = within a day,
-                # <2 ATR = tight stop, otherwise just the number
-                if atr_mult < 0.5:
-                    qual = " — likely intraday"
-                elif atr_mult < 1.0:
-                    qual = " — within a day"
-                else:
-                    qual = ""
-                atr_str = f" • {atr_mult:.1f}× ATR{qual}"
-
-            risk_bits.append(
-                f"SL ${_fmt_price(sl.trigger_px)} "
-                f"({_fmt_pct(sl_dist_pct, sign=False)}{loss_str}{atr_str}){sl_warn}"
-            )
+            max_loss = abs(mark - sl.trigger_px) * abs(pos.net_size)
+            sl_str = f"SL: -${_fmt_money(max_loss)}"
+            prefix = ""
         else:
-            risk_bits.append("⚠️ нет SL")
+            sl_str = ""
+            prefix = "🔴 "
 
-        liq = pos.max_liquidation_distance_pct
-        if liq > 0:
-            risk_bits.append(f"liq buffer {_fmt_pct(liq, sign=False)}")
+        bits = [f"<code>{_e(pos.coin)}</code> {side}", value_str]
+        if daily_str:
+            bits.append(daily_str)
+        if sl_str:
+            bits.append(sl_str)
 
-        lines.append("  " + " • ".join(risk_bits))
+        lines.append(f"{prefix}" + " • ".join(bits))
     return "\n".join(lines)
 
 
@@ -384,8 +362,9 @@ def _fmt_money_signed(v: float) -> str:
 def _render_performance(perf, day_already_shown: bool = False) -> Optional[str]:
     """Render the 📈 Доходность block from a PerformanceSnapshot.
 
-    When day_already_shown=True (the common case — header shows it),
-    'Сегодня' is omitted to avoid duplication.
+    UI simplification round 3: Day now always shown here (header doesn't
+    duplicate it). day_already_shown param kept for backward compat with
+    older callers but ignored — always renders Day.
     """
     if perf is None:
         return None
@@ -394,11 +373,11 @@ def _render_performance(perf, day_already_shown: bool = False) -> Optional[str]:
         return None
 
     lines = ["", "<b>📈 Доходность</b>"]
-    rows: list[tuple[str, object]] = []
-    if not day_already_shown:
-        rows.append(("Сегодня ", perf.day))
-    rows.append(("Неделя  ", perf.week))
-    rows.append(("Месяц   ", perf.month))
+    rows: list[tuple[str, object]] = [
+        ("Day    ", perf.day),
+        ("Неделя ", perf.week),
+        ("Месяц  ", perf.month),
+    ]
     # All-time removed (UX feedback round 2): -55% anchor bias hurts
     # current-EV decision frame for active trading.
 
@@ -409,8 +388,7 @@ def _render_performance(perf, day_already_shown: bool = False) -> Optional[str]:
             roi = f"({_fmt_pct(ps.roi_pct)})"
         else:
             # fallback: derive ROI from pnl and end_value when HL didn't
-            # return start_value (happens for all-time on accounts with
-            # incomplete history). Implied start = end_value - pnl.
+            # return start_value. Implied start = end_value - pnl.
             implied_start = ps.end_value - ps.pnl
             if implied_start > 0:
                 roi_calc = ps.pnl / implied_start * 100
@@ -507,6 +485,11 @@ def render_daily_report(
         matches=matches, marks=marks, performance=performance,
     )]
 
+    # Веса block: portfolio weights normalised to 100%
+    weights_block = _render_weights(matches, marks)
+    if weights_block:
+        parts.append(weights_block)
+
     # Action required first (UX feedback round 2): alerts before PnL
     alerts_block = _render_alerts(alerts)
     if alerts_block:
@@ -514,9 +497,8 @@ def render_daily_report(
     elif matches or (spot and any(spot)):
         parts.append("\n✅ Без алертов, всё спокойно")
 
-    # If header surfaced day PnL, don't repeat it in the perf block
-    day_in_header = performance is not None and performance.day.start_value > 0
-    perf_block = _render_performance(performance, day_already_shown=day_in_header)
+    # UI round 3: Day now lives in perf block, not header
+    perf_block = _render_performance(performance)
     if perf_block:
         parts.append(perf_block)
 
@@ -528,7 +510,6 @@ def render_daily_report(
         matches, marks, prev_day_marks,
         sl_orders=sl_orders,
         total_account_value=total_account_value,
-        coin_atrs=coin_atrs,
     )
     if orphan_block:
         parts.append(orphan_block)

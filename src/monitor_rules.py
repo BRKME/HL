@@ -187,13 +187,26 @@ def rule_orphan_sl_approach(
     match: MatchResult,
     current_mark: float,
     sl_order,  # SLOrder | None
-    warning_pct: float = 3.0,
+    coin_atr: Optional[float] = None,
+    atr_threshold: float = 0.5,
+    pct_fallback: float = 1.5,
+    warning_pct: float = 3.0,  # legacy kw, kept for backward compat
 ) -> list[Alert]:
-    """Alert when an orphan position's *real* SL on HL is close.
+    """Alert ONLY when an orphan SL is dangerously tight (UX round 3).
 
-    Phase 3.0.x: tracked positions use rule_sl_approach against rec_sl from
-    decisions.jsonl. Orphans don't have a rec_sl — but if user has placed
-    a hard SL on HL, we can use that. sl_order comes from find_sl_for_position.
+    Philosophy: if SL is set on HL, its normal triggering is the plan —
+    no alert needed. Alert only when SL is so close that it will almost
+    certainly trigger today, so the user can decide whether to act before
+    the exchange decides for them.
+
+    Tightness threshold:
+    - If ATR is known: distance < 0.5× ATR ('likely intraday touch')
+    - If ATR unknown: distance < 1.5% percent (rough volatility proxy)
+    - Past SL: still critical
+
+    Message format is intentionally short:
+      'BTC: SL вышибет внутри дня (0.4× ATR)'
+      'ETH: SL за SL (mark $2180 < $2200)'
     """
     if match.status != "orphan" or sl_order is None:
         return []
@@ -201,26 +214,43 @@ def rule_orphan_sl_approach(
         return []
     pos = match.position
     if pos.side == "long":
-        distance_pct = (current_mark - sl_order.trigger_px) / current_mark * 100
+        distance_abs = current_mark - sl_order.trigger_px
     else:
-        distance_pct = (sl_order.trigger_px - current_mark) / current_mark * 100
+        distance_abs = sl_order.trigger_px - current_mark
+    distance_pct = distance_abs / current_mark * 100
 
     if distance_pct < 0:
+        # already past SL — critical
         return [Alert(
             rule="ORPHAN_SL_APPROACH",
             severity=SEV_CRITICAL,
             coin=pos.coin,
-            message=f"{pos.coin}: mark ${_fmt_alert_price(current_mark)} BEYOND SL ${_fmt_alert_price(sl_order.trigger_px)}",
+            message=f"🔴 {pos.coin}: mark прошёл за SL (${_fmt_alert_price(current_mark)} vs ${_fmt_alert_price(sl_order.trigger_px)})",
             details={"sl_price": sl_order.trigger_px, "mark": current_mark,
                      "distance_pct": distance_pct},
         )]
-    if distance_pct <= warning_pct:
+
+    # Tightness check
+    if coin_atr is not None and coin_atr > 0:
+        atr_mult = distance_abs / coin_atr
+        if atr_mult < atr_threshold:
+            return [Alert(
+                rule="ORPHAN_SL_APPROACH",
+                severity=SEV_WARN,
+                coin=pos.coin,
+                message=f"🔴 {pos.coin}: SL вышибет внутри дня ({atr_mult:.1f}× ATR)",
+                details={"sl_price": sl_order.trigger_px, "mark": current_mark,
+                         "distance_pct": distance_pct, "atr_mult": atr_mult},
+            )]
+        return []
+
+    # No ATR — fall back to percent threshold for tight SL
+    if distance_pct <= pct_fallback:
         return [Alert(
             rule="ORPHAN_SL_APPROACH",
             severity=SEV_WARN,
             coin=pos.coin,
-            message=(f"{pos.coin}: mark ${_fmt_alert_price(current_mark)} within "
-                     f"{distance_pct:.1f}% of SL ${_fmt_alert_price(sl_order.trigger_px)}"),
+            message=f"🔴 {pos.coin}: SL очень близко ({distance_pct:.1f}%)",
             details={"sl_price": sl_order.trigger_px, "mark": current_mark,
                      "distance_pct": distance_pct},
         )]
@@ -241,7 +271,7 @@ def rule_no_sl_order(match: MatchResult, sl_order) -> list[Alert]:
         rule="NO_SL_ORDER",
         severity=SEV_WARN,
         coin=pos.coin,
-        message=f"{pos.coin}: позиция без SL на бирже",
+        message=f"🔴 {pos.coin}: нет SL на бирже",
         details={"coin": pos.coin, "side": pos.side, "notional_usd": notional},
     )]
 
@@ -299,10 +329,12 @@ def evaluate_all(
     yesterday_snapshot: Optional[dict],
     config: Optional[RuleConfig] = None,
     sl_orders: Optional[list] = None,
+    coin_atrs: Optional[dict[str, float]] = None,
 ) -> list[Alert]:
     """Run every rule against every position and aggregate alerts."""
     config = config or RuleConfig()
     sl_orders = sl_orders or []
+    coin_atrs = coin_atrs or {}
     current_regime = (current_snapshot or {}).get("regime")
     out: list[Alert] = []
 
@@ -316,11 +348,12 @@ def evaluate_all(
         coin = m.position.coin
         mark = marks.get(coin, 0.0)
         sl_for_pos = find_sl_for_position(m.position, sl_orders)
+        atr_for_pos = coin_atrs.get(coin)
         out.extend(rule_liquidation_close(m, critical_pct=config.liquidation_critical_pct))
         out.extend(rule_sl_approach(m, current_mark=mark, warning_pct=config.sl_warning_pct))
         out.extend(rule_orphan_sl_approach(
             m, current_mark=mark, sl_order=sl_for_pos,
-            warning_pct=config.sl_warning_pct,
+            coin_atr=atr_for_pos,
         ))
         out.extend(rule_no_sl_order(m, sl_order=sl_for_pos))
         out.extend(rule_time_stop(m, max_days=config.time_stop_days))
