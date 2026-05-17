@@ -240,12 +240,16 @@ def test_render_tracked_shows_24h_change_when_prev_day_available():
     assert "+2.5" in text or "24h" in text
 
 
-def test_render_liquidation_uses_unambiguous_label():
-    """'liq 73%' is ambiguous — should say 'до ликвидации' or 'buffer' or 'запас'."""
+def test_render_liquidation_unambiguous_label_removed_in_round3():
+    """UX round 3: liq buffer removed from position row entirely.
+    LIQUIDATION_CLOSE alert still fires for critically-close liquidation
+    (separate rule), but the per-row 'до liq XX%' / 'liq buffer' is gone."""
     matches = [_orphan(pos=_pos(coin="BTC", liq_dist=73.7))]
     msgs = render_daily_report(matches, [], {"BTC": 80000.0}, None, 1000.0, now=NOW)
     text = "\n".join(msgs).lower()
-    assert any(word in text for word in ("запас", "до ликвидации", "buffer", "до liq"))
+    # No liq buffer phrase in the position row
+    assert "liq buffer" not in text
+    assert "до liq" not in text
 
 
 # ---------- performance block ----------

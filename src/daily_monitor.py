@@ -208,6 +208,7 @@ def run_daily_monitor(
         yesterday_snapshot=yesterday_snapshot,
         config=RuleConfig(),
         sl_orders=sl_orders,
+        coin_atrs=coin_atrs,
     )
 
     messages = render_daily_report(
