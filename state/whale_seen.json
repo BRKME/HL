@@ -1,0 +1,10 @@
+{
+  "entries": [
+    {
+      "rule": "WHALE_OVERLAP",
+      "whale": "0xecb63caa47c7c4e77f60f1ce858cf28dc2b82b00",
+      "coin": "BTC",
+      "ts": 1779007621
+    }
+  ]
+}
