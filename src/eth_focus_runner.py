@@ -48,14 +48,19 @@ def _safe_fetch_meta() -> tuple[dict, float, float, float, float]:
     mark = float(ctx.get("mark") or 0)
     prev_day = float(ctx.get("prev_day") or 0)
     funding = ctx.get("funding_apr_pct")
-    oi = ctx.get("open_interest_usd")
+    # HL returns open_interest in contracts (not USD). Convert via mark.
+    oi_contracts = ctx.get("open_interest")
+    if oi_contracts is not None and mark > 0:
+        oi_usd = float(oi_contracts) * mark
+    else:
+        oi_usd = 0.0
 
     return (
         meta,
         mark,
         prev_day,
         float(funding) if funding is not None else 0.0,
-        float(oi) if oi is not None else 0.0,
+        oi_usd,
     )
 
 

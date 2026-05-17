@@ -276,6 +276,108 @@ def test_setup_summary_skips_when_no_data():
     assert section is None
 
 
+def test_setup_summary_includes_swing_low_proximity_when_near():
+    """If price is within 5% of swing low, mention support is nearby."""
+    ta_data = {
+        "rsi_d1": 45,
+        "above_ema50": False, "above_ema200": True,
+        "vs_ema50_pct": -3.0, "vs_ema200_pct": 13.0,
+        "swing_low": 2179.0, "last": 2184.0,  # 0.23% above swing
+    }
+    section = _section_setup(
+        ta=ta_data, funding_apr_pct=None,
+        whale_cluster_count=0, whale_net_long=None, regime=None,
+    )
+    assert section is not None
+    assert "swing low" in section.lower() or "поддержка" in section.lower()
+
+
+def test_setup_summary_omits_swing_low_when_far():
+    """Swing 20% below price → don't mention it (not 'nearby')."""
+    ta_data = {
+        "rsi_d1": 45,
+        "above_ema50": True, "above_ema200": True,
+        "vs_ema50_pct": 2.0, "vs_ema200_pct": 20.0,
+        "swing_low": 1800.0, "last": 2300.0,  # 27% above swing
+    }
+    section = _section_setup(
+        ta=ta_data, funding_apr_pct=None,
+        whale_cluster_count=0, whale_net_long=None, regime=None,
+    )
+    text = section.lower() if section else ""
+    assert "swing low" not in text
+    assert "поддержка" not in text
+
+
+def test_setup_summary_surfaces_moderate_funding_at_minus_6_pct():
+    """Real-world case: ETH funding -6.1% APR.
+    Old code only fired at <=-10%, new fires at <=-5%."""
+    ta_data = {
+        "rsi_d1": 39, "above_ema50": False, "above_ema200": False,
+        "vs_ema50_pct": -3.6, "vs_ema200_pct": -18.7,
+    }
+    section = _section_setup(
+        ta=ta_data, funding_apr_pct=-6.1,
+        whale_cluster_count=0, whale_net_long=None, regime="BULL",
+    )
+    assert section is not None
+    text = section.lower()
+    assert "-6" in text
+    assert "long" in text or "лонг" in text or "отскок" in text
+
+
+def test_setup_summary_surfaces_moderate_funding_at_plus_8_pct():
+    """+5% to +14% range: moderate long-pays-short bias."""
+    ta_data = {
+        "rsi_d1": 55, "above_ema50": True, "above_ema200": True,
+        "vs_ema50_pct": 2.0, "vs_ema200_pct": 8.0,
+    }
+    section = _section_setup(
+        ta=ta_data, funding_apr_pct=8.0,
+        whale_cluster_count=0, whale_net_long=None, regime="BULL",
+    )
+    assert section is not None
+    assert "+8" in section
+    text = section.lower()
+    assert "short" in text or "шорт" in text or "коррекц" in text
+
+
+def test_setup_summary_skips_funding_in_neutral_zone():
+    """-5% to +5%: don't mention funding, it's not actionable."""
+    section = _section_setup(
+        ta={"rsi_d1": 50, "above_ema50": True, "above_ema200": True,
+            "vs_ema50_pct": 1.0, "vs_ema200_pct": 5.0},
+        funding_apr_pct=2.0,
+        whale_cluster_count=0, whale_net_long=None, regime=None,
+    )
+    text = section.lower() if section else ""
+    assert "funding" not in text
+
+
+def test_setup_summary_includes_phase_in_regime_line():
+    section = _section_setup(
+        ta=None, funding_apr_pct=None,
+        whale_cluster_count=0, whale_net_long=None,
+        regime="BULL", phase="EARLY_BEAR",
+    )
+    assert section is not None
+    assert "BULL" in section
+    assert "EARLY_BEAR" in section
+    assert "phase" in section.lower()
+
+
+def test_setup_summary_no_phase_when_not_provided():
+    """Backward compat: phase is optional, doesn't crash if missing."""
+    section = _section_setup(
+        ta=None, funding_apr_pct=None,
+        whale_cluster_count=0, whale_net_long=None,
+        regime="BULL",  # no phase
+    )
+    assert section is not None
+    assert "BULL" in section
+    assert "phase" not in section.lower()
+
+
 # ---------- end-to-end render ----------
 
 def test_render_eth_focus_combines_all_sections(tmp_path):
