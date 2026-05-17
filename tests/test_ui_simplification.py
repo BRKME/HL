@@ -224,10 +224,17 @@ def test_position_row_is_single_line():
 
 
 def test_position_row_minimal_content():
-    """Format: COIN LONG • $value • [24h ±X%] • SL: -$Z
-    No entry, no mark, no current PnL, no concentration %, no ATR, no liq."""
+    """Format: COIN LONG • $value • [pnl USD] • SL: -$Z
+    No entry, no mark, no current PnL%, no concentration %, no ATR, no liq.
+    24h ±% replaced with unrealized PnL in USD (round 3 follow-up)."""
     eth = _pos("ETH", 0.7238, 2173.0)
     sls = [_sl("ETH", 2122.0)]  # max loss = $51
+    # Give position a non-zero unrealized PnL to verify it shows
+    eth = AggregatedPerpPosition(
+        coin="ETH", net_size=0.7238, weighted_entry=2173.0, total_pnl=13.75,
+        contributors=[("main", 0.7238)], avg_leverage=5,
+        max_liquidation_distance_pct=0.0,
+    )
     msgs = render_daily_report(
         [_orphan(eth)], [], {"ETH": 2192.0}, None, 2347, NOW,
         sl_orders=sls,
@@ -239,7 +246,8 @@ def test_position_row_minimal_content():
     # Has the core 4 pieces
     assert "LONG" in eth_line
     assert "$1" in eth_line  # USD value (1587 or similar)
-    assert "24h" in eth_line
+    # PnL USD bracket (with sign) instead of 24h %
+    assert "+$13" in eth_line or "+$14" in eth_line
     assert "SL" in eth_line  # max-loss bit
 
     # Does NOT have removed elements
@@ -248,6 +256,7 @@ def test_position_row_minimal_content():
     assert "ATR" not in eth_line  # ATR units gone
     assert "liq buffer" not in eth_line  # liq removed from row
     assert "if hit" not in eth_line  # phrase removed (just '-$Z')
+    assert "24h" not in eth_line  # 24h % gone (replaced by PnL USD)
 
 
 def test_position_max_loss_negative_format():
@@ -415,3 +424,88 @@ def test_evaluate_all_silent_when_atr_distance_safe():
     )
     rules = {a.rule for a in alerts}
     assert "ORPHAN_SL_APPROACH" not in rules
+
+
+# ---------- 8. Alphabetical sort + PnL USD (round 3 follow-up) ----------
+
+def test_positions_sorted_alphabetically_by_coin():
+    """Round 3 follow-up: sort by coin name ascending (not SL distance)."""
+    btc  = AggregatedPerpPosition("BTC",  0.01, 78000.0, 0,
+        contributors=[("main", 0.01)], avg_leverage=5, max_liquidation_distance_pct=0)
+    eth  = AggregatedPerpPosition("ETH",  1.0, 2000.0, 0,
+        contributors=[("main", 1.0)], avg_leverage=5, max_liquidation_distance_pct=0)
+    zec  = AggregatedPerpPosition("ZEC",  1.0, 500.0, 0,
+        contributors=[("main", 1.0)], avg_leverage=5, max_liquidation_distance_pct=0)
+    aaa  = AggregatedPerpPosition("AAA",  1.0, 10.0, 0,
+        contributors=[("main", 1.0)], avg_leverage=5, max_liquidation_distance_pct=0)
+    # Pass in non-alphabetical order
+    msgs = render_daily_report(
+        [_orphan(zec), _orphan(eth), _orphan(btc), _orphan(aaa)], [],
+        {"BTC": 78000, "ETH": 2000, "ZEC": 500, "AAA": 10},
+        None, 100000, NOW,
+    )
+    text = "\n".join(msgs)
+    # Order in output: AAA, BTC, ETH, ZEC (alphabetical)
+    aaa_pos = text.find("<code>AAA</code>")
+    btc_pos = text.find("<code>BTC</code>")
+    eth_pos = text.find("<code>ETH</code>")
+    zec_pos = text.find("<code>ZEC</code>")
+    assert aaa_pos < btc_pos < eth_pos < zec_pos
+
+
+def test_position_shows_unrealized_pnl_usd_with_sign():
+    """[+$14] for profit, [-$10] for loss — total_pnl from HL."""
+    profit = AggregatedPerpPosition(
+        coin="ETH", net_size=1.0, weighted_entry=2000.0, total_pnl=14.50,
+        contributors=[("main", 1.0)], avg_leverage=5,
+        max_liquidation_distance_pct=0,
+    )
+    loss = AggregatedPerpPosition(
+        coin="BTC", net_size=0.01, weighted_entry=78000.0, total_pnl=-9.75,
+        contributors=[("main", 0.01)], avg_leverage=5,
+        max_liquidation_distance_pct=0,
+    )
+    msgs = render_daily_report(
+        [_orphan(profit), _orphan(loss)], [],
+        {"ETH": 2014.5, "BTC": 77000.0}, None, 10000, NOW,
+    )
+    text = "\n".join(msgs)
+    eth_line = next(l for l in text.split("\n") if "ETH" in l and "LONG" in l)
+    btc_line = next(l for l in text.split("\n") if "BTC" in l and "LONG" in l)
+    # Profit shows with +
+    assert "[+$14]" in eth_line or "[+$15]" in eth_line
+    # Loss shows with -
+    assert "[-$10]" in btc_line or "[-$9]" in btc_line
+
+
+def test_position_zero_pnl_still_shown():
+    """[+$0] when position is flat — consistent format."""
+    flat = AggregatedPerpPosition(
+        coin="ETH", net_size=1.0, weighted_entry=2000.0, total_pnl=0.0,
+        contributors=[("main", 1.0)], avg_leverage=5,
+        max_liquidation_distance_pct=0,
+    )
+    msgs = render_daily_report(
+        [_orphan(flat)], [], {"ETH": 2000.0}, None, 10000, NOW,
+    )
+    text = "\n".join(msgs)
+    eth_line = next(l for l in text.split("\n") if "ETH" in l and "LONG" in l)
+    # Brackets present, value is $0 with some sign
+    assert "[$0]" in eth_line or "[+$0]" in eth_line or "[-$0]" in eth_line
+
+
+def test_24h_pct_no_longer_in_row():
+    """24h ±% completely gone — replaced by total_pnl USD."""
+    eth = AggregatedPerpPosition(
+        coin="ETH", net_size=1.0, weighted_entry=2000.0, total_pnl=14.0,
+        contributors=[("main", 1.0)], avg_leverage=5,
+        max_liquidation_distance_pct=0,
+    )
+    msgs = render_daily_report(
+        [_orphan(eth)], [], {"ETH": 2014.0}, None, 10000, NOW,
+        prev_day_marks={"ETH": 2000.0},  # 24h+0.7% — should NOT appear
+    )
+    text = "\n".join(msgs)
+    eth_line = next(l for l in text.split("\n") if "ETH" in l and "LONG" in l)
+    assert "24h" not in eth_line
+    assert "+0.7%" not in eth_line

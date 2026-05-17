@@ -273,15 +273,10 @@ def _render_orphan(
     sl_orders = sl_orders or []
     from src.sl_visibility import find_sl_for_position
 
-    def _sl_dist_for_sort(m: MatchResult) -> float:
-        pos = m.position
-        mark = marks.get(pos.coin, 0.0)
-        sl = find_sl_for_position(pos, sl_orders)
-        if sl is None or mark <= 0:
-            return 1e9  # no-SL → bottom
-        return abs(mark - sl.trigger_px) / mark * 100
-
-    orphans_sorted = sorted(orphans, key=_sl_dist_for_sort)
+    # Sort alphabetically by coin name (round 3 follow-up):
+    # SL-distance sort was nice in principle, but with the simplified row
+    # format alphabetical is easier to scan for a specific position.
+    orphans_sorted = sorted(orphans, key=lambda m: m.position.coin)
 
     lines = ["", "<b>Ручные позиции</b>"]
     for m in orphans_sorted:
@@ -293,8 +288,11 @@ def _render_orphan(
         usd_value = abs(pos.net_size) * eff_mark
         value_str = f"${_fmt_money(usd_value)}"
 
-        daily_p = _daily_change_pct(mark, prev_day_marks.get(pos.coin))
-        daily_str = f"[24h {_fmt_pct(daily_p)}]" if daily_p is not None else ""
+        # Unrealized PnL on this open position (round 3 follow-up):
+        # replaces [24h ±%]. Comes straight from HL clearinghouseState as
+        # total_pnl, summed across the contributing wallets. Reflects
+        # mark-to-market PnL from entry — funding included by HL.
+        pnl_str = f"[{_fmt_money_signed(pos.total_pnl)}]"
 
         sl = find_sl_for_position(pos, sl_orders)
         if sl is not None and mark > 0:
@@ -305,9 +303,7 @@ def _render_orphan(
             sl_str = ""
             prefix = "🔴 "
 
-        bits = [f"<code>{_e(pos.coin)}</code> {side}", value_str]
-        if daily_str:
-            bits.append(daily_str)
+        bits = [f"<code>{_e(pos.coin)}</code> {side}", value_str, pnl_str]
         if sl_str:
             bits.append(sl_str)
 
