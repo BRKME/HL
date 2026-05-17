@@ -364,6 +364,7 @@ def _section_setup(
     whale_cluster_count: int,
     whale_net_long: Optional[bool],
     regime: Optional[str],
+    phase: Optional[str] = None,
 ) -> Optional[str]:
     """Descriptive summary — what's the current setup on ETH.
 
@@ -395,16 +396,38 @@ def _section_setup(
             elif rsi < 40:
                 bullets.append(f"RSI {rsi:.0f} — повышенное давление продавца")
 
+        # Swing-low proximity: support nearby is a structurally important fact
+        swing_low = ta.get("swing_low")
+        last = ta.get("last")
+        if swing_low and last and last > 0:
+            swing_dist_pct = (last - swing_low) / last * 100
+            if 0 <= swing_dist_pct <= 5.0:
+                bullets.append(
+                    f"Цена в {swing_dist_pct:.1f}% от swing low 30d "
+                    f"(${_fmt_price(swing_low)}) — поддержка рядом"
+                )
+
     if funding_apr_pct is not None:
+        # Lowered thresholds to ±5% so moderate funding bias is surfaced
         if funding_apr_pct >= 15:
             bullets.append(
                 f"Funding {funding_apr_pct:+.0f}% APR — лонги дорогие, "
                 f"short setup финансово выгоден"
             )
+        elif funding_apr_pct >= 5:
+            bullets.append(
+                f"Funding {funding_apr_pct:+.1f}% APR — long платят short, "
+                f"умеренный bias к коррекции"
+            )
         elif funding_apr_pct <= -10:
             bullets.append(
                 f"Funding {funding_apr_pct:+.0f}% APR — шорты дорогие, "
                 f"long setup финансово выгоден"
+            )
+        elif funding_apr_pct <= -5:
+            bullets.append(
+                f"Funding {funding_apr_pct:+.1f}% APR — short платят long, "
+                f"умеренный bias к отскоку"
             )
 
     if whale_cluster_count >= 2:
@@ -419,7 +442,10 @@ def _section_setup(
         )
 
     if regime and regime in ("BULL", "BEAR"):
-        bullets.append(f"Broad market regime: {regime}")
+        regime_bit = f"Broad market regime: {regime}"
+        if phase:
+            regime_bit += f" · phase {phase}"
+        bullets.append(regime_bit)
 
     if not bullets:
         return None
@@ -503,6 +529,7 @@ def build_eth_focus_report(
         whale_cluster_count=cluster_count,
         whale_net_long=whale_net_long,
         regime=(regime_snapshot or {}).get("regime") if regime_snapshot else None,
+        phase=((regime_snapshot or {}).get("cycle") or {}).get("phase") if regime_snapshot else None,
     )
     if setup_section:
         parts.append(setup_section)
