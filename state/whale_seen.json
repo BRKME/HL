@@ -1,10 +1,172 @@
 {
   "entries": [
     {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0xf17de447fdfa1778db06111e3cbdc878332adab2",
-      "coin": "HYPE",
-      "ts": 1779138575
+      "rule": "WHALE_FLIP",
+      "whale": "0xff4cd3826ecee12acd4329aada4a2d3419fc463c",
+      "coin": "ETH",
+      "ts": 1779289048
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0xff4cd3826ecee12acd4329aada4a2d3419fc463c",
+      "coin": "ETH",
+      "ts": 1779289048
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0xff4cd3826ecee12acd4329aada4a2d3419fc463c",
+      "coin": "ETH",
+      "ts": 1779289048
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0xff4cd3826ecee12acd4329aada4a2d3419fc463c",
+      "coin": "ETH",
+      "ts": 1779289048
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0xff4cd3826ecee12acd4329aada4a2d3419fc463c",
+      "coin": "ETH",
+      "ts": 1779289048
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0xff4cd3826ecee12acd4329aada4a2d3419fc463c",
+      "coin": "ETH",
+      "ts": 1779289048
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0xff4cd3826ecee12acd4329aada4a2d3419fc463c",
+      "coin": "ETH",
+      "ts": 1779289048
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0xff4cd3826ecee12acd4329aada4a2d3419fc463c",
+      "coin": "ETH",
+      "ts": 1779289048
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0xff4cd3826ecee12acd4329aada4a2d3419fc463c",
+      "coin": "ETH",
+      "ts": 1779289048
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0xff4cd3826ecee12acd4329aada4a2d3419fc463c",
+      "coin": "ETH",
+      "ts": 1779289048
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0xff4cd3826ecee12acd4329aada4a2d3419fc463c",
+      "coin": "ETH",
+      "ts": 1779289048
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0xff4cd3826ecee12acd4329aada4a2d3419fc463c",
+      "coin": "ETH",
+      "ts": 1779289048
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0xff4cd3826ecee12acd4329aada4a2d3419fc463c",
+      "coin": "BTC",
+      "ts": 1779289048
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0xff4cd3826ecee12acd4329aada4a2d3419fc463c",
+      "coin": "BTC",
+      "ts": 1779289048
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0xff4cd3826ecee12acd4329aada4a2d3419fc463c",
+      "coin": "BTC",
+      "ts": 1779289048
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0xff4cd3826ecee12acd4329aada4a2d3419fc463c",
+      "coin": "BTC",
+      "ts": 1779289048
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0xff4cd3826ecee12acd4329aada4a2d3419fc463c",
+      "coin": "BTC",
+      "ts": 1779289048
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0xff4cd3826ecee12acd4329aada4a2d3419fc463c",
+      "coin": "BTC",
+      "ts": 1779289048
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0xff4cd3826ecee12acd4329aada4a2d3419fc463c",
+      "coin": "BTC",
+      "ts": 1779289048
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0xff4cd3826ecee12acd4329aada4a2d3419fc463c",
+      "coin": "BTC",
+      "ts": 1779289048
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0xff4cd3826ecee12acd4329aada4a2d3419fc463c",
+      "coin": "BTC",
+      "ts": 1779289048
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0xff4cd3826ecee12acd4329aada4a2d3419fc463c",
+      "coin": "BTC",
+      "ts": 1779289048
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0xff4cd3826ecee12acd4329aada4a2d3419fc463c",
+      "coin": "BTC",
+      "ts": 1779289048
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0xff4cd3826ecee12acd4329aada4a2d3419fc463c",
+      "coin": "BTC",
+      "ts": 1779289048
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0xff4cd3826ecee12acd4329aada4a2d3419fc463c",
+      "coin": "BTC",
+      "ts": 1779289048
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0xff4cd3826ecee12acd4329aada4a2d3419fc463c",
+      "coin": "BTC",
+      "ts": 1779289048
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0xff4cd3826ecee12acd4329aada4a2d3419fc463c",
+      "coin": "BTC",
+      "ts": 1779289048
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0xff4cd3826ecee12acd4329aada4a2d3419fc463c",
+      "coin": "BTC",
+      "ts": 1779289048
     }
   ]
 }
