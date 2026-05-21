@@ -263,6 +263,18 @@
       "whale": "0x6ba889db7f923622d3548f621ecc2054b80c1817",
       "coin": "ASTER",
       "ts": 1779333909
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0xc926ddba8b7617dbc65712f20cf8e1b58b8598d3",
+      "coin": "BTC",
+      "ts": 1779349667
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0xc926ddba8b7617dbc65712f20cf8e1b58b8598d3",
+      "coin": "BTC",
+      "ts": 1779349667
     }
   ]
 }
