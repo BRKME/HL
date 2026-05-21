@@ -167,6 +167,102 @@
       "whale": "0xff4cd3826ecee12acd4329aada4a2d3419fc463c",
       "coin": "BTC",
       "ts": 1779289048
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0x6ba889db7f923622d3548f621ecc2054b80c1817",
+      "coin": "BNB",
+      "ts": 1779333909
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0x6ba889db7f923622d3548f621ecc2054b80c1817",
+      "coin": "ZEC",
+      "ts": 1779333909
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0x6ba889db7f923622d3548f621ecc2054b80c1817",
+      "coin": "ZEC",
+      "ts": 1779333909
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0x6ba889db7f923622d3548f621ecc2054b80c1817",
+      "coin": "ZEC",
+      "ts": 1779333909
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0x6ba889db7f923622d3548f621ecc2054b80c1817",
+      "coin": "ZEC",
+      "ts": 1779333909
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0x6ba889db7f923622d3548f621ecc2054b80c1817",
+      "coin": "ZEC",
+      "ts": 1779333909
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0x6ba889db7f923622d3548f621ecc2054b80c1817",
+      "coin": "ZEC",
+      "ts": 1779333909
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0x6ba889db7f923622d3548f621ecc2054b80c1817",
+      "coin": "ZEC",
+      "ts": 1779333909
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0x6ba889db7f923622d3548f621ecc2054b80c1817",
+      "coin": "ZEC",
+      "ts": 1779333909
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0x6ba889db7f923622d3548f621ecc2054b80c1817",
+      "coin": "ZEC",
+      "ts": 1779333909
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0x6ba889db7f923622d3548f621ecc2054b80c1817",
+      "coin": "ZEC",
+      "ts": 1779333909
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0x6ba889db7f923622d3548f621ecc2054b80c1817",
+      "coin": "ZEC",
+      "ts": 1779333909
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0x6ba889db7f923622d3548f621ecc2054b80c1817",
+      "coin": "ZEC",
+      "ts": 1779333909
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0x6ba889db7f923622d3548f621ecc2054b80c1817",
+      "coin": "ASTER",
+      "ts": 1779333909
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0x6ba889db7f923622d3548f621ecc2054b80c1817",
+      "coin": "ASTER",
+      "ts": 1779333909
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0x6ba889db7f923622d3548f621ecc2054b80c1817",
+      "coin": "ASTER",
+      "ts": 1779333909
     }
   ]
 }
