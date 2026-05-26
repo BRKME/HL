@@ -302,6 +302,25 @@ def detect_flip(
             if open_side is None or last_closed_side is None:
                 continue
             if open_side != last_closed_side:
+                # Phase 4 fix: apply notional + winrate floors to FLIP too.
+                # Previously FLIP was unfiltered, leading to micro-fills
+                # (e.g. $174 ZEC FLIP) treated as whale signals. Floors
+                # match other rules: focus coins get the softer threshold.
+                floor = (config.focus_min_notional_usd
+                         if is_focus else config.min_notional_usd)
+                if f.notional_usd < floor:
+                    last_closed_side = None  # consume the flip event anyway
+                    continue
+                # winrate gate — already pre-filtered at the whale level
+                # above (config.flip_min_winrate), but keep it explicit
+                # for the focus_coins relaxation case
+                wr_for_whale = wr
+                wr_min = (config.focus_new_open_min_winrate
+                          if is_focus else config.flip_min_winrate)
+                if wr_for_whale < wr_min:
+                    last_closed_side = None
+                    continue
+
                 severity = SEV_CRITICAL if is_focus else SEV_WARN
                 focus_marker = "🎯 " if is_focus else ""
                 # we have flip: was last_closed_side, now open_side
@@ -321,6 +340,7 @@ def detect_flip(
                         "close_time_ms": last_close_time,
                         "open_time_ms": f.time_ms,
                         "notional_usd": f.notional_usd,
+                        "winrate_used": wr_for_whale,
                         "focus": is_focus,
                     },
                 ))

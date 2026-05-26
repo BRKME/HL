@@ -303,6 +303,78 @@ def test_flip_silent_close_without_subsequent_open():
     assert signals == []
 
 
+def test_flip_silent_when_below_notional_floor():
+    """Phase 4: micro-fill FLIP should be filtered out by notional floor.
+
+    Before fix: $174 ZEC FLIP was producing signals alongside real $100k
+    moves. Now the flip event must clear config.min_notional_usd ($50k
+    default) just like CLUSTER/NEW_OPEN do.
+    """
+    fills = [
+        _fill(whale="0x111", coin="BTC", direction="Close Long",
+              notional=200, minutes_ago=60, tid=1),  # tiny
+        _fill(whale="0x111", coin="BTC", direction="Open Short",
+              notional=200, minutes_ago=50, tid=2),  # tiny
+    ]
+    scores = {"0x111": _good_score("0x111", win_rate=0.65)}
+    signals = detect_flip(fills, scores, whitelist={"BTC"}, config=CorrelationConfig())
+    assert signals == []
+
+
+def test_flip_fires_above_notional_floor():
+    """Sanity check: big FLIP still fires."""
+    fills = [
+        _fill(whale="0x111", coin="BTC", direction="Close Long",
+              notional=200_000, minutes_ago=60, tid=1),
+        _fill(whale="0x111", coin="BTC", direction="Open Short",
+              notional=200_000, minutes_ago=50, tid=2),
+    ]
+    scores = {"0x111": _good_score("0x111", win_rate=0.65)}
+    signals = detect_flip(fills, scores, whitelist={"BTC"}, config=CorrelationConfig())
+    assert len(signals) == 1
+
+
+def test_flip_uses_focus_floor_for_focus_coin():
+    """ETH (focus coin) uses focus_min_notional_usd ($30k) — softer than
+    general $50k. So a $40k FLIP on ETH should fire while a $40k FLIP
+    on BTC (non-focus) should not."""
+    cfg = CorrelationConfig(focus_coins=frozenset(["ETH"]))
+    # ETH at $40k — above focus threshold, below general
+    fills_eth = [
+        _fill(whale="0x111", coin="ETH", direction="Close Long",
+              notional=40_000, minutes_ago=60, tid=1),
+        _fill(whale="0x111", coin="ETH", direction="Open Short",
+              notional=40_000, minutes_ago=50, tid=2),
+    ]
+    scores = {"0x111": _good_score("0x111", win_rate=0.65)}
+    signals = detect_flip(fills_eth, scores, whitelist={"ETH"}, config=cfg)
+    assert len(signals) == 1
+
+    # Same $40k on BTC (non-focus) — under $50k general floor → silent
+    fills_btc = [
+        _fill(whale="0x111", coin="BTC", direction="Close Long",
+              notional=40_000, minutes_ago=60, tid=1),
+        _fill(whale="0x111", coin="BTC", direction="Open Short",
+              notional=40_000, minutes_ago=50, tid=2),
+    ]
+    signals = detect_flip(fills_btc, scores, whitelist={"BTC"}, config=cfg)
+    assert signals == []
+
+
+def test_flip_includes_winrate_in_details():
+    """The signal should now record the winrate that gated it, like CLUSTER does."""
+    fills = [
+        _fill(whale="0x111", coin="BTC", direction="Close Long",
+              notional=200_000, minutes_ago=60, tid=1),
+        _fill(whale="0x111", coin="BTC", direction="Open Short",
+              notional=200_000, minutes_ago=50, tid=2),
+    ]
+    scores = {"0x111": _good_score("0x111", win_rate=0.72)}
+    signals = detect_flip(fills, scores, whitelist={"BTC"}, config=CorrelationConfig())
+    assert len(signals) == 1
+    assert signals[0].details.get("winrate_used") == pytest.approx(0.72, abs=0.01)
+
+
 def test_flip_silent_when_close_and_open_on_different_coins():
     """Close BTC long then open ETH short ≠ flip — different positions."""
     fills = [
