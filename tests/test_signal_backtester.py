@@ -343,3 +343,111 @@ def test_render_report_sorts_by_actionability():
     eth_idx = text.find("ETH")
     btc_idx = text.find("BTC")
     assert 0 <= eth_idx < btc_idx
+
+
+# ---------- notional filter ----------
+
+def test_backtest_filters_by_min_notional():
+    """Signals with notional below threshold should be excluded."""
+    big_ts_ms = int((NOW - timedelta(days=2)).timestamp() * 1000)
+    candles = [
+        _candle(big_ts_ms - 3600_000, 2000.0),
+        _candle(big_ts_ms, 2000.0),
+        _candle(big_ts_ms + 24 * 3600_000, 2040.0),  # +2% for long
+    ]
+    signals = [
+        # Big whale — counts
+        Signal(ts=NOW - timedelta(days=2), rule="WHALE_FLIP", coin="ETH",
+               severity=2, details={"to_side": "long", "notional_usd": 100_000}),
+        # Small whale — should be filtered out
+        Signal(ts=NOW - timedelta(days=2), rule="WHALE_FLIP", coin="ETH",
+               severity=2, details={"to_side": "long", "notional_usd": 500}),
+    ]
+    # No filter: 2 events
+    groups_all = backtest(signals, {"ETH": candles}, min_notional_usd=0)
+    eth = next(g for g in groups_all if g.coin == "ETH")
+    assert eth.n_events == 2
+    # Filter $10k: only 1 event
+    groups_filtered = backtest(signals, {"ETH": candles}, min_notional_usd=10_000)
+    eth_f = next(g for g in groups_filtered if g.coin == "ETH")
+    assert eth_f.n_events == 1
+
+
+def test_backtest_filter_handles_missing_notional_field():
+    """Signals without notional_usd treated as 0 — filtered out by any >0 threshold."""
+    ts_ms = int((NOW - timedelta(days=2)).timestamp() * 1000)
+    candles = [_candle(ts_ms, 2000.0), _candle(ts_ms + 24 * 3600_000, 2020.0)]
+    signals = [
+        Signal(ts=NOW - timedelta(days=2), rule="WHALE_FLIP", coin="ETH",
+               severity=2, details={"to_side": "long"}),  # no notional
+    ]
+    groups = backtest(signals, {"ETH": candles}, min_notional_usd=1_000)
+    assert groups == [] or all(g.n_events == 0 for g in groups)
+
+
+# ---------- multi-threshold comparison ----------
+
+def test_backtest_thresholds_returns_dict_per_threshold():
+    """backtest_thresholds runs the backtest at each notional threshold."""
+    from src.signal_backtester import backtest_thresholds
+    ts_ms = int((NOW - timedelta(days=2)).timestamp() * 1000)
+    candles = [_candle(ts_ms, 2000.0), _candle(ts_ms + 24 * 3600_000, 2040.0)]
+    signals = [
+        Signal(ts=NOW - timedelta(days=2), rule="WHALE_FLIP", coin="ETH",
+               severity=2, details={"to_side": "long", "notional_usd": 100_000}),
+        Signal(ts=NOW - timedelta(days=2), rule="WHALE_FLIP", coin="ETH",
+               severity=2, details={"to_side": "long", "notional_usd": 500}),
+    ]
+    results = backtest_thresholds(signals, {"ETH": candles}, thresholds=[0, 10_000, 50_000])
+    assert set(results.keys()) == {0, 10_000, 50_000}
+    # $0: 2 events; $10k: 1; $50k: 1
+    g0 = next(g for g in results[0] if g.coin == "ETH")
+    g10 = next(g for g in results[10_000] if g.coin == "ETH")
+    g50 = next(g for g in results[50_000] if g.coin == "ETH")
+    assert g0.n_events == 2
+    assert g10.n_events == 1
+    assert g50.n_events == 1
+
+
+def test_render_comparison_report_shows_all_thresholds():
+    """Comparison report lists each threshold as a row under the group."""
+    from src.signal_backtester import render_comparison_report
+    g_all = BacktestGroup(
+        coin="ETH", rule="WHALE_FLIP", direction="long",
+        n_events=10, win_rate={24: 0.5, 48: 0.5, 6: 0.5, 168: 0.5},
+        avg_return_pct={24: 0.5, 48: 0, 6: 0, 168: 0},
+        max_dd_pct={24: -1, 48: -1, 6: -1, 168: -1},
+    )
+    g_big = BacktestGroup(
+        coin="ETH", rule="WHALE_FLIP", direction="long",
+        n_events=4, win_rate={24: 0.75, 48: 0.75, 6: 0.5, 168: 0.75},
+        avg_return_pct={24: 2.0, 48: 1.5, 6: 0, 168: 3.0},
+        max_dd_pct={24: -1, 48: -1, 6: -1, 168: -1},
+    )
+    results = {0: [g_all], 10_000: [g_big]}
+    text = render_comparison_report(results, now=NOW)
+    assert "ETH" in text
+    assert "≥$0" in text or "≥$0k" in text
+    assert "≥$10k" in text
+    # Both rows visible
+    assert "10 ev" in text
+    assert "4 ev" in text
+
+
+def test_render_comparison_report_empty():
+    from src.signal_backtester import render_comparison_report
+    text = render_comparison_report({0: [], 10_000: []}, now=NOW)
+    assert "нет" in text.lower() or "0" in text
+
+
+def test_render_comparison_report_skips_groups_with_no_data_anywhere():
+    """If a group has <3 events at every threshold, skip — not enough to learn."""
+    from src.signal_backtester import render_comparison_report
+    tiny = BacktestGroup(
+        coin="SOPH", rule="WHALE_FLIP", direction="long",
+        n_events=1, win_rate={24: 1, 48: 0, 6: 0, 168: 0},
+        avg_return_pct={24: 0, 48: 0, 6: 0, 168: 0},
+        max_dd_pct={24: 0, 48: 0, 6: 0, 168: 0},
+    )
+    text = render_comparison_report({0: [tiny], 10_000: []}, now=NOW)
+    assert "SOPH" not in text

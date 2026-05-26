@@ -19,9 +19,9 @@ from pathlib import Path
 from src.hl_api import fetch_candles
 from src.signal_backtester import (
     HORIZONS_HOURS,
-    backtest,
+    backtest_thresholds,
     load_signals,
-    render_report,
+    render_comparison_report,
 )
 from src.telegram_sender import alert_owner, send_messages
 
@@ -66,12 +66,17 @@ def run() -> None:
         candles_by_coin[coin] = _safe_fetch_candles(coin)
         logger.info("  %s: %d candles", coin, len(candles_by_coin[coin]))
 
-    groups = backtest(signals, candles_by_coin)
-    msg = render_report(groups, now=now)
+    # Run backtest at 3 notional thresholds to see how signal quality
+    # changes with whale-size filtering — separates real moves from noise.
+    results_by_threshold = backtest_thresholds(
+        signals, candles_by_coin,
+        thresholds=[0, 10_000, 50_000],
+    )
+    msg = render_comparison_report(results_by_threshold, now=now)
 
     try:
         send_messages([msg])
-        logger.info("backtest report sent (%d chars, %d groups)", len(msg), len(groups))
+        logger.info("backtest report sent (%d chars)", len(msg))
     except Exception as e:
         logger.warning("Telegram send failed: %s", e)
 

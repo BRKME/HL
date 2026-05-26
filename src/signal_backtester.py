@@ -14,6 +14,7 @@ any state. Intended to run weekly (Fri/Sat) via workflow_dispatch or cron.
 """
 from __future__ import annotations
 
+import html
 import json
 import logging
 from dataclasses import dataclass, field
@@ -269,8 +270,20 @@ def _aggregate(outcomes: list[SignalOutcome]) -> tuple[dict, dict, dict]:
 def backtest(
     signals: list[Signal],
     candles_by_coin: dict[str, list[dict]],
+    min_notional_usd: float = 0.0,
 ) -> list[BacktestGroup]:
-    """Top-level: group signals, measure each, aggregate to groups."""
+    """Top-level: group signals, measure each, aggregate to groups.
+
+    min_notional_usd filters out signals whose details.notional_usd is
+    below this floor. Used to separate 'real' whale moves from
+    micro-position noise (e.g. $174 ZEC FLIP fills that mean nothing).
+    """
+    # Filter by notional before grouping
+    if min_notional_usd > 0:
+        signals = [
+            s for s in signals
+            if float(s.details.get("notional_usd", 0) or 0) >= min_notional_usd
+        ]
     groups = group_signals(signals)
     out: list[BacktestGroup] = []
     for (coin, rule, direction), sigs in groups.items():
@@ -357,3 +370,103 @@ def _render_group(g: BacktestGroup, mark_alpha: bool = False) -> str:
         f"   24h: WR {wr24:.0f}%, avg {avg24:+.1f}%, worst {dd24:+.1f}%\n"
         f"    7d: WR {wr168:.0f}%, avg {avg168:+.1f}%"
     )
+
+
+# ----------------------------------------------------- multi-threshold compare
+
+def backtest_thresholds(
+    signals: list[Signal],
+    candles_by_coin: dict[str, list[dict]],
+    thresholds: list[float] = (0, 10_000, 50_000),
+) -> dict[float, list[BacktestGroup]]:
+    """Run backtest at each notional threshold. Returns {threshold: groups}."""
+    return {
+        t: backtest(signals, candles_by_coin, min_notional_usd=t)
+        for t in thresholds
+    }
+
+
+def render_comparison_report(
+    results_by_threshold: dict[float, list[BacktestGroup]],
+    now: datetime,
+) -> str:
+    """Compare WR/N across notional thresholds for each (coin, rule, direction).
+
+    Format:
+      BTC FLIP SHORT
+        ≥$0:    10 ev, WR 100% / 24h, avg +0.3%
+        ≥$10k:   7 ev, WR 100% / 24h, avg +0.5%
+        ≥$50k:   3 ev, WR 100% / 24h, avg +1.2%   ← bigger fills, bigger move
+
+    A group "improves with size" when raising the threshold keeps WR
+    high while N drops — that's evidence real whales matter, noise was
+    diluting the signal.
+    """
+    msk = now.astimezone(_MOSCOW)
+    head = (f"🎯 <b>Signal performance с фильтром по notional</b>\n"
+            f"на {msk.strftime('%d %b %H:%M MSK')}\n"
+            f"Threshold: WR ≥ {int(MIN_WIN_RATE_ACTIONABLE*100)}% и N ≥ "
+            f"{MIN_EVENTS_ACTIONABLE} событий\n")
+
+    # Build key set from all thresholds
+    all_keys: set[tuple[str, str, str]] = set()
+    for groups in results_by_threshold.values():
+        for g in groups:
+            all_keys.add((g.coin, g.rule, g.direction))
+    if not all_keys:
+        return head + "\nДанных нет."
+
+    thresholds = sorted(results_by_threshold.keys())
+
+    # Index for fast lookup
+    by_key: dict[tuple[str, str, str], dict[float, BacktestGroup]] = {}
+    for t, groups in results_by_threshold.items():
+        for g in groups:
+            by_key.setdefault((g.coin, g.rule, g.direction), {})[t] = g
+
+    # Score each key by best WR×N at the strictest threshold that still has data
+    def _score(key):
+        best = 0.0
+        for t in sorted(thresholds, reverse=True):
+            g = by_key.get(key, {}).get(t)
+            if g and g.n_events > 0:
+                best = max(best, g.win_rate.get(24, 0) * g.n_events)
+                if g.n_events >= 3:
+                    break
+        return -best
+
+    sorted_keys = sorted(all_keys, key=_score)
+
+    parts = [head]
+    for key in sorted_keys:
+        coin, rule, direction = key
+        per_t = by_key.get(key, {})
+        if not per_t:
+            continue
+        # Only show groups that have meaningful data somewhere
+        max_n = max(g.n_events for g in per_t.values())
+        if max_n < 3:
+            continue
+
+        parts.append(f"\n<b>{html.escape(coin)} {_short_rule(rule)} {direction.upper()}</b>")
+        for t in thresholds:
+            g = per_t.get(t)
+            label = f"≥${int(t/1000)}k" if t >= 1000 else "≥$0"
+            if g is None or g.n_events == 0:
+                parts.append(f"  {label:<8}: 0 ev")
+                continue
+            wr24 = g.win_rate.get(24, 0.0) * 100
+            avg24 = g.avg_return_pct.get(24, 0.0)
+            wr168 = g.win_rate.get(168, 0.0) * 100
+            avg168 = g.avg_return_pct.get(168, 0.0)
+            alpha = " 🎯" if g.is_actionable() else ""
+            parts.append(
+                f"  {label:<8}: {g.n_events} ev, "
+                f"24h WR {wr24:.0f}% avg {avg24:+.1f}% • "
+                f"7d WR {wr168:.0f}% avg {avg168:+.1f}%{alpha}"
+            )
+
+    parts.append("\n<i>Чем строже фильтр, тем 'настоящее' киты. Если WR держится "
+                  "при росте порога — сигнал реален. Если WR проваливается — "
+                  "был шум.</i>")
+    return "\n".join(parts)
