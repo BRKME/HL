@@ -12,11 +12,11 @@ version: 1
 # Бот агрегирует позиции по coin между ними как один логический портфель.
 accounts:
   - address: "0x17e6D71D30d260e30BB7721C63539694aB02b036"
-    label: main
+    label: "1"
   - address: "0x10082016a94920aBdf410CDB6f98c2Ead2c57340"
-    label: second
+    label: Marta
   - address: "0x305220d077474c5cab839E7C1cB3264Aca19f1B9"
-    label: third
+    label: Arkadii
 
 # Phase 3.2 — focus coins получают мягкие пороги для whale-сигналов
 # и повышенную severity (critical вместо warn), чтобы алерты сразу шли

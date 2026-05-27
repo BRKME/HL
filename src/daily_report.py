@@ -160,6 +160,21 @@ def _render_weights(
     return "Веса: " + " • ".join(bits)
 
 
+def _render_wallets(wallet_values: Optional[dict[str, float]]) -> Optional[str]:
+    """Per-wallet balance line: 'Кошельки: 1 $1 050 • Marta $80 • Arkadii $30'.
+
+    Preserves insertion order of wallet_values (= whitelist.yaml order).
+    Wallets with $0 balance are still shown — explicit '$0' is informative
+    (you know that wallet exists and is empty, not 'forgot').
+    """
+    if not wallet_values:
+        return None
+    bits = []
+    for label, val in wallet_values.items():
+        bits.append(f"{_e(str(label))} ${_fmt_money(val)}")
+    return "Кошельки: " + " • ".join(bits)
+
+
 def _plural(n: int, one: str, few: str, many: str) -> str:
     n = abs(n) % 100
     if 10 < n < 20:
@@ -474,6 +489,7 @@ def render_daily_report(
     performance=None,
     sl_orders: Optional[list] = None,
     coin_atrs: Optional[dict[str, float]] = None,
+    wallet_values: Optional[dict[str, float]] = None,
 ) -> list[str]:
     """Build the Telegram report. Returns a list of message-sized chunks."""
     parts: list[str] = [_render_header(
@@ -485,6 +501,11 @@ def render_daily_report(
     weights_block = _render_weights(matches, marks)
     if weights_block:
         parts.append(weights_block)
+
+    # Кошельки line: balance per wallet, in whitelist order
+    wallets_block = _render_wallets(wallet_values)
+    if wallets_block:
+        parts.append(wallets_block)
 
     # Action required first (UX feedback round 2): alerts before PnL
     alerts_block = _render_alerts(alerts)

@@ -81,6 +81,9 @@ class Portfolio:
     spot: list[SpotPosition] = field(default_factory=list)
     total_account_value: float = 0.0
     wallets_seen: list[str] = field(default_factory=list)
+    # Per-wallet account value (perp marginSummary). Used by the daily
+    # monitor to show 'Кошельки: 1 $X • Marta $Y • Arkadii $Z' line.
+    wallet_values: dict[str, float] = field(default_factory=dict)
 
     @classmethod
     def from_raw(
@@ -94,6 +97,7 @@ class Portfolio:
         perp_positions: list[PerpPosition] = []
         spot_positions: list[SpotPosition] = []
         total_value = 0.0
+        wallet_values: dict[str, float] = {}
 
         for label, data in raw_responses.items():
             perp_raw = data.get("perp", {})
@@ -102,9 +106,11 @@ class Portfolio:
             # account value from perp summary (spot value is in balances)
             margin = perp_raw.get("marginSummary", {}) or {}
             try:
-                total_value += float(margin.get("accountValue", 0) or 0)
+                wallet_val = float(margin.get("accountValue", 0) or 0)
             except (TypeError, ValueError):
-                pass
+                wallet_val = 0.0
+            wallet_values[label] = wallet_val
+            total_value += wallet_val
 
             for ap in perp_raw.get("assetPositions", []) or []:
                 pos = ap.get("position")
@@ -135,6 +141,7 @@ class Portfolio:
             spot=spot_positions,
             total_account_value=total_value,
             wallets_seen=list(raw_responses.keys()),
+            wallet_values=wallet_values,
         )
 
 

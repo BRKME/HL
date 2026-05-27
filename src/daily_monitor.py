@@ -232,6 +232,7 @@ def run_daily_monitor(
         performance=performance,
         sl_orders=sl_orders,
         coin_atrs=coin_atrs,
+        wallet_values=portfolio.wallet_values,
     )
     send_messages(messages)
 
