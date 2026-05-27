@@ -144,8 +144,9 @@ def test_run_daily_monitor_smoke(temp_repo):
     assert "BULL" in body and "BEAR" in body
 
 
-def test_run_daily_monitor_no_positions_still_sends_report(temp_repo):
-    """All wallets empty — should still send a report saying so."""
+def test_run_daily_monitor_no_positions_sends_nothing(temp_repo):
+    """All wallets empty — should NOT spam '0 positions' messages
+    on every 2h cron tick. Silent is the new behavior."""
     empty_client = MagicMock()
     empty_client.get_clearinghouse_state.return_value = {
         "marginSummary": {"accountValue": "0.0"}, "assetPositions": [],
@@ -167,9 +168,7 @@ def test_run_daily_monitor_no_positions_still_sends_report(temp_repo):
             decisions_path=temp_repo / "decisions.jsonl",
             now=NOW,
         )
-    assert len(sent) == 1
-    body = "\n".join(sent[0])
-    assert "пуст" in body.lower() or "нет позиций" in body.lower()
+    assert sent == []  # no messages sent at all
 
 
 def test_run_daily_monitor_survives_oracai_failure(temp_repo):
@@ -206,9 +205,19 @@ def test_run_daily_monitor_survives_one_wallet_failure(temp_repo):
         call_count["perp"] += 1
         if call_count["perp"] == 1:
             raise RuntimeError("first wallet HL hiccup")
+        # other wallets: one returns an actual position so report is sent
+        # (empty portfolio now means silent — see no_positions_sends_nothing)
         return {
             "marginSummary": {"accountValue": "500"},
-            "assetPositions": [],
+            "assetPositions": [{
+                "position": {
+                    "coin": "ETH", "szi": "0.5",
+                    "entryPx": "2000", "positionValue": "1000",
+                    "unrealizedPnl": "10", "leverage": {"value": "5"},
+                    "liquidationPx": "1700", "marginUsed": "100",
+                    "returnOnEquity": "0.01", "cumFunding": {"sinceOpen": "0"},
+                },
+            }],
         }
     flaky.get_clearinghouse_state.side_effect = flaky_perp
     flaky.get_spot_clearinghouse_state.return_value = {"balances": []}
@@ -216,7 +225,8 @@ def test_run_daily_monitor_survives_one_wallet_failure(temp_repo):
 
     sent: list[list[str]] = []
     with patch("src.daily_monitor.HLClient", return_value=flaky), \
-         patch("src.daily_monitor.fetch_meta_and_ctxs", return_value={}), \
+         patch("src.daily_monitor.fetch_meta_and_ctxs",
+               return_value={"ETH": {"mark": 2010.0, "prev_day": 2005.0}}), \
          patch("src.daily_monitor.fetch_spot_meta_and_ctxs", return_value={}), \
          patch("src.daily_monitor.fetch_combined_performance", return_value=None), \
          patch("src.daily_monitor.fetch_sl_orders_for_wallets", return_value=[]), \
