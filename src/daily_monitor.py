@@ -163,6 +163,14 @@ def run_daily_monitor(
     client = HLClient()
     portfolio = _build_portfolio(client, accounts)
 
+    # Skip entirely when there's nothing to report. Empty portfolio + cron
+    # every 2h would spam 7 'портфель пуст' messages a day for nothing.
+    has_perp = bool(portfolio.perp)
+    has_spot = bool(portfolio.spot) and any(s.total > 0 for s in portfolio.spot)
+    if not has_perp and not has_spot:
+        logger.info("No positions in any wallet — skipping report.")
+        return
+
     decisions = load_decisions(decisions_path, lookback_days=DECISION_LOOKBACK_DAYS, now=now)
     matches = match_positions(portfolio.perp, decisions, now=now)
 
