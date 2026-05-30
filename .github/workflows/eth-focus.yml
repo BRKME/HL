@@ -2,9 +2,10 @@ name: eth-focus
 
 on:
   schedule:
-    # Каждую субботу 07:30 UTC = 10:30 MSK
-    # (30 минут после weekly scan-bot, чтобы не пересекаться по доставке)
-    - cron: "30 7 * * 6"
+    # Каждый день 06:00 UTC = 09:00 MSK
+    # За час до первого daily-monitor (10:00 MSK), чтобы утром
+    # был вердикт по ETH прежде чем смотреть портфель
+    - cron: "0 6 * * *"
   workflow_dispatch: {}
 
 permissions:
