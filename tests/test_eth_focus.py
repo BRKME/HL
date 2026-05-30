@@ -380,9 +380,9 @@ def test_setup_summary_no_phase_when_not_provided():
 
 # ---------- end-to-end render ----------
 
-def test_render_eth_focus_combines_all_sections(tmp_path):
-    """Smoke: build report with all data present, see sections show up."""
-    # whale_signals
+def test_render_eth_focus_produces_verdict(tmp_path):
+    """Variant B: report is now verdict-only. Smoke: build with all data,
+    expect short LONG/SHORT/WAIT verdict + rationale."""
     signals_path = tmp_path / "whale_signals.jsonl"
     with signals_path.open("w") as fh:
         for _ in range(2):
@@ -400,10 +400,17 @@ def test_render_eth_focus_combines_all_sections(tmp_path):
         state_dir=tmp_path,
     )
     assert msg is not None
-    assert "ETH Saturday Focus" in msg or "ETH" in msg
-    assert "RSI" in msg or "rsi" in msg.lower()
-    assert "14" in msg  # funding
-    assert "BULL" in msg
+    # Verdict label appears
+    assert any(v in msg for v in ("ВХОДИТЬ LONG", "ВХОДИТЬ SHORT", "НЕ ВХОДИТЬ"))
+    # ETH and price shown
+    assert "ETH" in msg
+    assert "$2 175" in msg
+    # No more verbose sections
+    assert "RSI" not in msg
+    assert "Технический анализ" not in msg
+    assert "Funding &amp; OI" not in msg
+    # Short: under 500 chars (was ~2000+ before)
+    assert len(msg) < 500
 
 
 def test_render_eth_focus_with_missing_data_returns_minimal_report(tmp_path):

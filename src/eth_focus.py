@@ -456,6 +456,164 @@ def _section_setup(
     return "\n".join(lines)
 
 
+# ---------- Verdict computation (Variant B short-form report) ----------
+
+def _compute_verdict(
+    ta: Optional[dict],
+    funding_apr_pct: Optional[float],
+    whale_net_long: Optional[bool],
+    whale_cluster_count: int,
+    regime: Optional[str],
+    phase: Optional[str] = None,
+) -> tuple[str, str]:
+    """Aggregate all signals into a single verdict + one-line rationale.
+
+    Returns (verdict, rationale).
+    verdict: 'LONG' | 'SHORT' | 'WAIT'
+    rationale: short sentence in Russian explaining the call.
+
+    Scoring logic:
+    - Each TA/funding/whale factor contributes 1 to long_score or short_score
+    - Regime BEAR/EARLY_BEAR blocks LONG verdict
+    - Regime BULL/EARLY_BULL blocks SHORT verdict
+    - |long-short| < 2 → WAIT (signals balanced)
+    - Verdict only fires when signals are decisive AND regime allows
+    """
+    long_score = 0
+    short_score = 0
+    long_reasons: list[str] = []
+    short_reasons: list[str] = []
+    blocker = ""
+
+    if ta is not None:
+        above_e50 = ta.get("above_ema50")
+        above_e200 = ta.get("above_ema200")
+        rsi = ta.get("rsi_d1")
+
+        # Trend structure: 2 points for full alignment, 1 for partial
+        if above_e50 and above_e200:
+            long_score += 2
+            long_reasons.append("тренд вверх")
+        elif above_e200 is False and above_e50 is False:
+            short_score += 2
+            short_reasons.append("тренд вниз")
+
+        # RSI extremes (contrarian)
+        if rsi is not None:
+            if rsi <= 30:
+                long_score += 1
+                long_reasons.append("RSI перепродан")
+            elif rsi >= 70:
+                short_score += 1
+                short_reasons.append("RSI перекуплен")
+
+        # Swing low / high proximity
+        swing_low = ta.get("swing_low")
+        swing_high = ta.get("swing_high")
+        last = ta.get("last")
+        if swing_low and last and last > 0:
+            if (last - swing_low) / last * 100 <= 3.0:
+                long_score += 1
+                long_reasons.append("у поддержки")
+        if swing_high and last and last > 0:
+            if (swing_high - last) / last * 100 <= 3.0:
+                short_score += 1
+                short_reasons.append("у сопротивления")
+
+    # Funding bias (contrarian: high positive funding → short setup)
+    if funding_apr_pct is not None:
+        if funding_apr_pct >= 15:
+            short_score += 2
+            short_reasons.append("дорогой long funding")
+        elif funding_apr_pct >= 5:
+            short_score += 1
+            short_reasons.append("положительный funding")
+        elif funding_apr_pct <= -10:
+            long_score += 2
+            long_reasons.append("дорогой short funding")
+        elif funding_apr_pct <= -5:
+            long_score += 1
+            long_reasons.append("отрицательный funding")
+
+    # Whales: only counts when cluster activity confirms direction
+    if whale_cluster_count >= 2:
+        if whale_net_long is True:
+            long_score += 1
+            long_reasons.append("киты long")
+        elif whale_net_long is False:
+            short_score += 1
+            short_reasons.append("киты short")
+
+    # Regime blockers — broad market regime gates entries against the trend
+    bear_phases = ("EARLY_BEAR", "MID_BEAR", "LATE_BEAR")
+    bull_phases = ("EARLY_BULL", "MID_BULL", "LATE_BULL")
+    if regime == "BEAR" or (phase and phase in bear_phases):
+        blocker = "BEAR"
+    elif regime == "BULL" or (phase and phase in bull_phases):
+        blocker = "BULL"
+
+    # Decision tree
+    margin = abs(long_score - short_score)
+
+    if margin < 2:
+        # Signals balanced — no decisive bias
+        if long_score == 0 and short_score == 0:
+            return ("WAIT", "Сигналов нет, рынок без направления.")
+        return (
+            "WAIT",
+            f"Сигналы смешанные ({long_score} за long, {short_score} за short). "
+            f"Чёткой картины нет."
+        )
+
+    if long_score > short_score:
+        if blocker == "BEAR":
+            return (
+                "WAIT",
+                f"За long: {', '.join(long_reasons[:3])}. "
+                f"Но broad regime BEAR — против тренда не входить."
+            )
+        return (
+            "LONG",
+            f"За long: {', '.join(long_reasons[:3])}."
+        )
+    else:
+        if blocker == "BULL":
+            return (
+                "WAIT",
+                f"За short: {', '.join(short_reasons[:3])}. "
+                f"Но broad regime BULL — против тренда не входить."
+            )
+        return (
+            "SHORT",
+            f"За short: {', '.join(short_reasons[:3])}."
+        )
+
+
+def _render_verdict_report(
+    now: datetime,
+    mark: float,
+    verdict: str,
+    rationale: str,
+) -> str:
+    """Variant B: short-form report. Verdict + 1-2 line rationale only."""
+    msk = now.astimezone(_MOSCOW)
+    label_map = {
+        "LONG":  "ВХОДИТЬ LONG",
+        "SHORT": "ВХОДИТЬ SHORT",
+        "WAIT":  "НЕ ВХОДИТЬ",
+    }
+    emoji_map = {"LONG": "🟢", "SHORT": "🔴", "WAIT": "⚪"}
+    label = label_map.get(verdict, "НЕ ВХОДИТЬ")
+    emoji = emoji_map.get(verdict, "⚪")
+    return (
+        f"🎯 <b>ETH</b> — {_ru_date(msk)}, {msk.strftime('%H:%M')} MSK • "
+        f"${_fmt_price(mark)}\n"
+        f"\n"
+        f"{emoji} <b>{label}</b>\n"
+        f"{rationale}"
+    )
+
+
 # ---------------------------------------------------- coordinator
 
 def build_eth_focus_report(
@@ -468,51 +626,33 @@ def build_eth_focus_report(
     regime_snapshot: Optional[dict],
     state_dir: Path,
 ) -> Optional[str]:
-    """Same as render_eth_focus but returns the raw assembled string."""
+    """Variant B (short verdict): aggregate all signals into a single
+    LONG/SHORT/WAIT call with a one-line rationale.
+
+    The verbose multi-section report (TA, funding, whales, regime, setup)
+    was confusing — gave data but not a decision. This version answers
+    'войти или нет' directly. Logic in _compute_verdict above.
+
+    open_interest_usd and prev_day_mark kept in signature for backward
+    compat but no longer rendered — verdict considers them via funding
+    bias instead.
+    """
     if not mark or mark <= 0:
         return None
 
-    msk = now.astimezone(_MOSCOW)
-    parts = [
-        f"🎯 <b>ETH Saturday Focus</b> — {_ru_date(msk)}, "
-        f"{msk.strftime('%H:%M')} MSK"
-    ]
-
-    header = _section_header(mark, prev_day_mark or 0.0,
-                              candles_closes or [], now)
-    if header:
-        parts.append(header)
-
-    ta_section = None
+    # Compute indicators if we have candles
     ta_dict = None
     if candles_closes and len(candles_closes) >= 200:
-        ta_section = _section_ta(candles_closes, now)
-        # Also compute the dict for setup summary
         candle_dicts = [{"o": c, "h": c, "l": c, "c": c} for c in candles_closes]
         ta_dict = compute_indicators(candle_dicts, swing_lookback=30)
-    if ta_section:
-        parts.append(ta_section)
 
-    funding_section = _section_funding_oi(funding_apr_pct, open_interest_usd)
-    if funding_section:
-        parts.append(funding_section)
-
-    whales_section = _section_whales(state_dir, focus_coin="ETH", now=now)
-    if whales_section:
-        parts.append(whales_section)
-
-    regime_section = _section_regime(regime_snapshot)
-    if regime_section:
-        parts.append(regime_section)
-
-    # Setup summary uses signals from earlier sections
-    cluster_count = 0
-    whale_net_long: Optional[bool] = None
+    # Whale signals/fills for the past lookback window
     signals = _read_recent_whale_signals(state_dir, "ETH",
                                           _WHALE_LOOKBACK_DAYS, now)
     fills = _read_recent_whale_fills(state_dir, "ETH",
                                       _WHALE_LOOKBACK_DAYS, now)
     cluster_count = sum(1 for s in signals if s.get("rule") == "WHALE_CLUSTER")
+    whale_net_long: Optional[bool] = None
     if fills:
         long_notional = sum(f.get("notional_usd", 0) for f in fills
                             if f.get("direction") == "Open Long")
@@ -523,22 +663,20 @@ def build_eth_focus_report(
         elif short_notional > long_notional * 1.2:
             whale_net_long = False
 
-    setup_section = _section_setup(
+    regime = (regime_snapshot or {}).get("regime") if regime_snapshot else None
+    phase = (((regime_snapshot or {}).get("cycle") or {}).get("phase")
+             if regime_snapshot else None)
+
+    verdict, rationale = _compute_verdict(
         ta=ta_dict,
         funding_apr_pct=funding_apr_pct,
-        whale_cluster_count=cluster_count,
         whale_net_long=whale_net_long,
-        regime=(regime_snapshot or {}).get("regime") if regime_snapshot else None,
-        phase=((regime_snapshot or {}).get("cycle") or {}).get("phase") if regime_snapshot else None,
+        whale_cluster_count=cluster_count,
+        regime=regime,
+        phase=phase,
     )
-    if setup_section:
-        parts.append(setup_section)
 
-    msg = "\n".join(parts)
-    if len(msg) > _TG_LIMIT:
-        # truncate from the end (less critical sections last)
-        msg = msg[: _TG_LIMIT - 20] + "\n… (truncated)"
-    return msg
+    return _render_verdict_report(now, mark, verdict, rationale)
 
 
 def render_eth_focus(
