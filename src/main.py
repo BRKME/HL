@@ -42,7 +42,7 @@ def run() -> None:
     if signal["signal"] in ("SKIP", "EXIT"):
         msg = render.render_report(signal=signal, picks=[], skipped=[])
         telegram_sender.send_messages([msg])
-        _send_lp_summary()
+        # LP summary disabled - was sending outdated/useless data
         _persist_decision(started, signal, picks=[], skipped=[])
         return
 
@@ -131,14 +131,14 @@ def run() -> None:
         }
         msg = render.render_report(signal=signal_fallback, picks=[], skipped=skipped)
         telegram_sender.send_messages([msg])
-        _send_lp_summary()
+        # LP summary disabled
         _persist_decision(started, signal_fallback, picks=[], skipped=skipped)
         return
 
     # 5. Render + send
     msg = render.render_report(signal=signal, picks=picks, skipped=skipped)
     telegram_sender.send_messages([msg])
-    _send_lp_summary()
+    # LP summary disabled
     _persist_decision(started, signal, picks=picks, skipped=skipped)
 
 
