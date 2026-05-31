@@ -175,6 +175,64 @@ def _render_wallets(wallet_values: Optional[dict[str, float]]) -> Optional[str]:
     return "Кошельки: " + " • ".join(bits)
 
 
+# Regime advice table — short imperative for each regime × phase combo.
+# Surfaces what to do/not-do given the broad market environment, so the
+# user sees actionable guidance up top instead of just decorative
+# 'regime BEAR · phase EARLY_BEAR' at the bottom.
+#
+# Rules:
+# - BEAR/EARLY_BEAR or LATE_BULL: warning to cut risk / lock profits
+# - BEAR/MID_BEAR: deep bear, cash is position
+# - BEAR/LATE_BEAR or EARLY_BULL: bottom-fishing zone
+# - BULL/MID_BULL: trend trading is the play
+# - TRANSITION: don't add risk, wait for clarity
+# - Unknown: skip advice block entirely
+_REGIME_ADVICE: dict[tuple[str, str], str] = {
+    ("BEAR", "EARLY_BEAR"):
+        "🛑 Снижай риск: цикл переходит в медвежий. Закрывай слабые позиции, "
+        "не открывай новые лонги без сильного сигнала.",
+    ("BEAR", "MID_BEAR"):
+        "💵 Глубокий медвежий: кэш — позиция. Лонги только на чёткое "
+        "перепроданность с подтверждением, размер маленький.",
+    ("BEAR", "LATE_BEAR"):
+        "🎯 Конец медвежьего цикла: начало накопления. Аккуратно набирай "
+        "долгосрочные позиции в качественных активах.",
+    ("BULL", "EARLY_BULL"):
+        "🚀 Начало бычьего цикла: добавляй риск, держи победителей, "
+        "обрезай убытки быстро.",
+    ("BULL", "MID_BULL"):
+        "📈 Бычий цикл в разгаре: торгуй тренд, не угадывай разворот. "
+        "Держи стопы дальше, чем хочется.",
+    ("BULL", "LATE_BULL"):
+        "⚠️ Поздняя стадия бычки: фиксируй прибыль, подтягивай стопы. "
+        "Новые входы только с близким SL.",
+    ("TRANSITION", "EARLY_BEAR"):
+        "⏸ Переход к bear: не наращивай позиции, дай рынку показать "
+        "направление прежде чем действовать.",
+    ("TRANSITION", "EARLY_BULL"):
+        "👀 Возможен переход к bull: следи за подтверждением, но пока "
+        "позиции не наращивай.",
+}
+
+
+def _render_regime_advice(snapshot: Optional[dict]) -> Optional[str]:
+    """One-line actionable advice based on regime × phase from OracAI.
+
+    Shown after wallets line, before alerts. The footer still prints
+    'regime X · phase Y' as the raw label.
+    """
+    if not snapshot:
+        return None
+    regime = snapshot.get("regime")
+    phase = (snapshot.get("cycle") or {}).get("phase")
+    if not regime or not phase:
+        return None
+    advice = _REGIME_ADVICE.get((regime, phase))
+    if not advice:
+        return None
+    return advice
+
+
 def _plural(n: int, one: str, few: str, many: str) -> str:
     n = abs(n) % 100
     if 10 < n < 20:
@@ -506,6 +564,11 @@ def render_daily_report(
     wallets_block = _render_wallets(wallet_values)
     if wallets_block:
         parts.append(wallets_block)
+
+    # Regime advice: short imperative based on broad market phase
+    advice_block = _render_regime_advice(current_snapshot)
+    if advice_block:
+        parts.append("\n" + advice_block)
 
     # Action required first (UX feedback round 2): alerts before PnL
     alerts_block = _render_alerts(alerts)
