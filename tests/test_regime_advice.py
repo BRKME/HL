@@ -42,6 +42,62 @@ def test_advice_returns_none_for_unknown_combo():
     assert _render_regime_advice(snap) is None
 
 
+# ---------- Wyckoff phases ----------
+
+def test_advice_capitulation_says_buy_zone():
+    """BEAR/CAPITULATION = buy panic, don't sell into it."""
+    snap = {"regime": "BEAR", "cycle": {"phase": "CAPITULATION"}}
+    a = _render_regime_advice(snap)
+    assert a is not None
+    text = a.lower()
+    # Should hint at buying/long, not blocking
+    assert ("дне" in text or "long" in text or "лонг" in text
+            or "входа" in text or "🔥" in a)
+    # Should NOT say "snizhay risk" — that's the old EARLY_BEAR advice
+    assert "снижай риск" not in text
+
+
+def test_advice_accumulation_says_set_positions():
+    snap = {"regime": "BEAR", "cycle": {"phase": "ACCUMULATION"}}
+    a = _render_regime_advice(snap)
+    assert a is not None
+    assert "🎯" in a or "набирай" in a.lower() or "лесенк" in a.lower()
+
+
+def test_advice_euphoria_says_take_profits():
+    """BULL/EUPHORIA = top, sell into it."""
+    snap = {"regime": "BULL", "cycle": {"phase": "EUPHORIA"}}
+    a = _render_regime_advice(snap)
+    assert a is not None
+    text = a.lower()
+    assert ("фиксируй" in text or "leave" in text or "🚨" in a
+            or "верш" in text)
+
+
+def test_advice_distribution_in_bull_warns_top():
+    """BULL/DISTRIBUTION = whales selling to retail at the top."""
+    snap = {"regime": "BULL", "cycle": {"phase": "DISTRIBUTION"}}
+    a = _render_regime_advice(snap)
+    assert a is not None
+    assert "⚠️" in a or "фиксируй" in a.lower() or "продают" in a.lower()
+
+
+def test_advice_markup_is_active_uptrend():
+    """BULL/MARKUP = trade pullbacks in the trend."""
+    snap = {"regime": "BULL", "cycle": {"phase": "MARKUP"}}
+    a = _render_regime_advice(snap)
+    assert a is not None
+    assert ("тренд" in a.lower() or "📈" in a or "pullback" in a.lower())
+
+
+def test_advice_transition_capitulation_present():
+    """TRANSITION/CAPITULATION — handled."""
+    snap = {"regime": "TRANSITION", "cycle": {"phase": "CAPITULATION"}}
+    a = _render_regime_advice(snap)
+    assert a is not None
+    assert "капитул" in a.lower() or "дно" in a.lower()
+
+
 def test_advice_returns_none_when_phase_missing():
     snap = {"regime": "BULL"}
     assert _render_regime_advice(snap) is None

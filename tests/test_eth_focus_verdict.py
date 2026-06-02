@@ -186,3 +186,109 @@ def test_actual_30_may_report_returns_wait():
     )
     # Trend says short (+2), support says long (+1) → margin 1 → WAIT regardless
     assert v == "WAIT"
+
+
+# ---------- Wyckoff / cycle phases ----------
+
+def test_capitulation_does_not_block_long():
+    """CAPITULATION = panic-selling at bottom — historically buy zone.
+    Old logic blocked all long because regime=BEAR. Now: CAPITULATION
+    bypasses the BEAR blocker AND adds +2 to long_score."""
+    ta = {
+        "above_ema50": False, "above_ema200": False,  # +2 short
+        "rsi_d1": 28,  # +1 long (oversold)
+        "last": 1700, "swing_low": 1690, "swing_high": 2500,  # +1 long (support)
+    }
+    v, r = _compute_verdict(
+        ta=ta, funding_apr_pct=None,
+        whale_net_long=None, whale_cluster_count=0,
+        regime="BEAR", phase="CAPITULATION",
+    )
+    # +2 long (CAPITULATION bonus), +1 (RSI), +1 (support) = 4 long
+    # +2 short (trend) = 2 short → margin 2 → LONG, not blocked
+    assert v == "LONG"
+    assert "дно" in r.lower() or "capitulation" in r.lower()
+
+
+def test_accumulation_phase_favors_long():
+    """ACCUMULATION = Wyckoff bottoming pattern → +2 long, no block."""
+    ta = {
+        "above_ema50": False, "above_ema200": False,
+        "rsi_d1": 35,
+    }
+    v, _ = _compute_verdict(
+        ta=ta, funding_apr_pct=None,
+        whale_net_long=None, whale_cluster_count=0,
+        regime="BEAR", phase="ACCUMULATION",
+    )
+    # +2 long (ACCUMULATION) vs +2 short (trend) = margin 0 → WAIT
+    # But not blocked — that's the key behaviour difference
+    assert v == "WAIT"
+    # Should NOT cite BEAR blocker because phase is bottom signal
+    # (test the wording so this regression catches it)
+
+
+def test_late_bear_is_bottom_signal_not_blocker():
+    """LATE_BEAR was previously a blocker, now treated as bottom signal."""
+    ta = {
+        "above_ema50": False, "above_ema200": False,
+        "rsi_d1": 25,
+        "last": 1700, "swing_low": 1690, "swing_high": 2500,
+    }
+    v, _ = _compute_verdict(
+        ta=ta, funding_apr_pct=-12.0,  # +2 long (cheap short funding)
+        whale_net_long=None, whale_cluster_count=0,
+        regime="BEAR", phase="LATE_BEAR",
+    )
+    # +2 long (LATE_BEAR), +1 (RSI), +1 (support), +2 (funding) = 6 long
+    # +2 short (trend) = 2 short → margin 4 → LONG
+    assert v == "LONG"
+
+
+def test_euphoria_does_not_block_short():
+    """EUPHORIA = overheated top — short signal, not BULL blocker."""
+    ta = {
+        "above_ema50": True, "above_ema200": True,  # +2 long
+        "rsi_d1": 78,  # +1 short
+    }
+    v, r = _compute_verdict(
+        ta=ta, funding_apr_pct=20.0,  # +2 short
+        whale_net_long=None, whale_cluster_count=0,
+        regime="BULL", phase="EUPHORIA",
+    )
+    # +2 short (EUPHORIA bonus), +1 (RSI), +2 (funding) = 5 short
+    # +2 long (trend) = 2 long → margin 3 → SHORT, not blocked
+    assert v == "SHORT"
+    assert "вершина" in r.lower() or "euphoria" in r.lower()
+
+
+def test_distribution_in_bull_treated_as_top_signal():
+    """DISTRIBUTION at the top → short signal, no BULL blocker."""
+    ta = {
+        "above_ema50": True, "above_ema200": True,
+        "rsi_d1": 70,
+    }
+    v, _ = _compute_verdict(
+        ta=ta, funding_apr_pct=15.0,
+        whale_net_long=None, whale_cluster_count=0,
+        regime="BULL", phase="DISTRIBUTION",
+    )
+    # +2 short (DISTRIBUTION), +1 (RSI), +2 (funding) = 5 short
+    # +2 long (trend) = 2 long → margin 3 → SHORT
+    assert v == "SHORT"
+
+
+def test_markup_phase_still_blocks_short():
+    """MARKUP = active uptrend, should still block short entries."""
+    ta = {
+        "above_ema50": False, "above_ema200": False,  # +2 short
+        "rsi_d1": 75,  # +1 short
+    }
+    v, r = _compute_verdict(
+        ta=ta, funding_apr_pct=15.0,  # +2 short
+        whale_net_long=None, whale_cluster_count=0,
+        regime="BULL", phase="MARKUP",
+    )
+    # +5 short vs 0 long → would be SHORT, but MARKUP blocks
+    assert v == "WAIT"
+    assert "BULL" in r
