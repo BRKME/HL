@@ -544,12 +544,43 @@ def _compute_verdict(
             short_score += 1
             short_reasons.append("киты short")
 
-    # Regime blockers — broad market regime gates entries against the trend
-    bear_phases = ("EARLY_BEAR", "MID_BEAR", "LATE_BEAR")
-    bull_phases = ("EARLY_BULL", "MID_BULL", "LATE_BULL")
-    if regime == "BEAR" or (phase and phase in bear_phases):
+    # Regime/phase categorisation:
+    #
+    # bottom_phases: rare 'market is at the lows' signals. Don't block
+    # long — actively contribute +2 to long_score (Wyckoff accumulation,
+    # capitulation = panic-selling exhaustion, late-bear = downtrend
+    # losing steam).
+    #
+    # top_phases: 'market is at the highs' — same idea inverted.
+    #
+    # bear_phases / bull_phases: ongoing trend, blocks counter-trend entries.
+    bottom_phases = ("CAPITULATION", "ACCUMULATION", "LATE_BEAR")
+    top_phases = ("DISTRIBUTION", "EUPHORIA", "LATE_BULL")
+    bear_phases = ("EARLY_BEAR", "MID_BEAR")
+    bull_phases = ("EARLY_BULL", "MID_BULL", "MARKUP")
+
+    bottom_signal = phase in bottom_phases if phase else False
+    top_signal = phase in top_phases if phase else False
+
+    # Bottom signal adds long bias — buying into capitulation/accumulation
+    # historically pays. Top signal adds short bias.
+    if bottom_signal:
+        long_score += 2
+        long_reasons.append(f"{phase.lower()} — потенциальное дно")
+    if top_signal:
+        short_score += 2
+        short_reasons.append(f"{phase.lower()} — потенциальная вершина")
+
+    # Blockers — but only when regime is the matching direction AND
+    # phase isn't already a bottom/top signal. CAPITULATION technically
+    # falls under regime=BEAR but you want to BUY it, not block buys.
+    if not bottom_signal and (
+        regime == "BEAR" or (phase and phase in bear_phases)
+    ):
         blocker = "BEAR"
-    elif regime == "BULL" or (phase and phase in bull_phases):
+    elif not top_signal and (
+        regime == "BULL" or (phase and phase in bull_phases)
+    ):
         blocker = "BULL"
 
     # Decision tree
