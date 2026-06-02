@@ -24,10 +24,11 @@ import traceback
 from datetime import datetime, timezone
 from pathlib import Path
 
-from src.eth_focus import render_eth_focus
+from src.eth_focus import compute_eth_verdict, render_eth_focus
 from src.hl_api import fetch_meta_and_ctxs, fetch_candles, resolve_symbol
 from src.oracai import fetch_snapshot as fetch_oracai_snapshot
 from src.telegram_sender import send_messages, alert_owner
+from src.verdict_journal import VerdictEntry, append_verdicts
 
 
 logger = logging.getLogger("eth_focus_runner")
@@ -108,6 +109,27 @@ def run() -> None:
     if msg is None:
         logger.warning("ETH Focus report produced nothing (no mark). Skipping send.")
         return
+
+    # Journal the verdict so we can backtest the model's effectiveness later
+    verdict, rationale = compute_eth_verdict(
+        now=now, mark=mark,
+        candles_closes=candles_closes or None,
+        funding_apr_pct=funding if funding else None,
+        regime_snapshot=oracai_snap,
+        state_dir=state_dir,
+    )
+    if verdict != "NODATA":
+        regime = (oracai_snap or {}).get("regime") if oracai_snap else None
+        phase = (((oracai_snap or {}).get("cycle") or {}).get("phase")
+                 if oracai_snap else None)
+        try:
+            append_verdicts(state_dir / "verdict_journal.jsonl", [VerdictEntry(
+                ts=now, source="eth_focus",
+                coin="ETH", mark=mark, verdict=verdict, rationale=rationale,
+                regime=regime, phase=phase,
+            )])
+        except Exception as e:
+            logger.warning("Journal append failed: %s", e)
 
     try:
         send_messages([msg])

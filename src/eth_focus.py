@@ -710,6 +710,52 @@ def build_eth_focus_report(
     return _render_verdict_report(now, mark, verdict, rationale)
 
 
+def compute_eth_verdict(
+    now: datetime,
+    mark: float,
+    candles_closes: Optional[list[float]],
+    funding_apr_pct: Optional[float],
+    regime_snapshot: Optional[dict],
+    state_dir: Path,
+) -> tuple[str, str]:
+    """Return (verdict, rationale) for ETH without rendering — used by
+    the verdict journal so the recorded verdict matches what the report
+    shows. Side-effect-free (just reads state)."""
+    if not mark or mark <= 0:
+        return ("NODATA", "")
+
+    ta_dict = None
+    if candles_closes and len(candles_closes) >= 200:
+        candle_dicts = [{"o": c, "h": c, "l": c, "c": c} for c in candles_closes]
+        ta_dict = compute_indicators(candle_dicts, swing_lookback=30)
+
+    signals = _read_recent_whale_signals(state_dir, "ETH",
+                                          _WHALE_LOOKBACK_DAYS, now)
+    fills = _read_recent_whale_fills(state_dir, "ETH",
+                                      _WHALE_LOOKBACK_DAYS, now)
+    cluster_count = sum(1 for s in signals if s.get("rule") == "WHALE_CLUSTER")
+    whale_net_long: Optional[bool] = None
+    if fills:
+        long_notional = sum(f.get("notional_usd", 0) for f in fills
+                            if f.get("direction") == "Open Long")
+        short_notional = sum(f.get("notional_usd", 0) for f in fills
+                              if f.get("direction") == "Open Short")
+        if long_notional > short_notional * 1.2:
+            whale_net_long = True
+        elif short_notional > long_notional * 1.2:
+            whale_net_long = False
+
+    regime = (regime_snapshot or {}).get("regime") if regime_snapshot else None
+    phase = (((regime_snapshot or {}).get("cycle") or {}).get("phase")
+             if regime_snapshot else None)
+
+    return _compute_verdict(
+        ta=ta_dict, funding_apr_pct=funding_apr_pct,
+        whale_net_long=whale_net_long, whale_cluster_count=cluster_count,
+        regime=regime, phase=phase,
+    )
+
+
 def render_eth_focus(
     now: datetime,
     mark: float,
