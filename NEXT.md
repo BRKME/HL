@@ -1,49 +1,44 @@
-# NEXT SESSION — пятница 22 мая 2026
+# NEXT SESSION
 
 ## Цель проекта
-**Заработать на HL.** Не мониторить, не визуализировать — найти альфу и действовать на ней.
+Заработать на HL. Не мониторить, не визуализировать — найти альфу и действовать.
 
-## Что сделано (17 мая)
-- Daily monitor (риск + позиции, минимальный формат)
-- Whale tracker (50 китов, fills каждые 4h, signals → digest + instant)
-- ETH Saturday Focus (descriptive TA + funding + whale activity)
-- Leaderboard rank tracking (NEW_ENTRANT / DROP_OFF)
+## Что сделано
+- Daily monitor (риск, позиции, советы по regime/phase) — каждые 2ч 10-22 MSK
+- Whale tracker — каждые 4ч, накапливает signals и fills
+- ETH focus → daily verdict (LONG/SHORT/WAIT) 09:00 MSK
+- Whitelist daily — verdict по 6 монетам (HYPE/BTC/ETH/NEAR/ZEC/TAO) 09:05 MSK
+- Wyckoff phases: CAPITULATION/ACCUMULATION/EUPHORIA правильно интерпретируются
+- **Verdict journal** — каждый вердикт логируется в state/verdict_journal.jsonl
 
-**Это инфраструктура. Альфы пока нет.**
+## Следующая задача — Phase 4.5: Verdict effectiveness backtester
 
-## Что делаем — Phase 4: Signal Backtester
+Когда в `state/verdict_journal.jsonl` накопится ≥100 записей (≈14 дней работы, к ~17 июня), сделать модуль который:
 
-`src/signal_backtester.py` — модуль и weekly workflow.
+1. Читает journal с момента T_start
+2. Для каждого verdict замеряет цену через 24h / 48h / 7d
+3. Группирует по `(source × coin × verdict)`
+4. Считает: WR (% случаев когда движение совпало с verdict), avg return, max DD
+5. Раз в неделю шлёт Telegram отчёт типа:
+   ```
+   📊 Эффективность модели (14 дней, 168 verdicts)
+   ETH LONG (12 ev): WR 67% / 24h, avg +2.1%   🎯
+   ETH SHORT (8 ev): WR 50% / 24h, avg -0.3%
+   ETH WAIT (45 ev): пропущено $X движения
+   ...
+   ```
 
-**Вход:** `state/whale_signals.jsonl` + `state/whale_fills.jsonl` + HL D1 candles.
+### Threshold для actionable
+WR ≥ 60% AND N ≥ 10 — повод доверять модели для этой комбинации.
 
-**Логика:** для каждого исторического сигнала (CLUSTER / FLIP / NEW_OPEN / WHALE_NEW_ENTRANT) посмотреть mark coin через 6h / 24h / 48h / 7d. Сгруппировать по `coin × signal_type × direction`. Посчитать win-rate, avg return, max DD.
+### Когда писать
+Раньше 14-17 июня не имеет смысла — данных мало.
 
-**Выход:** Telegram-отчёт раз в неделю (или on-demand workflow_dispatch):
-```
-🎯 Signal performance — last 14d
-ETH:
-  CLUSTER long  — 7 ev, WR 71%, avg +3.4% / 24h, max DD -1.2%
-  CLUSTER short — 2 ev, WR  0%, avg -2.1%
-  FLIP          — 1 ev — мало данных
-BTC:
-  CLUSTER long  — 4 ev, WR 50%, avg +0.4%
-```
+## Phase 5 (после backtester)
+- Если эффективность подтверждена → авто-action на high-conviction (WR ≥ 70%, N ≥ 20)
+- Position size enforcement: блокировать новые входы при концентрации ≥ 70%
 
-**Решение:** сигналы с WR ≥60% и ≥10 событий — действовать. Остальное — шум, повысить пороги или скрыть.
-
-## Перед стартом проверь
-1. `state/whale_signals.jsonl` — ≥30 строк (минимум для статистики). Если <30 — отложить ещё на неделю.
-2. `state/whale_fills.jsonl` — ≥50k fills.
-3. Текущие пороги в `src/whale_correlation.py`: `MIN_WHALE_COUNT`, `MIN_WINRATE`, `MIN_NOTIONAL`. Бэктестер должен **варьировать их** и показать оптимум.
-4. Backtester НЕ должен делать сделки — только аналитика.
-
-## После Phase 4 — Phase 5 кандидаты (НЕ решено)
-- Trade journal: автоматический лог твоих entry/exit из orphan diff между snapshots + контекст (whale activity, regime). Чтобы понимать "когда я выигрываю vs проигрываю".
-- Auto-action на high-conviction сигналах (WR ≥70%, ≥20 событий). Спорно — обсудить риски прежде чем кодить.
-- ETH-only режим: убрать остальные coins из whitelist если ETH-focus оправдает себя.
-
-## Напоминания себе
-- Цель = деньги. Каждая фича должна сводиться к "это поможет заработать или защитить капитал?". Если нет — не делать.
-- Не добавлять метрики ради метрик. Юзер уже один раз сказал "не нужно много объяснений".
-- Минимум кода, максимум информации из существующих данных.
+## Напоминания
+- Не добавлять метрики ради метрик
+- Минимум кода, максимум информации из существующих данных
+- Юзер не любит длинные объяснения
