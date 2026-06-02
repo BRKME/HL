@@ -164,6 +164,41 @@ def evaluate_coin(
     )
 
 
+def compute_all_verdicts(
+    now: datetime,
+    coin_data: dict[str, dict],
+    regime_snapshot: Optional[dict],
+    state_dir: Path,
+) -> list[tuple[str, float, str, str]]:
+    """Compute verdicts for all focus coins.
+
+    Returns [(coin, mark, verdict, rationale)] in FOCUS_COINS order.
+    Coins with no mark get verdict='NODATA' and rationale=''.
+
+    This is the single source of truth for verdict computation —
+    both render_whitelist_verdicts and the verdict journal consume it,
+    so the journaled verdict always matches what the user sees.
+    """
+    out: list[tuple[str, float, str, str]] = []
+    for coin in FOCUS_COINS:
+        data = coin_data.get(coin, {})
+        mark = data.get("mark", 0)
+        if not mark or mark <= 0:
+            out.append((coin, 0.0, "NODATA", ""))
+            continue
+        verdict, rationale = evaluate_coin(
+            coin=coin,
+            mark=mark,
+            candles_closes=data.get("candles_closes"),
+            funding_apr_pct=data.get("funding_apr_pct"),
+            regime_snapshot=regime_snapshot,
+            state_dir=state_dir,
+            now=now,
+        )
+        out.append((coin, mark, verdict, rationale))
+    return out
+
+
 def render_whitelist_verdicts(
     now: datetime,
     coin_data: dict[str, dict],
@@ -191,22 +226,11 @@ def render_whitelist_verdicts(
 
     lines = [header + regime_line, ""]
 
-    for coin in FOCUS_COINS:
-        data = coin_data.get(coin, {})
-        mark = data.get("mark", 0)
-        if not mark or mark <= 0:
+    verdicts = compute_all_verdicts(now, coin_data, regime_snapshot, state_dir)
+    for coin, mark, verdict, rationale in verdicts:
+        if verdict == "NODATA":
             lines.append(f"⚫ <code>{_e(coin)}</code> — нет данных")
             continue
-
-        verdict, rationale = evaluate_coin(
-            coin=coin,
-            mark=mark,
-            candles_closes=data.get("candles_closes"),
-            funding_apr_pct=data.get("funding_apr_pct"),
-            regime_snapshot=regime_snapshot,
-            state_dir=state_dir,
-            now=now,
-        )
 
         emoji = emoji_map.get(verdict, "⚪")
         label = label_map.get(verdict, "НЕ ВХОДИТЬ")

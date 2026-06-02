@@ -21,7 +21,10 @@ from pathlib import Path
 from src.hl_api import fetch_meta_and_ctxs, fetch_candles, resolve_symbol
 from src.oracai import fetch_snapshot as fetch_oracai_snapshot
 from src.telegram_sender import send_messages, alert_owner
-from src.whitelist_focus import FOCUS_COINS, render_whitelist_verdicts
+from src.verdict_journal import VerdictEntry, append_verdicts
+from src.whitelist_focus import (
+    FOCUS_COINS, compute_all_verdicts, render_whitelist_verdicts,
+)
 
 
 logger = logging.getLogger("whitelist_focus_runner")
@@ -68,6 +71,33 @@ def run() -> None:
     except Exception as e:
         logger.warning("OracAI fetch failed: %s", e)
         oracai_snap = None
+
+    # Compute verdicts once — same data feeds the journal and the message
+    verdicts = compute_all_verdicts(
+        now=now, coin_data=coin_data,
+        regime_snapshot=oracai_snap, state_dir=state_dir,
+    )
+
+    # Journal: append every per-coin verdict so we can backtest later.
+    # NODATA entries are skipped — no useful signal to evaluate.
+    regime = (oracai_snap or {}).get("regime") if oracai_snap else None
+    phase = (((oracai_snap or {}).get("cycle") or {}).get("phase")
+             if oracai_snap else None)
+    entries = [
+        VerdictEntry(
+            ts=now, source="whitelist_focus",
+            coin=coin, mark=mark, verdict=verdict, rationale=rationale,
+            regime=regime, phase=phase,
+        )
+        for coin, mark, verdict, rationale in verdicts
+        if verdict != "NODATA"
+    ]
+    journal_path = state_dir / "verdict_journal.jsonl"
+    try:
+        written = append_verdicts(journal_path, entries)
+        logger.info("Journaled %d verdicts to %s", written, journal_path)
+    except Exception as e:
+        logger.warning("Journal append failed: %s", e)
 
     msg = render_whitelist_verdicts(
         now=now,
