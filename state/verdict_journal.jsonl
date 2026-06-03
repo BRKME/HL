@@ -12,3 +12,4 @@
 {"ts": "2026-06-03T11:03:56.835570+00:00", "source": "whitelist_focus", "coin": "TAO", "mark": 235.07, "verdict": "WAIT", "rationale": "Сигналы смешанные (2 за long, 3 за short). Чёткой картины нет.", "regime": "TRANSITION", "phase": "ACCUMULATION"}
 {"ts": "2026-06-03T11:19:32.139364+00:00", "source": "eth_focus", "coin": "ETH", "mark": 1887.0, "verdict": "WAIT", "rationale": "Сигналы смешанные (4 за long, 3 за short). Чёткой картины нет.", "regime": "TRANSITION", "phase": "ACCUMULATION"}
 {"ts": "2026-06-03T18:00:33.052172+00:00", "source": "daily_monitor", "coin": "ETH", "mark": 1828.2, "verdict": "LONG", "rationale": "(position)", "regime": "TRANSITION", "phase": "ACCUMULATION"}
+{"ts": "2026-06-03T21:49:54.572948+00:00", "source": "daily_monitor", "coin": "ETH", "mark": 1845.0, "verdict": "LONG", "rationale": "(position)", "regime": "TRANSITION", "phase": "ACCUMULATION"}
