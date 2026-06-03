@@ -219,6 +219,100 @@ def run_daily_monitor(
         coin_atrs=coin_atrs,
     )
 
+    # Compute per-coin verdicts for positions the user currently holds
+    # (fetched candles for ATR are reused — refetching D1 closes here
+    # would just duplicate; instead fetch 220d candles per coin once).
+    coin_verdicts: dict[str, str] = {}
+    from src.whitelist_focus import evaluate_coin
+    from pathlib import Path as _Path
+    _repo_root = _Path(__file__).resolve().parent.parent
+    _state_dir = _repo_root / "state"
+    for coin in orphan_coins:
+        try:
+            candles = fetch_candles(coin, interval="1d", lookback_days=220)
+            closes = [float(c["c"]) for c in candles if c.get("c")] if candles else []
+            funding = None
+            if marks.get(coin):
+                # marks here is mark price; funding from meta context if present
+                # (we don't have it here in the same form, skip — verdict will
+                # work with TA + regime alone for the position-side display)
+                pass
+            v, _ = evaluate_coin(
+                coin=coin, mark=marks.get(coin, 0.0),
+                candles_closes=closes if closes else None,
+                funding_apr_pct=funding,
+                regime_snapshot=today_snapshot,
+                state_dir=_state_dir, now=now,
+            )
+            if v in ("LONG", "SHORT", "WAIT"):
+                coin_verdicts[coin] = v
+        except Exception as e:
+            logger.warning("Verdict computation failed for %s: %s", coin, e)
+
+    # Morning digest: on the first run of the day (10:00 MSK = 07:00 UTC),
+    # roll the whitelist daily verdicts into this portfolio message so the
+    # user gets one consolidated morning ping instead of two.
+    morning_digest: Optional[str] = None
+    digest_verdicts: list = []  # for journal (only populated on morning run)
+    if now.hour == 7:  # 07:00 UTC == 10:00 MSK first daily-monitor tick
+        try:
+            from src.whitelist_focus import (
+                render_whitelist_verdicts, compute_all_verdicts, FOCUS_COINS,
+            )
+            digest_coin_data: dict[str, dict] = {}
+            for c in FOCUS_COINS:
+                try:
+                    cs = fetch_candles(c, interval="1d", lookback_days=220)
+                    closes_c = [float(k["c"]) for k in cs if k.get("c")] if cs else []
+                    digest_coin_data[c] = {
+                        "mark": marks.get(c, 0.0),
+                        "candles_closes": closes_c if closes_c else None,
+                        "funding_apr_pct": None,
+                    }
+                except Exception as e:
+                    logger.warning("Digest candles failed for %s: %s", c, e)
+                    digest_coin_data[c] = {"mark": marks.get(c, 0.0)}
+            digest_verdicts = compute_all_verdicts(
+                now=now, coin_data=digest_coin_data,
+                regime_snapshot=today_snapshot, state_dir=_state_dir,
+            )
+            morning_digest = render_whitelist_verdicts(
+                now=now, coin_data=digest_coin_data,
+                regime_snapshot=today_snapshot, state_dir=_state_dir,
+            )
+        except Exception as e:
+            logger.warning("Morning digest failed: %s", e)
+
+    # Journal verdicts (both per-position and morning digest)
+    try:
+        from src.verdict_journal import VerdictEntry, append_verdicts
+        regime = (today_snapshot or {}).get("regime") if today_snapshot else None
+        phase = (((today_snapshot or {}).get("cycle") or {}).get("phase")
+                 if today_snapshot else None)
+        entries = []
+        # Position verdicts — journaled every run so we see how the bot's
+        # view on holdings evolves through the day
+        for coin, verdict in coin_verdicts.items():
+            entries.append(VerdictEntry(
+                ts=now, source="daily_monitor",
+                coin=coin, mark=marks.get(coin, 0.0),
+                verdict=verdict, rationale="(position)",
+                regime=regime, phase=phase,
+            ))
+        # Morning digest verdicts — journaled only on the morning run
+        for coin, mark, verdict, rationale in digest_verdicts:
+            if verdict != "NODATA":
+                entries.append(VerdictEntry(
+                    ts=now, source="whitelist_focus",
+                    coin=coin, mark=mark, verdict=verdict, rationale=rationale,
+                    regime=regime, phase=phase,
+                ))
+        if entries:
+            append_verdicts(_state_dir / "verdict_journal.jsonl", entries)
+            logger.info("Journaled %d verdicts", len(entries))
+    except Exception as e:
+        logger.warning("Verdict journal append failed: %s", e)
+
     messages = render_daily_report(
         matches=matches,
         alerts=alerts,
@@ -233,6 +327,8 @@ def run_daily_monitor(
         sl_orders=sl_orders,
         coin_atrs=coin_atrs,
         wallet_values=portfolio.wallet_values,
+        coin_verdicts=coin_verdicts,
+        morning_digest=morning_digest,
     )
     send_messages(messages)
 

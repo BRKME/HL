@@ -347,29 +347,25 @@ def _render_orphan(
     sl_orders: Optional[list] = None,
     total_account_value: float = 0.0,
     coin_atrs: Optional[dict[str, float]] = None,
+    coin_verdicts: Optional[dict[str, str]] = None,
 ) -> Optional[str]:
-    """One-line per orphan (UI simplification round 3):
+    """One-line per orphan (UI simplification round 3 + verdicts):
 
-      BTC LONG • $609 • [24h +0.5%] • SL: -$7
-      🔴 ETH LONG • $1 587 • [24h +0.7%]    ← no SL
+      BTC LONG • $609 • [+$2] • SL: -$7 • 🟢 LONG
+      🔴 ETH LONG • $1 587 • [+$7]               ← no SL
+      ZEC LONG • $441 • [+$22] • SL: -$37 • 🔴 SHORT ⚠️   ← bot says opposite!
 
-    Format: COIN SIDE • $value • [24h ±%] • SL: -$max_loss
-    Positions without SL get 🔴 prefix and no SL field.
-
-    Removed (per UX feedback round 3):
-    - entry @ price, mark, current PnL%, concentration %
-    - ATR units in row (still used for alert threshold)
-    - SL price, SL distance %, liq buffer
-
-    Positions sorted by SL distance ascending (tightest stop on top).
-    Positions without SL go to the bottom — they need addressing, but
-    the red marker is the call to action, not sort order.
+    coin_verdicts: {coin: 'LONG'|'SHORT'|'WAIT'} from compute_eth_verdict
+    or compute_all_verdicts. When the bot's verdict is opposite to the
+    user's position side, a ⚠️ marker is added — that's the mismatch
+    the user wants to see directly in their portfolio view.
     """
     orphans = [m for m in matches if m.status == "orphan"]
     if not orphans:
         return None
     prev_day_marks = prev_day_marks or {}
     sl_orders = sl_orders or []
+    coin_verdicts = coin_verdicts or {}
     from src.sl_visibility import find_sl_for_position
 
     # Sort alphabetically by coin name (round 3 follow-up):
@@ -405,6 +401,19 @@ def _render_orphan(
         bits = [f"<code>{_e(pos.coin)}</code> {side}", value_str, pnl_str]
         if sl_str:
             bits.append(sl_str)
+
+        # Bot verdict next to the position. Mismatch (position LONG, bot
+        # says SHORT or vice versa) gets a ⚠️ — the most useful signal,
+        # 'your position is against the model'.
+        verdict = coin_verdicts.get(pos.coin)
+        if verdict in ("LONG", "SHORT", "WAIT"):
+            v_emoji = {"LONG": "🟢", "SHORT": "🔴", "WAIT": "⚪"}[verdict]
+            mismatch = (
+                (side == "LONG" and verdict == "SHORT") or
+                (side == "SHORT" and verdict == "LONG")
+            )
+            mismatch_mark = " ⚠️" if mismatch else ""
+            bits.append(f"{v_emoji} {verdict}{mismatch_mark}")
 
         lines.append(f"{prefix}" + " • ".join(bits))
     return "\n".join(lines)
@@ -574,8 +583,15 @@ def render_daily_report(
     sl_orders: Optional[list] = None,
     coin_atrs: Optional[dict[str, float]] = None,
     wallet_values: Optional[dict[str, float]] = None,
+    coin_verdicts: Optional[dict[str, str]] = None,
+    morning_digest: Optional[str] = None,
 ) -> list[str]:
-    """Build the Telegram report. Returns a list of message-sized chunks."""
+    """Build the Telegram report. Returns a list of message-sized chunks.
+
+    morning_digest: optional whitelist-verdicts block to prepend (used on
+    the first run of the day, 10:00 MSK, to roll the daily whitelist
+    summary into the portfolio message instead of sending two pings).
+    """
     parts: list[str] = [_render_header(
         now, total_account_value, wallet_count,
         matches=matches, marks=marks, performance=performance,
@@ -616,6 +632,7 @@ def render_daily_report(
         matches, marks, prev_day_marks,
         sl_orders=sl_orders,
         total_account_value=total_account_value,
+        coin_verdicts=coin_verdicts,
     )
     if orphan_block:
         parts.append(orphan_block)
@@ -626,6 +643,12 @@ def render_daily_report(
 
     if not matches and not (spot and any(spot)):
         parts.append("\nПозиций нет — портфель пуст.")
+
+    # Morning digest: whitelist verdicts appended at the bottom of the
+    # first daily-monitor run of the day so user sees portfolio AND
+    # what-to-buy in one ping instead of two consecutive messages.
+    if morning_digest:
+        parts.append("\n" + morning_digest)
 
     footer = _render_footer(current_snapshot)
     if footer:

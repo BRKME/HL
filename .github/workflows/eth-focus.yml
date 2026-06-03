@@ -1,11 +1,11 @@
 name: eth-focus
 
 on:
-  schedule:
-    # Каждый день 06:00 UTC = 09:00 MSK
-    # За час до первого daily-monitor (10:00 MSK), чтобы утром
-    # был вердикт по ETH прежде чем смотреть портфель
-    - cron: "0 6 * * *"
+  # cron disabled — ETH verdict is now part of the whitelist-focus
+  # block embedded in the 10:00 MSK daily-monitor message.
+  # Kept available for manual ad-hoc runs via workflow_dispatch.
+  # schedule:
+  #   - cron: "0 6 * * *"
   workflow_dispatch: {}
 
 permissions:
