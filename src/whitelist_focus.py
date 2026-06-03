@@ -204,11 +204,15 @@ def render_whitelist_verdicts(
     coin_data: dict[str, dict],
     regime_snapshot: Optional[dict],
     state_dir: Path,
+    show_whale_stance: bool = True,
 ) -> str:
     """One-message report.
 
     coin_data: {coin: {mark, candles_closes, funding_apr_pct}}.
     Each coin gets one line: emoji COIN price - verdict (reasons).
+
+    show_whale_stance: if True, prepend a '🐋 Киты 7d: ...' line built
+    from whale_fills.jsonl. Skipped silently if no fills accumulated yet.
     """
     msk = now.astimezone(_MOSCOW)
     header = (f"🎯 <b>Whitelist daily</b> — {_ru_date(msk)}, "
@@ -224,7 +228,21 @@ def render_whitelist_verdicts(
     if regime and phase:
         regime_line = f"\n<i>regime {_e(regime)} · phase {_e(phase)}</i>"
 
-    lines = [header + regime_line, ""]
+    lines = [header + regime_line]
+
+    # Whale stance line — derived from whale_fills.jsonl
+    if show_whale_stance:
+        try:
+            from src.whale_stance import compute_stance, format_stance_line
+            stances = compute_stance(state_dir, coins=FOCUS_COINS, now=now)
+            stance_line = format_stance_line(stances, FOCUS_COINS)
+            if stance_line:
+                lines.append(stance_line)
+        except Exception:
+            # whale stance is auxiliary — never block the main message
+            pass
+
+    lines.append("")  # blank separator before verdicts
 
     verdicts = compute_all_verdicts(now, coin_data, regime_snapshot, state_dir)
     for coin, mark, verdict, rationale in verdicts:
