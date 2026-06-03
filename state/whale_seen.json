@@ -2,27 +2,9 @@
   "entries": [
     {
       "rule": "WHALE_NEW_OPEN",
-      "whale": "0x15271757b398cd1d3d7cca05c4f7b0c159afa7c2",
-      "coin": "HYPE",
-      "ts": 1779868847
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0x15271757b398cd1d3d7cca05c4f7b0c159afa7c2",
-      "coin": "HYPE",
-      "ts": 1779868847
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0x15271757b398cd1d3d7cca05c4f7b0c159afa7c2",
-      "coin": "HYPE",
-      "ts": 1779868847
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0x15271757b398cd1d3d7cca05c4f7b0c159afa7c2",
-      "coin": "HYPE",
-      "ts": 1779868847
+      "whale": "0xfc667adba8d4837586078f4fdcdc29804337ca06",
+      "coin": "BTC",
+      "ts": 1780504995
     }
   ]
 }
