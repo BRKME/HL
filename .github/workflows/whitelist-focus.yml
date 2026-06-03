@@ -1,10 +1,10 @@
 name: whitelist-focus
 
 on:
-  schedule:
-    # Каждый день 06:05 UTC = 09:05 MSK
-    # Сразу после eth-focus (06:00 UTC), до первого daily-monitor (07:00 UTC)
-    - cron: "5 6 * * *"
+  # cron disabled — verdicts now rolled into the 10:00 MSK daily-monitor.
+  # Kept available for manual ad-hoc runs via workflow_dispatch.
+  # schedule:
+  #   - cron: "5 6 * * *"
   workflow_dispatch: {}
 
 permissions:
