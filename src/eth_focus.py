@@ -466,158 +466,233 @@ def _compute_verdict(
     regime: Optional[str],
     phase: Optional[str] = None,
 ) -> tuple[str, str]:
-    """Aggregate all signals into a single verdict + one-line rationale.
+    """Aggregate signals into a verdict + rationale.
 
-    Returns (verdict, rationale).
-    verdict: 'LONG' | 'SHORT' | 'WAIT'
-    rationale: short sentence in Russian explaining the call.
+    Returns (verdict_final, rationale).
 
-    Scoring logic:
-    - Each TA/funding/whale factor contributes 1 to long_score or short_score
-    - Regime BEAR/EARLY_BEAR blocks LONG verdict
-    - Regime BULL/EARLY_BULL blocks SHORT verdict
-    - |long-short| < 2 → WAIT (signals balanced)
-    - Verdict only fires when signals are decisive AND regime allows
+    Methodology (after analyst review June 9):
+    - trend_score: pure direction signal (EMA50/EMA200 alignment).
+      -2 (full bearish), -1 (partial), 0, +1 (partial), +2 (full bullish).
+    - exhaustion: a separate flag indicating market is overheated/oversold.
+      Computed from RSI extremes, extreme funding, swing-edge proximity.
+      Exhaustion does NOT vote on direction — it modifies certainty.
+      Counter-trend exhaustion (overheated in uptrend) DOWNGRADES verdict.
+    - Reversal phases (CAPITULATION, EUPHORIA) flip the read: oversold +
+      capitulation = enter long; overheated + euphoria = enter short.
+    - Whale signals: contribute 0 weight until journal validates them
+      (analyst feedback: whale data may not represent net bias).
+    - Regime: still blocks counter-trend entries (BEAR blocks LONG etc.)
+      but bottom/top phases override blocker.
+
+    For internal use, also computable: verdict without regime ('raw').
+    See compute_verdict_pair() for that.
     """
-    long_score = 0
-    short_score = 0
-    long_reasons: list[str] = []
-    short_reasons: list[str] = []
-    blocker = ""
+    return _compute_verdict_full(
+        ta=ta, funding_apr_pct=funding_apr_pct,
+        whale_net_long=whale_net_long, whale_cluster_count=whale_cluster_count,
+        regime=regime, phase=phase,
+    )[1]  # return (verdict, rationale) — final, regime-applied
 
+
+def compute_verdict_pair(
+    ta: Optional[dict],
+    funding_apr_pct: Optional[float],
+    whale_net_long: Optional[bool],
+    whale_cluster_count: int,
+    regime: Optional[str],
+    phase: Optional[str] = None,
+) -> tuple[tuple[str, str], tuple[str, str]]:
+    """Return BOTH verdicts: (raw, final).
+
+    raw = trend + exhaustion ONLY (no regime / phase consideration)
+    final = raw modified by regime/phase blockers and reversal bonuses
+
+    This pair feeds the journal so we can later answer:
+    'does adding OracAI regime improve win rate, or hurt it?'
+    """
+    raw_verdict, final_verdict = _compute_verdict_full(
+        ta=ta, funding_apr_pct=funding_apr_pct,
+        whale_net_long=whale_net_long, whale_cluster_count=whale_cluster_count,
+        regime=regime, phase=phase,
+    )
+    return raw_verdict, final_verdict
+
+
+def _compute_verdict_full(
+    ta: Optional[dict],
+    funding_apr_pct: Optional[float],
+    whale_net_long: Optional[bool],
+    whale_cluster_count: int,
+    regime: Optional[str],
+    phase: Optional[str] = None,
+) -> tuple[tuple[str, str], tuple[str, str]]:
+    """Internal: compute both raw and final verdicts in one pass.
+
+    Returns ((verdict_raw, rationale_raw), (verdict_final, rationale_final)).
+    """
+    # --- Step 1: Trend (pure direction) ---
+    trend_score = 0
+    trend_reason = ""
     if ta is not None:
         above_e50 = ta.get("above_ema50")
         above_e200 = ta.get("above_ema200")
-        rsi = ta.get("rsi_d1")
-
-        # Trend structure: 2 points for full alignment, 1 for partial
         if above_e50 and above_e200:
-            long_score += 2
-            long_reasons.append("тренд вверх")
+            trend_score = 2
+            trend_reason = "тренд вверх"
         elif above_e200 is False and above_e50 is False:
-            short_score += 2
-            short_reasons.append("тренд вниз")
+            trend_score = -2
+            trend_reason = "тренд вниз"
+        elif above_e200 and above_e50 is False:
+            trend_score = -1
+            trend_reason = "коррекция в восходящем тренде"
+        elif above_e200 is False and above_e50:
+            trend_score = 1
+            trend_reason = "отскок в нисходящем тренде"
 
-        # RSI extremes (contrarian)
+    # --- Step 2: Exhaustion (overheated/oversold flags) ---
+    # Two separate flags — they're contrarian, not direction signals
+    overheated = False
+    oversold = False
+    exh_reasons: list[str] = []
+
+    if ta is not None:
+        rsi = ta.get("rsi_d1")
         if rsi is not None:
-            if rsi <= 30:
-                long_score += 1
-                long_reasons.append("RSI перепродан")
-            elif rsi >= 70:
-                short_score += 1
-                short_reasons.append("RSI перекуплен")
+            if rsi >= 70:
+                overheated = True
+                exh_reasons.append(f"RSI {rsi:.0f}")
+            elif rsi <= 30:
+                oversold = True
+                exh_reasons.append(f"RSI {rsi:.0f}")
 
-        # Swing low / high proximity
+        # Swing-edge proximity
         swing_low = ta.get("swing_low")
         swing_high = ta.get("swing_high")
         last = ta.get("last")
         if swing_low and last and last > 0:
             if (last - swing_low) / last * 100 <= 3.0:
-                long_score += 1
-                long_reasons.append("у поддержки")
+                oversold = True
+                exh_reasons.append("у swing low")
         if swing_high and last and last > 0:
             if (swing_high - last) / last * 100 <= 3.0:
-                short_score += 1
-                short_reasons.append("у сопротивления")
+                overheated = True
+                exh_reasons.append("у swing high")
 
-    # Funding bias (contrarian: high positive funding → short setup)
     if funding_apr_pct is not None:
         if funding_apr_pct >= 15:
-            short_score += 2
-            short_reasons.append("дорогой long funding")
-        elif funding_apr_pct >= 5:
-            short_score += 1
-            short_reasons.append("положительный funding")
+            overheated = True
+            exh_reasons.append(f"funding {funding_apr_pct:+.0f}%")
         elif funding_apr_pct <= -10:
-            long_score += 2
-            long_reasons.append("дорогой short funding")
-        elif funding_apr_pct <= -5:
-            long_score += 1
-            long_reasons.append("отрицательный funding")
+            oversold = True
+            exh_reasons.append(f"funding {funding_apr_pct:+.0f}%")
 
-    # Whales: only counts when cluster activity confirms direction
-    if whale_cluster_count >= 2:
-        if whale_net_long is True:
-            long_score += 1
-            long_reasons.append("киты long")
-        elif whale_net_long is False:
-            short_score += 1
-            short_reasons.append("киты short")
+    # --- Step 3: RAW verdict (trend + exhaustion only, no regime) ---
+    raw_verdict, raw_rationale = _raw_decision(
+        trend_score, trend_reason, overheated, oversold, exh_reasons,
+    )
 
-    # Regime/phase categorisation:
-    #
-    # bottom_phases: rare 'market is at the lows' signals. Don't block
-    # long — actively contribute +2 to long_score (Wyckoff accumulation,
-    # capitulation = panic-selling exhaustion, late-bear = downtrend
-    # losing steam).
-    #
-    # top_phases: 'market is at the highs' — same idea inverted.
-    #
-    # bear_phases / bull_phases: ongoing trend, blocks counter-trend entries.
+    # --- Step 4: Apply regime/phase to get FINAL verdict ---
+    final_verdict, final_rationale = _apply_regime(
+        raw_verdict, raw_rationale, trend_score, oversold, overheated,
+        exh_reasons, regime, phase,
+    )
+
+    return (raw_verdict, raw_rationale), (final_verdict, final_rationale)
+
+
+def _raw_decision(
+    trend_score: int, trend_reason: str,
+    overheated: bool, oversold: bool, exh_reasons: list[str],
+) -> tuple[str, str]:
+    """Direction from trend, downgraded if counter-trend exhaustion is present.
+
+    - Strong trend (|trend_score| == 2):
+      * counter-trend exhaustion (overheated in uptrend, oversold in downtrend)
+        → WAIT, "тренд X но Y exhaustion — ждать"
+      * otherwise → follow trend
+    - Weak trend (|trend_score| == 1):
+      * acts as WAIT unless exhaustion supports the trend direction
+    - No trend (0):
+      * WAIT
+    """
+    exh_text = ", ".join(exh_reasons) if exh_reasons else ""
+
+    if trend_score >= 2:
+        # Bullish trend
+        if overheated:
+            return ("WAIT",
+                    f"{trend_reason}, но overbought ({exh_text}) — ждать pullback.")
+        return ("LONG", f"{trend_reason}.")
+    if trend_score <= -2:
+        if oversold:
+            return ("WAIT",
+                    f"{trend_reason}, но oversold ({exh_text}) — ждать отскок.")
+        return ("SHORT", f"{trend_reason}.")
+    if trend_score == 1:
+        # Partial bull (bounce in downtrend) — weak, generally WAIT unless
+        # supported by oversold (extreme bounce setup)
+        if oversold and not overheated:
+            return ("LONG", f"{trend_reason} + oversold ({exh_text}).")
+        return ("WAIT", f"{trend_reason} — слабый сигнал.")
+    if trend_score == -1:
+        if overheated and not oversold:
+            return ("SHORT", f"{trend_reason} + overbought ({exh_text}).")
+        return ("WAIT", f"{trend_reason} — слабый сигнал.")
+    # No trend
+    return ("WAIT", "Тренд не определён.")
+
+
+def _apply_regime(
+    raw_verdict: str, raw_rationale: str,
+    trend_score: int, oversold: bool, overheated: bool,
+    exh_reasons: list[str],
+    regime: Optional[str], phase: Optional[str],
+) -> tuple[str, str]:
+    """Layer regime/phase on top of the raw verdict.
+
+    Reversal phases (CAPITULATION/ACCUMULATION at bottom, EUPHORIA/
+    DISTRIBUTION at top) ENABLE contrarian entries even when raw said
+    WAIT or trend says opposite.
+
+    Ongoing trend phases (EARLY_BEAR, MID_BEAR for bear; EARLY_BULL,
+    MID_BULL, MARKUP for bull) BLOCK counter-trend entries.
+    """
     bottom_phases = ("CAPITULATION", "ACCUMULATION", "LATE_BEAR")
     top_phases = ("DISTRIBUTION", "EUPHORIA", "LATE_BULL")
     bear_phases = ("EARLY_BEAR", "MID_BEAR")
     bull_phases = ("EARLY_BULL", "MID_BULL", "MARKUP")
 
-    bottom_signal = phase in bottom_phases if phase else False
-    top_signal = phase in top_phases if phase else False
+    is_bottom = phase in bottom_phases if phase else False
+    is_top = phase in top_phases if phase else False
+    is_bear = (regime == "BEAR" or (phase and phase in bear_phases))
+    is_bull = (regime == "BULL" or (phase and phase in bull_phases))
 
-    # Bottom signal adds long bias — buying into capitulation/accumulation
-    # historically pays. Top signal adds short bias.
-    if bottom_signal:
-        long_score += 2
-        long_reasons.append(f"{phase.lower()} — потенциальное дно")
-    if top_signal:
-        short_score += 2
-        short_reasons.append(f"{phase.lower()} — потенциальная вершина")
+    exh_text = ", ".join(exh_reasons) if exh_reasons else ""
 
-    # Blockers — but only when regime is the matching direction AND
-    # phase isn't already a bottom/top signal. CAPITULATION technically
-    # falls under regime=BEAR but you want to BUY it, not block buys.
-    if not bottom_signal and (
-        regime == "BEAR" or (phase and phase in bear_phases)
-    ):
-        blocker = "BEAR"
-    elif not top_signal and (
-        regime == "BULL" or (phase and phase in bull_phases)
-    ):
-        blocker = "BULL"
+    # Bottom phases: oversold + capitulation = LONG opportunity even if
+    # raw said WAIT or SHORT
+    if is_bottom and oversold:
+        phase_name = phase.lower() if phase else "bottom"
+        return ("LONG",
+                f"{phase_name} + oversold ({exh_text}) — потенциальное дно.")
 
-    # Decision tree
-    margin = abs(long_score - short_score)
+    # Top phases: overheated + euphoria = SHORT opportunity
+    if is_top and overheated:
+        phase_name = phase.lower() if phase else "top"
+        return ("SHORT",
+                f"{phase_name} + overbought ({exh_text}) — потенциальная вершина.")
 
-    if margin < 2:
-        # Signals balanced — no decisive bias
-        if long_score == 0 and short_score == 0:
-            return ("WAIT", "Сигналов нет, рынок без направления.")
-        return (
-            "WAIT",
-            f"Сигналы смешанные ({long_score} за long, {short_score} за short). "
-            f"Чёткой картины нет."
-        )
+    # Trend phases as blockers
+    if raw_verdict == "LONG" and is_bear and not is_bottom:
+        return ("WAIT",
+                f"{raw_rationale.rstrip('.')} Но broad regime BEAR — против тренда не входить.")
+    if raw_verdict == "SHORT" and is_bull and not is_top:
+        return ("WAIT",
+                f"{raw_rationale.rstrip('.')} Но broad regime BULL — против тренда не входить.")
 
-    if long_score > short_score:
-        if blocker == "BEAR":
-            return (
-                "WAIT",
-                f"За long: {', '.join(long_reasons[:3])}. "
-                f"Но broad regime BEAR — против тренда не входить."
-            )
-        return (
-            "LONG",
-            f"За long: {', '.join(long_reasons[:3])}."
-        )
-    else:
-        if blocker == "BULL":
-            return (
-                "WAIT",
-                f"За short: {', '.join(short_reasons[:3])}. "
-                f"Но broad regime BULL — против тренда не входить."
-            )
-        return (
-            "SHORT",
-            f"За short: {', '.join(short_reasons[:3])}."
-        )
+    # Otherwise raw stands
+    return (raw_verdict, raw_rationale)
+
 
 
 def _render_verdict_report(

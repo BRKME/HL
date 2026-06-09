@@ -1,11 +1,18 @@
-"""Tests for _compute_verdict — Variant B short-form ETH Focus."""
-from src.eth_focus import _compute_verdict
+"""Tests for _compute_verdict — new methodology after analyst review.
+
+Logic:
+- trend_score: pure direction from EMA structure (-2..+2)
+- exhaustion: oversold/overheated flags (RSI/funding/swing)
+- exhaustion against trend DOWNGRADES verdict to WAIT
+- exhaustion at reversal phases (CAPITULATION/EUPHORIA) flips to contrarian
+- whale signals have ZERO weight (pending journal validation)
+- regime BEAR/BULL blocks counter-trend entries (unless phase is reversal)
+"""
+from src.eth_focus import _compute_verdict, compute_verdict_pair
 
 
-# ---------- WAIT cases ----------
-
-def test_verdict_wait_when_no_data():
-    v, r = _compute_verdict(
+def test_no_data_returns_wait():
+    v, _ = _compute_verdict(
         ta=None, funding_apr_pct=None,
         whale_net_long=None, whale_cluster_count=0,
         regime=None, phase=None,
@@ -13,282 +20,182 @@ def test_verdict_wait_when_no_data():
     assert v == "WAIT"
 
 
-def test_verdict_wait_when_signals_balanced():
-    """1 vs 1 — not decisive enough to act."""
-    ta = {"above_ema50": True, "above_ema200": True,  # +2 long
-          "rsi_d1": 75,  # +1 short
-          "last": 2000, "swing_high": 2050, "swing_low": 1700}  # +1 short (resistance)
-    # → long 2, short 2 — WAIT
-    v, r = _compute_verdict(
-        ta=ta, funding_apr_pct=None,
-        whale_net_long=None, whale_cluster_count=0,
-        regime=None, phase=None,
-    )
-    assert v == "WAIT"
-    assert "смешан" in r.lower() or "сигнал" in r.lower()
-
-
-# ---------- LONG cases ----------
-
-def test_verdict_long_when_strong_long_signals():
-    """All long signals aligned, no blocker."""
-    ta = {
-        "above_ema50": True, "above_ema200": True,  # +2 long
-        "rsi_d1": 25,  # +1 long (oversold)
-        "last": 2000, "swing_low": 1990, "swing_high": 2500,  # +1 long (at support)
-    }
-    v, r = _compute_verdict(
-        ta=ta, funding_apr_pct=-12,  # +2 long (cheap short funding)
-        whale_net_long=None, whale_cluster_count=0,
-        regime=None, phase=None,
-    )
+def test_clear_uptrend_returns_long():
+    """EMA-aligned, no exhaustion → LONG."""
+    ta = {"above_ema50": True, "above_ema200": True,
+          "rsi_d1": 55, "last": 2000, "swing_low": 1500, "swing_high": 2200}
+    v, r = _compute_verdict(ta=ta, funding_apr_pct=None,
+        whale_net_long=None, whale_cluster_count=0, regime=None, phase=None)
     assert v == "LONG"
-    assert "long" in r.lower()
+    assert "тренд вверх" in r.lower()
 
 
-def test_verdict_long_blocked_by_bear_regime():
-    """All long signals BUT BEAR regime → WAIT (don't fight the trend)."""
-    ta = {
-        "above_ema50": True, "above_ema200": True,
-        "rsi_d1": 25,
-        "last": 2000, "swing_low": 1990, "swing_high": 2500,
-    }
-    v, r = _compute_verdict(
-        ta=ta, funding_apr_pct=-12,
+def test_clear_downtrend_returns_short():
+    ta = {"above_ema50": False, "above_ema200": False,
+          "rsi_d1": 50, "last": 2000, "swing_low": 1900, "swing_high": 2500}
+    v, r = _compute_verdict(ta=ta, funding_apr_pct=None,
+        whale_net_long=None, whale_cluster_count=0, regime=None, phase=None)
+    assert v == "SHORT"
+
+
+def test_weak_trend_partial_alignment_returns_wait():
+    """Bounce in downtrend (above EMA200, below EMA50) → weak signal → WAIT."""
+    ta = {"above_ema50": False, "above_ema200": True, "rsi_d1": 50}
+    v, _ = _compute_verdict(ta=ta, funding_apr_pct=None,
+        whale_net_long=None, whale_cluster_count=0, regime=None, phase=None)
+    assert v == "WAIT"
+
+
+def test_uptrend_with_overheated_downgrades_to_wait():
+    """Uptrend + RSI 75 → WAIT (don't chase)."""
+    ta = {"above_ema50": True, "above_ema200": True, "rsi_d1": 75}
+    v, r = _compute_verdict(ta=ta, funding_apr_pct=None,
+        whale_net_long=None, whale_cluster_count=0, regime=None, phase=None)
+    assert v == "WAIT"
+    assert "overbought" in r.lower() or "rsi" in r.lower()
+
+
+def test_downtrend_with_oversold_downgrades_to_wait():
+    ta = {"above_ema50": False, "above_ema200": False,
+          "rsi_d1": 25, "last": 2000, "swing_low": 1950, "swing_high": 2500}
+    v, r = _compute_verdict(ta=ta, funding_apr_pct=None,
+        whale_net_long=None, whale_cluster_count=0, regime=None, phase=None)
+    assert v == "WAIT"
+    assert "oversold" in r.lower() or "rsi" in r.lower()
+
+
+def test_extreme_funding_creates_exhaustion():
+    """Funding +18% even without RSI extreme → overheated → WAIT."""
+    ta = {"above_ema50": True, "above_ema200": True, "rsi_d1": 60}
+    v, _ = _compute_verdict(ta=ta, funding_apr_pct=18,
+        whale_net_long=None, whale_cluster_count=0, regime=None, phase=None)
+    assert v == "WAIT"
+
+
+def test_uptrend_no_exhaustion_stays_long():
+    ta = {"above_ema50": True, "above_ema200": True,
+          "rsi_d1": 55, "last": 2000, "swing_low": 1500, "swing_high": 2500}
+    v, _ = _compute_verdict(ta=ta, funding_apr_pct=3,
+        whale_net_long=None, whale_cluster_count=0, regime=None, phase=None)
+    assert v == "LONG"
+
+
+def test_long_blocked_by_bear_regime():
+    ta = {"above_ema50": True, "above_ema200": True, "rsi_d1": 55}
+    v, r = _compute_verdict(ta=ta, funding_apr_pct=None,
         whale_net_long=None, whale_cluster_count=0,
-        regime="BEAR", phase=None,
-    )
+        regime="BEAR", phase=None)
     assert v == "WAIT"
     assert "BEAR" in r
 
 
-def test_verdict_long_blocked_by_early_bear_phase():
-    """Phase EARLY_BEAR alone blocks long too."""
-    ta = {
-        "above_ema50": True, "above_ema200": True,
-        "rsi_d1": 25,
-        "last": 2000, "swing_low": 1990, "swing_high": 2500,
-    }
-    v, r = _compute_verdict(
-        ta=ta, funding_apr_pct=-12,
+def test_short_blocked_by_bull_regime():
+    ta = {"above_ema50": False, "above_ema200": False, "rsi_d1": 50}
+    v, r = _compute_verdict(ta=ta, funding_apr_pct=None,
         whale_net_long=None, whale_cluster_count=0,
-        regime=None, phase="EARLY_BEAR",
-    )
-    assert v == "WAIT"
-
-
-# ---------- SHORT cases ----------
-
-def test_verdict_short_when_strong_short_signals():
-    """All short signals aligned, no blocker."""
-    ta = {
-        "above_ema50": False, "above_ema200": False,  # +2 short
-        "rsi_d1": 75,  # +1 short
-        "last": 2000, "swing_low": 1500, "swing_high": 2010,  # +1 short (resistance)
-    }
-    v, r = _compute_verdict(
-        ta=ta, funding_apr_pct=18,  # +2 short
-        whale_net_long=None, whale_cluster_count=0,
-        regime=None, phase=None,
-    )
-    assert v == "SHORT"
-    assert "short" in r.lower()
-
-
-def test_verdict_short_blocked_by_bull_regime():
-    """All short signals BUT BULL regime → WAIT."""
-    ta = {
-        "above_ema50": False, "above_ema200": False,
-        "rsi_d1": 75,
-    }
-    v, r = _compute_verdict(
-        ta=ta, funding_apr_pct=18,
-        whale_net_long=None, whale_cluster_count=0,
-        regime="BULL", phase=None,
-    )
+        regime="BULL", phase=None)
     assert v == "WAIT"
     assert "BULL" in r
 
 
-# ---------- whale signals ----------
-
-def test_verdict_uses_whale_cluster_when_count_high():
-    """Whale activity tips a borderline call."""
-    ta = {
-        "above_ema50": False, "above_ema200": False,  # +2 short
-        "rsi_d1": 50,
-    }
-    # 2 cluster events, net long → +1 long. Long 1, Short 2 → margin 1 → WAIT
-    v, _ = _compute_verdict(
-        ta=ta, funding_apr_pct=None,
-        whale_net_long=True, whale_cluster_count=2,
-        regime=None,
-    )
-    assert v == "WAIT"
-
-    # Without whales contributing: Long 0, Short 2 — margin 2 → SHORT
-    v2, _ = _compute_verdict(
-        ta=ta, funding_apr_pct=None,
+def test_capitulation_with_oversold_returns_long():
+    """CAPITULATION + oversold → LONG, even against trend."""
+    ta = {"above_ema50": False, "above_ema200": False,
+          "rsi_d1": 25, "last": 1700, "swing_low": 1690, "swing_high": 2500}
+    v, r = _compute_verdict(ta=ta, funding_apr_pct=None,
         whale_net_long=None, whale_cluster_count=0,
-        regime=None,
-    )
-    assert v2 == "SHORT"
-
-
-# ---------- rationale wording ----------
-
-def test_long_rationale_mentions_reasons():
-    ta = {
-        "above_ema50": True, "above_ema200": True,
-        "rsi_d1": 25,
-        "last": 2000, "swing_low": 1990, "swing_high": 2500,
-    }
-    _, r = _compute_verdict(
-        ta=ta, funding_apr_pct=None,
-        whale_net_long=None, whale_cluster_count=0,
-        regime=None,
-    )
-    assert "тренд" in r.lower() or "rsi" in r.lower() or "поддерж" in r.lower()
-
-
-def test_short_rationale_mentions_reasons():
-    ta = {
-        "above_ema50": False, "above_ema200": False,
-        "rsi_d1": 75,
-    }
-    _, r = _compute_verdict(
-        ta=ta, funding_apr_pct=18,
-        whale_net_long=None, whale_cluster_count=0,
-        regime=None,
-    )
-    # rationale references at least one short reason
-    assert ("тренд" in r.lower() or "rsi" in r.lower()
-            or "funding" in r.lower())
-
-
-# ---------- the actual report from 30 May ----------
-
-def test_actual_30_may_report_returns_wait():
-    """User's actual data 30 May (the one that confused them):
-    Trend down, RSI 32, at swing low, funding +2.1%, BEAR regime.
-
-    Expected: WAIT — long bias (oversold + support) but BEAR regime blocks.
-    """
-    ta = {
-        "above_ema50": False, "above_ema200": False,  # +2 short
-        "rsi_d1": 32,  # not below 30, no bonus
-        "last": 2015, "swing_low": 2009, "swing_high": 2500,  # +1 long (at support)
-    }
-    v, r = _compute_verdict(
-        ta=ta, funding_apr_pct=2.1,  # neutral, no contribution
-        whale_net_long=None, whale_cluster_count=0,
-        regime="BEAR", phase="EARLY_BEAR",
-    )
-    # Trend says short (+2), support says long (+1) → margin 1 → WAIT regardless
-    assert v == "WAIT"
-
-
-# ---------- Wyckoff / cycle phases ----------
-
-def test_capitulation_does_not_block_long():
-    """CAPITULATION = panic-selling at bottom — historically buy zone.
-    Old logic blocked all long because regime=BEAR. Now: CAPITULATION
-    bypasses the BEAR blocker AND adds +2 to long_score."""
-    ta = {
-        "above_ema50": False, "above_ema200": False,  # +2 short
-        "rsi_d1": 28,  # +1 long (oversold)
-        "last": 1700, "swing_low": 1690, "swing_high": 2500,  # +1 long (support)
-    }
-    v, r = _compute_verdict(
-        ta=ta, funding_apr_pct=None,
-        whale_net_long=None, whale_cluster_count=0,
-        regime="BEAR", phase="CAPITULATION",
-    )
-    # +2 long (CAPITULATION bonus), +1 (RSI), +1 (support) = 4 long
-    # +2 short (trend) = 2 short → margin 2 → LONG, not blocked
+        regime="BEAR", phase="CAPITULATION")
     assert v == "LONG"
-    assert "дно" in r.lower() or "capitulation" in r.lower()
+    assert "capitulation" in r.lower() or "дно" in r.lower()
 
 
-def test_accumulation_phase_favors_long():
-    """ACCUMULATION = Wyckoff bottoming pattern → +2 long, no block."""
-    ta = {
-        "above_ema50": False, "above_ema200": False,
-        "rsi_d1": 35,
-    }
-    v, _ = _compute_verdict(
-        ta=ta, funding_apr_pct=None,
+def test_capitulation_without_oversold_no_long():
+    """CAPITULATION but no exhaustion → don't force LONG."""
+    ta = {"above_ema50": False, "above_ema200": False,
+          "rsi_d1": 50, "last": 2000, "swing_low": 1500, "swing_high": 2500}
+    v, _ = _compute_verdict(ta=ta, funding_apr_pct=None,
         whale_net_long=None, whale_cluster_count=0,
-        regime="BEAR", phase="ACCUMULATION",
-    )
-    # +2 long (ACCUMULATION) vs +2 short (trend) = margin 0 → WAIT
-    # But not blocked — that's the key behaviour difference
-    assert v == "WAIT"
-    # Should NOT cite BEAR blocker because phase is bottom signal
-    # (test the wording so this regression catches it)
+        regime="BEAR", phase="CAPITULATION")
+    assert v != "LONG"
 
 
-def test_late_bear_is_bottom_signal_not_blocker():
-    """LATE_BEAR was previously a blocker, now treated as bottom signal."""
-    ta = {
-        "above_ema50": False, "above_ema200": False,
-        "rsi_d1": 25,
-        "last": 1700, "swing_low": 1690, "swing_high": 2500,
-    }
-    v, _ = _compute_verdict(
-        ta=ta, funding_apr_pct=-12.0,  # +2 long (cheap short funding)
+def test_euphoria_with_overheated_returns_short():
+    ta = {"above_ema50": True, "above_ema200": True, "rsi_d1": 78}
+    v, r = _compute_verdict(ta=ta, funding_apr_pct=20,
         whale_net_long=None, whale_cluster_count=0,
-        regime="BEAR", phase="LATE_BEAR",
-    )
-    # +2 long (LATE_BEAR), +1 (RSI), +1 (support), +2 (funding) = 6 long
-    # +2 short (trend) = 2 short → margin 4 → LONG
+        regime="BULL", phase="EUPHORIA")
+    assert v == "SHORT"
+    assert "euphoria" in r.lower() or "вершина" in r.lower()
+
+
+def test_late_bear_with_oversold_returns_long():
+    ta = {"above_ema50": False, "above_ema200": False,
+          "rsi_d1": 28, "last": 1700, "swing_low": 1690, "swing_high": 2500}
+    v, _ = _compute_verdict(ta=ta, funding_apr_pct=-12,
+        whale_net_long=None, whale_cluster_count=0,
+        regime="BEAR", phase="LATE_BEAR")
     assert v == "LONG"
 
 
-def test_euphoria_does_not_block_short():
-    """EUPHORIA = overheated top — short signal, not BULL blocker."""
-    ta = {
-        "above_ema50": True, "above_ema200": True,  # +2 long
-        "rsi_d1": 78,  # +1 short
-    }
-    v, r = _compute_verdict(
-        ta=ta, funding_apr_pct=20.0,  # +2 short
+def test_whale_cluster_does_not_change_verdict():
+    """Whale weight = 0 — verdict same with or without whale signal."""
+    ta = {"above_ema50": True, "above_ema200": True, "rsi_d1": 55}
+    v_no, _ = _compute_verdict(ta=ta, funding_apr_pct=None,
+        whale_net_long=None, whale_cluster_count=0, regime=None, phase=None)
+    v_with, _ = _compute_verdict(ta=ta, funding_apr_pct=None,
+        whale_net_long=False, whale_cluster_count=10,  # strong short whale
+        regime=None, phase=None)
+    assert v_no == v_with  # whales must not flip
+
+
+def test_compute_verdict_pair_returns_raw_and_final():
+    """Pair returns (raw=no-regime, final=with-regime)."""
+    ta = {"above_ema50": True, "above_ema200": True, "rsi_d1": 55}
+    (raw_v, _), (final_v, _) = compute_verdict_pair(
+        ta=ta, funding_apr_pct=None,
         whale_net_long=None, whale_cluster_count=0,
-        regime="BULL", phase="EUPHORIA",
-    )
-    # +2 short (EUPHORIA bonus), +1 (RSI), +2 (funding) = 5 short
-    # +2 long (trend) = 2 long → margin 3 → SHORT, not blocked
-    assert v == "SHORT"
-    assert "вершина" in r.lower() or "euphoria" in r.lower()
+        regime="BEAR", phase=None)
+    assert raw_v == "LONG"
+    assert final_v == "WAIT"
 
 
-def test_distribution_in_bull_treated_as_top_signal():
-    """DISTRIBUTION at the top → short signal, no BULL blocker."""
-    ta = {
-        "above_ema50": True, "above_ema200": True,
-        "rsi_d1": 70,
-    }
-    v, _ = _compute_verdict(
-        ta=ta, funding_apr_pct=15.0,
+def test_raw_and_final_identical_when_no_regime():
+    ta = {"above_ema50": True, "above_ema200": True, "rsi_d1": 55}
+    (raw_v, _), (final_v, _) = compute_verdict_pair(
+        ta=ta, funding_apr_pct=None,
         whale_net_long=None, whale_cluster_count=0,
-        regime="BULL", phase="DISTRIBUTION",
-    )
-    # +2 short (DISTRIBUTION), +1 (RSI), +2 (funding) = 5 short
-    # +2 long (trend) = 2 long → margin 3 → SHORT
-    assert v == "SHORT"
+        regime=None, phase=None)
+    assert raw_v == final_v == "LONG"
 
 
-def test_markup_phase_still_blocks_short():
-    """MARKUP = active uptrend, should still block short entries."""
-    ta = {
-        "above_ema50": False, "above_ema200": False,  # +2 short
-        "rsi_d1": 75,  # +1 short
-    }
-    v, r = _compute_verdict(
-        ta=ta, funding_apr_pct=15.0,  # +2 short
+def test_raw_wait_final_long_at_capitulation():
+    """Bottom phase override: raw says WAIT (counter-trend exhaustion),
+    final says LONG (CAPITULATION + oversold = reversal entry)."""
+    ta = {"above_ema50": False, "above_ema200": False,
+          "rsi_d1": 25, "last": 1700, "swing_low": 1690, "swing_high": 2500}
+    (raw_v, _), (final_v, _) = compute_verdict_pair(
+        ta=ta, funding_apr_pct=None,
         whale_net_long=None, whale_cluster_count=0,
-        regime="BULL", phase="MARKUP",
-    )
-    # +5 short vs 0 long → would be SHORT, but MARKUP blocks
+        regime="BEAR", phase="CAPITULATION")
+    assert raw_v == "WAIT"
+    assert final_v == "LONG"
+
+
+def test_30_may_scenario_returns_wait():
+    """User's 30 May report: downtrend + RSI 32 + at support + BEAR.
+    Counter-trend exhaustion → WAIT."""
+    ta = {"above_ema50": False, "above_ema200": False, "rsi_d1": 32,
+          "last": 2015, "swing_low": 2009, "swing_high": 2500}
+    v, _ = _compute_verdict(ta=ta, funding_apr_pct=2.1,
+        whale_net_long=None, whale_cluster_count=0,
+        regime="BEAR", phase="EARLY_BEAR")
     assert v == "WAIT"
-    assert "BULL" in r
+
+
+def test_strong_uptrend_at_resistance_downgrades():
+    """Bull near swing high → WAIT for breakout."""
+    ta = {"above_ema50": True, "above_ema200": True,
+          "rsi_d1": 65, "last": 2480, "swing_low": 1700, "swing_high": 2500}
+    v, _ = _compute_verdict(ta=ta, funding_apr_pct=None,
+        whale_net_long=None, whale_cluster_count=0, regime=None, phase=None)
+    assert v == "WAIT"
