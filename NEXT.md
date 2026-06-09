@@ -18,6 +18,12 @@
 
 3. **Журналируется verdict_raw отдельно от verdict_final.** raw = trend + exhaustion без regime. final = raw + regime/phase blockers. Через 2 недели сравним WR(raw) vs WR(final). Если final хуже — OracAI regime layer выкидываем.
 
+### Что было изменено по фидбеку 16 июня (вторая итерация)
+4. **Relative Strength vs BTC в журнале как observability.** RS_30d и RS_90d (% return coin минус % return BTC) считается для каждого вердикта и записывается в journal. **Не используется** в score. Будет проверено через 3+ недели: предсказывает ли RS корректность вердиктов лучше RSI/funding/swing? Если да — те выкинуть, RS оставить. Подробности в `docs/analyst_feedback_june_16.md`.
+
+### Что ОСТАЛОСЬ как замечание (не зафикшено)
+- Архитектурно система всё ещё гибрид trend-following + mean-reversion. Это понимаем, но не трогаем до данных — иначе будем refactor-ить дважды на пустоте.
+
 ### Что осталось без изменений
 - 6 фокус-монет: HYPE, BTC, ETH, NEAR, ZEC, TAO
 - Дневной таймфрейм

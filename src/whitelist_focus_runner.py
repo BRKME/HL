@@ -17,6 +17,7 @@ import sys
 import traceback
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Optional
 
 from src.hl_api import fetch_meta_and_ctxs, fetch_candles, resolve_symbol
 from src.oracai import fetch_snapshot as fetch_oracai_snapshot
@@ -78,21 +79,37 @@ def run() -> None:
         regime_snapshot=oracai_snap, state_dir=state_dir,
     )
 
+    # Relative Strength vs BTC — observability only (analyst critique
+    # June 16). Recorded in journal so future analysis can check if
+    # RS predicts verdict correctness better than RSI/funding/swing.
+    btc_closes = coin_data.get("BTC", {}).get("candles_closes") or []
+    rs_by_coin: dict[str, tuple[Optional[float], Optional[float]]] = {}
+    if btc_closes:
+        from src.relative_strength import compute_rs_pair
+        for coin in FOCUS_COINS:
+            coin_closes = coin_data.get(coin, {}).get("candles_closes") or []
+            if coin == "BTC":
+                rs_by_coin[coin] = (0.0, 0.0)  # BTC vs itself = 0
+            else:
+                rs_by_coin[coin] = compute_rs_pair(coin_closes, btc_closes)
+
     # Journal: append every per-coin verdict so we can backtest later.
     # NODATA entries are skipped — no useful signal to evaluate.
     regime = (oracai_snap or {}).get("regime") if oracai_snap else None
     phase = (((oracai_snap or {}).get("cycle") or {}).get("phase")
              if oracai_snap else None)
-    entries = [
-        VerdictEntry(
+    entries = []
+    for coin, mark, verdict, rationale, raw_v, raw_r in verdicts:
+        if verdict == "NODATA":
+            continue
+        rs_30, rs_90 = rs_by_coin.get(coin, (None, None))
+        entries.append(VerdictEntry(
             ts=now, source="whitelist_focus",
             coin=coin, mark=mark, verdict=verdict, rationale=rationale,
             regime=regime, phase=phase,
             verdict_raw=raw_v, rationale_raw=raw_r,
-        )
-        for coin, mark, verdict, rationale, raw_v, raw_r in verdicts
-        if verdict != "NODATA"
-    ]
+            rs_30d=rs_30, rs_90d=rs_90,
+        ))
     journal_path = state_dir / "verdict_journal.jsonl"
     try:
         written = append_verdicts(journal_path, entries)

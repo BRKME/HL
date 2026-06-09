@@ -49,6 +49,13 @@ class VerdictEntry:
     # adds no edge (or hurts), we drop it.
     verdict_raw: Optional[str] = None
     rationale_raw: Optional[str] = None
+    # Analyst review June 16 (Relative Strength critique): record RS vs
+    # BTC over 30d/90d as observability. NOT used in verdict — recorded
+    # alongside so future analysis can ask 'does RS predict verdict
+    # correctness better than RSI/funding/swing?'. If yes → those go,
+    # RS goes in. If no → leave it as a diagnostic-only field.
+    rs_30d: Optional[float] = None  # coin_return_30d - btc_return_30d, pp
+    rs_90d: Optional[float] = None  # coin_return_90d - btc_return_90d, pp
 
     def to_dict(self) -> dict:
         d = {
@@ -66,6 +73,10 @@ class VerdictEntry:
             d["verdict_raw"] = self.verdict_raw
         if self.rationale_raw is not None:
             d["rationale_raw"] = self.rationale_raw
+        if self.rs_30d is not None:
+            d["rs_30d"] = float(self.rs_30d)
+        if self.rs_90d is not None:
+            d["rs_90d"] = float(self.rs_90d)
         return d
 
 
@@ -136,6 +147,8 @@ def load_verdicts(journal_path: Path,
                         phase=row.get("phase"),
                         verdict_raw=row.get("verdict_raw"),
                         rationale_raw=row.get("rationale_raw"),
+                        rs_30d=row.get("rs_30d"),
+                        rs_90d=row.get("rs_90d"),
                     ))
                 except (TypeError, ValueError):
                     continue
