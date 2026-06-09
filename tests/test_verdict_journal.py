@@ -118,3 +118,38 @@ def test_null_regime_and_phase_supported(tmp_path):
     loaded = load_verdicts(path)[0]
     assert loaded.regime is None
     assert loaded.phase is None
+
+
+def test_verdict_raw_and_rationale_raw_round_trip(tmp_path):
+    """Analyst review: journal stores both raw (no regime) and final
+    (with regime) so backtester can compare if OracAI adds edge."""
+    path = tmp_path / "j.jsonl"
+    e = VerdictEntry(
+        ts=NOW, source="whitelist_focus", coin="ETH", mark=2000,
+        verdict="WAIT", rationale="blocked by BEAR",
+        regime="BEAR", phase="EARLY_BEAR",
+        verdict_raw="LONG", rationale_raw="тренд вверх.",
+    )
+    append_verdicts(path, [e])
+    loaded = load_verdicts(path)[0]
+    assert loaded.verdict == "WAIT"
+    assert loaded.verdict_raw == "LONG"
+    assert loaded.rationale_raw == "тренд вверх."
+
+
+def test_legacy_entry_without_raw_fields_still_loads(tmp_path):
+    """Old journal entries (pre-raw) should keep working — raw is optional."""
+    path = tmp_path / "j.jsonl"
+    # Simulate legacy line without verdict_raw fields
+    legacy_line = json.dumps({
+        "ts": "2026-06-03T10:00:00+00:00",
+        "source": "whitelist_focus",
+        "coin": "BTC", "mark": 78000, "verdict": "LONG",
+        "rationale": "тренд вверх", "regime": "BULL", "phase": "MID_BULL",
+    })
+    path.write_text(legacy_line + "\n", encoding="utf-8")
+    loaded = load_verdicts(path)
+    assert len(loaded) == 1
+    assert loaded[0].verdict == "LONG"
+    assert loaded[0].verdict_raw is None
+    assert loaded[0].rationale_raw is None

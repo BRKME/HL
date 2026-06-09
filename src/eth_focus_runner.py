@@ -111,7 +111,8 @@ def run() -> None:
         return
 
     # Journal the verdict so we can backtest the model's effectiveness later
-    verdict, rationale = compute_eth_verdict(
+    from src.eth_focus import compute_eth_verdict_pair
+    (raw_v, raw_r), (verdict, rationale) = compute_eth_verdict_pair(
         now=now, mark=mark,
         candles_closes=candles_closes or None,
         funding_apr_pct=funding if funding else None,
@@ -127,6 +128,7 @@ def run() -> None:
                 ts=now, source="eth_focus",
                 coin="ETH", mark=mark, verdict=verdict, rationale=rationale,
                 regime=regime, phase=phase,
+                verdict_raw=raw_v, rationale_raw=raw_r,
             )])
         except Exception as e:
             logger.warning("Journal append failed: %s", e)
