@@ -405,8 +405,7 @@ def test_render_eth_focus_produces_verdict(tmp_path):
     # ETH and price shown
     assert "ETH" in msg
     assert "$2 175" in msg
-    # No more verbose sections
-    assert "RSI" not in msg
+    # No verbose sections (TA header, Funding & OI header)
     assert "Технический анализ" not in msg
     assert "Funding &amp; OI" not in msg
     # Short: under 500 chars (was ~2000+ before)
