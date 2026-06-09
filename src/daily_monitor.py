@@ -149,6 +149,76 @@ def _safe_oracai_yesterday(now: datetime) -> Optional[dict]:
         return None
 
 
+def _run_digest_only(now: datetime, accounts: list[dict]) -> None:
+    """Morning whitelist digest path when user has no positions.
+
+    Builds the same Whitelist daily message that would normally appear at
+    the bottom of the 10:00 MSK portfolio report, and sends it standalone.
+    Also writes verdicts to the journal so the dataset keeps growing
+    regardless of whether the user is in the market.
+    """
+    from pathlib import Path as _Path
+    from src.whitelist_focus import (
+        FOCUS_COINS, compute_all_verdicts, render_whitelist_verdicts,
+    )
+    from src.verdict_journal import VerdictEntry, append_verdicts
+
+    repo_root = _Path(__file__).resolve().parent.parent
+    state_dir = repo_root / "state"
+
+    today_snapshot = _safe_oracai_current()
+    marks, _ = _safe_fetch_marks()
+
+    coin_data: dict[str, dict] = {}
+    for c in FOCUS_COINS:
+        try:
+            candles = fetch_candles(c, interval="1d", lookback_days=220)
+            closes = [float(k["c"]) for k in candles if k.get("c")] if candles else []
+            coin_data[c] = {
+                "mark": marks.get(c, 0.0),
+                "candles_closes": closes if closes else None,
+                "funding_apr_pct": None,
+            }
+        except Exception as e:
+            logger.warning("Digest candles fetch failed for %s: %s", c, e)
+            coin_data[c] = {"mark": marks.get(c, 0.0)}
+
+    verdicts = compute_all_verdicts(
+        now=now, coin_data=coin_data,
+        regime_snapshot=today_snapshot, state_dir=state_dir,
+    )
+    digest = render_whitelist_verdicts(
+        now=now, coin_data=coin_data,
+        regime_snapshot=today_snapshot, state_dir=state_dir,
+    )
+
+    # Journal verdicts even when portfolio is empty — that's the whole
+    # point of the journal: long-term dataset, independent of user state
+    regime = (today_snapshot or {}).get("regime") if today_snapshot else None
+    phase = (((today_snapshot or {}).get("cycle") or {}).get("phase")
+             if today_snapshot else None)
+    entries = [
+        VerdictEntry(
+            ts=now, source="whitelist_focus",
+            coin=coin, mark=mark, verdict=verdict, rationale=rationale,
+            regime=regime, phase=phase,
+        )
+        for coin, mark, verdict, rationale in verdicts
+        if verdict != "NODATA"
+    ]
+    try:
+        append_verdicts(state_dir / "verdict_journal.jsonl", entries)
+        logger.info("Journaled %d verdicts (digest-only path)", len(entries))
+    except Exception as e:
+        logger.warning("Journal append failed: %s", e)
+
+    try:
+        send_messages([digest])
+        logger.info("Digest-only message sent (%d chars)", len(digest))
+    except Exception as e:
+        logger.warning("Telegram send failed: %s", e)
+
+
 def run_daily_monitor(
     whitelist_path: Path = DEFAULT_WHITELIST,
     decisions_path: Path = DEFAULT_DECISIONS,
@@ -163,12 +233,25 @@ def run_daily_monitor(
     client = HLClient()
     portfolio = _build_portfolio(client, accounts)
 
-    # Skip entirely when there's nothing to report. Empty portfolio + cron
-    # every 2h would spam 7 'портфель пуст' messages a day for nothing.
     has_perp = bool(portfolio.perp)
     has_spot = bool(portfolio.spot) and any(s.total > 0 for s in portfolio.spot)
-    if not has_perp and not has_spot:
-        logger.info("No positions in any wallet — skipping report.")
+    empty_portfolio = not has_perp and not has_spot
+
+    # On the morning slot (10:00 MSK = 07:00 UTC), always run the whitelist
+    # digest and journal it — even if user has no open positions. This is
+    # the daily signal that needs to keep coming for the bot to be useful
+    # AND for the verdict journal to keep accumulating data for future
+    # backtesting. Empty-portfolio silence at other slots is correct.
+    is_morning_slot = (now.hour == 7)
+
+    if empty_portfolio and not is_morning_slot:
+        logger.info("No positions and not morning slot — skipping report.")
+        return
+
+    if empty_portfolio:
+        # Morning slot with no positions: send digest-only message + journal.
+        # Skip the portfolio rendering path entirely.
+        _run_digest_only(now, accounts)
         return
 
     decisions = load_decisions(decisions_path, lookback_days=DECISION_LOOKBACK_DAYS, now=now)
