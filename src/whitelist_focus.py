@@ -1,7 +1,8 @@
 """Whitelist daily verdicts — one Telegram message with a per-coin
 LONG/SHORT/WAIT verdict for the focus coins (HYPE, BTC, ETH, NEAR, ZEC, TAO).
 
-Reuses _compute_verdict from eth_focus to keep scoring logic consistent.
+Uses compute_verdict_pair from eth_focus so the journal can record both
+raw and final verdicts for backtest comparison.
 """
 from __future__ import annotations
 
@@ -11,7 +12,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
-from src.eth_focus import _compute_verdict
+from src.eth_focus import compute_verdict_pair
 from src.ta import compute_indicators
 
 
@@ -138,10 +139,30 @@ def evaluate_coin(
     state_dir: Path,
     now: datetime,
 ) -> tuple[str, str]:
-    """Compute (verdict, rationale) for one coin. Returns ('WAIT', ...)
-    if data is too thin to decide."""
+    """Compute (verdict_final, rationale_final) for one coin.
+    Backward-compatible wrapper around evaluate_coin_pair."""
+    _, final = evaluate_coin_pair(
+        coin=coin, mark=mark, candles_closes=candles_closes,
+        funding_apr_pct=funding_apr_pct, regime_snapshot=regime_snapshot,
+        state_dir=state_dir, now=now,
+    )
+    return final
+
+
+def evaluate_coin_pair(
+    coin: str,
+    mark: float,
+    candles_closes: Optional[list[float]],
+    funding_apr_pct: Optional[float],
+    regime_snapshot: Optional[dict],
+    state_dir: Path,
+    now: datetime,
+) -> tuple[tuple[str, str], tuple[str, str]]:
+    """Return ((verdict_raw, rationale_raw), (verdict_final, rationale_final))
+    for a coin. Used by the journal to record both versions for backtest
+    comparison."""
     if not mark or mark <= 0:
-        return ("WAIT", "Нет цены")
+        return (("WAIT", "Нет цены"), ("WAIT", "Нет цены"))
 
     ta_dict = None
     if candles_closes and len(candles_closes) >= 200:
@@ -154,7 +175,8 @@ def evaluate_coin(
     phase = (((regime_snapshot or {}).get("cycle") or {}).get("phase")
              if regime_snapshot else None)
 
-    return _compute_verdict(
+    from src.eth_focus import compute_verdict_pair
+    return compute_verdict_pair(
         ta=ta_dict,
         funding_apr_pct=funding_apr_pct,
         whale_net_long=whale_net_long,
@@ -169,33 +191,31 @@ def compute_all_verdicts(
     coin_data: dict[str, dict],
     regime_snapshot: Optional[dict],
     state_dir: Path,
-) -> list[tuple[str, float, str, str]]:
-    """Compute verdicts for all focus coins.
+) -> list[tuple[str, float, str, str, str, str]]:
+    """Compute raw + final verdicts for all focus coins.
 
-    Returns [(coin, mark, verdict, rationale)] in FOCUS_COINS order.
-    Coins with no mark get verdict='NODATA' and rationale=''.
+    Returns [(coin, mark, verdict_final, rationale_final,
+              verdict_raw, rationale_raw)] in FOCUS_COINS order.
+    Coins with no mark get verdict='NODATA' (both raw and final).
 
-    This is the single source of truth for verdict computation —
-    both render_whitelist_verdicts and the verdict journal consume it,
-    so the journaled verdict always matches what the user sees.
+    Single source of truth — render_whitelist_verdicts shows final,
+    journal stores both for raw-vs-final WR comparison.
     """
-    out: list[tuple[str, float, str, str]] = []
+    out: list[tuple[str, float, str, str, str, str]] = []
     for coin in FOCUS_COINS:
         data = coin_data.get(coin, {})
         mark = data.get("mark", 0)
         if not mark or mark <= 0:
-            out.append((coin, 0.0, "NODATA", ""))
+            out.append((coin, 0.0, "NODATA", "", "NODATA", ""))
             continue
-        verdict, rationale = evaluate_coin(
-            coin=coin,
-            mark=mark,
+        (raw_v, raw_r), (final_v, final_r) = evaluate_coin_pair(
+            coin=coin, mark=mark,
             candles_closes=data.get("candles_closes"),
             funding_apr_pct=data.get("funding_apr_pct"),
             regime_snapshot=regime_snapshot,
-            state_dir=state_dir,
-            now=now,
+            state_dir=state_dir, now=now,
         )
-        out.append((coin, mark, verdict, rationale))
+        out.append((coin, mark, final_v, final_r, raw_v, raw_r))
     return out
 
 
@@ -245,7 +265,7 @@ def render_whitelist_verdicts(
     lines.append("")  # blank separator before verdicts
 
     verdicts = compute_all_verdicts(now, coin_data, regime_snapshot, state_dir)
-    for coin, mark, verdict, rationale in verdicts:
+    for coin, mark, verdict, rationale, _raw_v, _raw_r in verdicts:
         if verdict == "NODATA":
             lines.append(f"⚫ <code>{_e(coin)}</code> — нет данных")
             continue

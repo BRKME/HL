@@ -793,11 +793,28 @@ def compute_eth_verdict(
     regime_snapshot: Optional[dict],
     state_dir: Path,
 ) -> tuple[str, str]:
-    """Return (verdict, rationale) for ETH without rendering — used by
-    the verdict journal so the recorded verdict matches what the report
-    shows. Side-effect-free (just reads state)."""
+    """Return (verdict_final, rationale_final) for ETH. Backward-compatible
+    wrapper over compute_eth_verdict_pair."""
+    _, final = compute_eth_verdict_pair(
+        now=now, mark=mark, candles_closes=candles_closes,
+        funding_apr_pct=funding_apr_pct, regime_snapshot=regime_snapshot,
+        state_dir=state_dir,
+    )
+    return final
+
+
+def compute_eth_verdict_pair(
+    now: datetime,
+    mark: float,
+    candles_closes: Optional[list[float]],
+    funding_apr_pct: Optional[float],
+    regime_snapshot: Optional[dict],
+    state_dir: Path,
+) -> tuple[tuple[str, str], tuple[str, str]]:
+    """Return ((verdict_raw, rationale_raw), (verdict_final, rationale_final))
+    for ETH. Both versions journalled for raw-vs-final WR comparison."""
     if not mark or mark <= 0:
-        return ("NODATA", "")
+        return (("NODATA", ""), ("NODATA", ""))
 
     ta_dict = None
     if candles_closes and len(candles_closes) >= 200:
@@ -824,7 +841,7 @@ def compute_eth_verdict(
     phase = (((regime_snapshot or {}).get("cycle") or {}).get("phase")
              if regime_snapshot else None)
 
-    return _compute_verdict(
+    return compute_verdict_pair(
         ta=ta_dict, funding_apr_pct=funding_apr_pct,
         whale_net_long=whale_net_long, whale_cluster_count=cluster_count,
         regime=regime, phase=phase,

@@ -202,8 +202,9 @@ def _run_digest_only(now: datetime, accounts: list[dict]) -> None:
             ts=now, source="whitelist_focus",
             coin=coin, mark=mark, verdict=verdict, rationale=rationale,
             regime=regime, phase=phase,
+            verdict_raw=raw_v, rationale_raw=raw_r,
         )
-        for coin, mark, verdict, rationale in verdicts
+        for coin, mark, verdict, rationale, raw_v, raw_r in verdicts
         if verdict != "NODATA"
     ]
     try:
@@ -383,12 +384,13 @@ def run_daily_monitor(
                 regime=regime, phase=phase,
             ))
         # Morning digest verdicts — journaled only on the morning run
-        for coin, mark, verdict, rationale in digest_verdicts:
+        for coin, mark, verdict, rationale, raw_v, raw_r in digest_verdicts:
             if verdict != "NODATA":
                 entries.append(VerdictEntry(
                     ts=now, source="whitelist_focus",
                     coin=coin, mark=mark, verdict=verdict, rationale=rationale,
                     regime=regime, phase=phase,
+                    verdict_raw=raw_v, rationale_raw=raw_r,
                 ))
         if entries:
             append_verdicts(_state_dir / "verdict_journal.jsonl", entries)

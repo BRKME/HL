@@ -37,16 +37,21 @@ logger = logging.getLogger("verdict_journal")
 @dataclass(frozen=True)
 class VerdictEntry:
     ts: datetime
-    source: str            # "whitelist_focus" | "eth_focus"
+    source: str            # "whitelist_focus" | "eth_focus" | "daily_monitor"
     coin: str
     mark: float
-    verdict: str           # "LONG" | "SHORT" | "WAIT"
+    verdict: str           # "LONG" | "SHORT" | "WAIT" — verdict_final
     rationale: str
     regime: Optional[str] = None
     phase: Optional[str] = None
+    # Analyst review June 9: also record verdict WITHOUT regime/phase
+    # so the backtester can compare raw vs final WR. If regime layer
+    # adds no edge (or hurts), we drop it.
+    verdict_raw: Optional[str] = None
+    rationale_raw: Optional[str] = None
 
     def to_dict(self) -> dict:
-        return {
+        d = {
             "ts": self.ts.astimezone(timezone.utc).isoformat(),
             "source": self.source,
             "coin": self.coin,
@@ -56,6 +61,12 @@ class VerdictEntry:
             "regime": self.regime,
             "phase": self.phase,
         }
+        # Optional fields — only written if set, keeps old entries readable
+        if self.verdict_raw is not None:
+            d["verdict_raw"] = self.verdict_raw
+        if self.rationale_raw is not None:
+            d["rationale_raw"] = self.rationale_raw
+        return d
 
 
 def append_verdicts(journal_path: Path, entries: list[VerdictEntry]) -> int:
@@ -123,6 +134,8 @@ def load_verdicts(journal_path: Path,
                         rationale=str(row.get("rationale", "")),
                         regime=row.get("regime"),
                         phase=row.get("phase"),
+                        verdict_raw=row.get("verdict_raw"),
+                        rationale_raw=row.get("rationale_raw"),
                     ))
                 except (TypeError, ValueError):
                     continue
