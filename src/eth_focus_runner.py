@@ -123,12 +123,25 @@ def run() -> None:
         regime = (oracai_snap or {}).get("regime") if oracai_snap else None
         phase = (((oracai_snap or {}).get("cycle") or {}).get("phase")
                  if oracai_snap else None)
+
+        # RS vs BTC — observability only (analyst critique June 16).
+        rs_30 = rs_90 = None
+        try:
+            btc_candles = fetch_candles("BTC", interval="1d", lookback_days=100)
+            btc_closes = [float(c["c"]) for c in btc_candles if c.get("c")] if btc_candles else []
+            if btc_closes and candles_closes:
+                from src.relative_strength import compute_rs_pair
+                rs_30, rs_90 = compute_rs_pair(candles_closes, btc_closes)
+        except Exception as e:
+            logger.warning("RS computation failed: %s", e)
+
         try:
             append_verdicts(state_dir / "verdict_journal.jsonl", [VerdictEntry(
                 ts=now, source="eth_focus",
                 coin="ETH", mark=mark, verdict=verdict, rationale=rationale,
                 regime=regime, phase=phase,
                 verdict_raw=raw_v, rationale_raw=raw_r,
+                rs_30d=rs_30, rs_90d=rs_90,
             )])
         except Exception as e:
             logger.warning("Journal append failed: %s", e)

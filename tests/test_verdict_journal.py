@@ -153,3 +153,23 @@ def test_legacy_entry_without_raw_fields_still_loads(tmp_path):
     assert loaded[0].verdict == "LONG"
     assert loaded[0].verdict_raw is None
     assert loaded[0].rationale_raw is None
+    # RS fields also optional
+    assert loaded[0].rs_30d is None
+    assert loaded[0].rs_90d is None
+
+
+def test_rs_fields_round_trip(tmp_path):
+    """rs_30d and rs_90d (analyst critique June 16) persist through JSONL."""
+    path = tmp_path / "j.jsonl"
+    e = VerdictEntry(
+        ts=NOW, source="whitelist_focus", coin="TAO", mark=270,
+        verdict="LONG", rationale="тренд вверх",
+        regime="BULL", phase="MID_BULL",
+        verdict_raw="LONG", rationale_raw="тренд вверх",
+        rs_30d=45.5,   # TAO outperformed BTC by 45.5pp over 30d
+        rs_90d=-12.3,  # but underperformed over 90d
+    )
+    append_verdicts(path, [e])
+    loaded = load_verdicts(path)[0]
+    assert loaded.rs_30d == 45.5
+    assert loaded.rs_90d == -12.3

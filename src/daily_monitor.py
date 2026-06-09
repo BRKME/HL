@@ -192,21 +192,35 @@ def _run_digest_only(now: datetime, accounts: list[dict]) -> None:
         regime_snapshot=today_snapshot, state_dir=state_dir,
     )
 
+    # Relative Strength vs BTC — observability (analyst critique June 16)
+    from src.relative_strength import compute_rs_pair
+    btc_closes = coin_data.get("BTC", {}).get("candles_closes") or []
+    rs_by_coin: dict[str, tuple] = {}
+    if btc_closes:
+        for c in FOCUS_COINS:
+            if c == "BTC":
+                rs_by_coin[c] = (0.0, 0.0)
+            else:
+                cl = coin_data.get(c, {}).get("candles_closes") or []
+                rs_by_coin[c] = compute_rs_pair(cl, btc_closes)
+
     # Journal verdicts even when portfolio is empty — that's the whole
     # point of the journal: long-term dataset, independent of user state
     regime = (today_snapshot or {}).get("regime") if today_snapshot else None
     phase = (((today_snapshot or {}).get("cycle") or {}).get("phase")
              if today_snapshot else None)
-    entries = [
-        VerdictEntry(
+    entries = []
+    for coin, mark, verdict, rationale, raw_v, raw_r in verdicts:
+        if verdict == "NODATA":
+            continue
+        rs_30, rs_90 = rs_by_coin.get(coin, (None, None))
+        entries.append(VerdictEntry(
             ts=now, source="whitelist_focus",
             coin=coin, mark=mark, verdict=verdict, rationale=rationale,
             regime=regime, phase=phase,
             verdict_raw=raw_v, rationale_raw=raw_r,
-        )
-        for coin, mark, verdict, rationale, raw_v, raw_r in verdicts
-        if verdict != "NODATA"
-    ]
+            rs_30d=rs_30, rs_90d=rs_90,
+        ))
     try:
         append_verdicts(state_dir / "verdict_journal.jsonl", entries)
         logger.info("Journaled %d verdicts (digest-only path)", len(entries))
@@ -370,27 +384,50 @@ def run_daily_monitor(
     # Journal verdicts (both per-position and morning digest)
     try:
         from src.verdict_journal import VerdictEntry, append_verdicts
+        from src.relative_strength import compute_rs_pair
+
         regime = (today_snapshot or {}).get("regime") if today_snapshot else None
         phase = (((today_snapshot or {}).get("cycle") or {}).get("phase")
                  if today_snapshot else None)
+
+        # Build RS lookup from digest_coin_data when it exists (morning slot
+        # only). Non-morning slots leave RS as None — observability field,
+        # missing rows just won't have RS context. Safer than reusing
+        # variables outside their scope.
+        rs_by_coin: dict[str, tuple] = {}
+        digest_data_local = locals().get('digest_coin_data')
+        if digest_data_local:
+            btc_closes_local = digest_data_local.get("BTC", {}).get("candles_closes") or []
+            if btc_closes_local:
+                for c, cd in digest_data_local.items():
+                    if c == "BTC":
+                        rs_by_coin[c] = (0.0, 0.0)
+                    else:
+                        cl = cd.get("candles_closes") or []
+                        rs_by_coin[c] = compute_rs_pair(cl, btc_closes_local)
+
         entries = []
         # Position verdicts — journaled every run so we see how the bot's
         # view on holdings evolves through the day
         for coin, verdict in coin_verdicts.items():
+            rs_30, rs_90 = rs_by_coin.get(coin, (None, None))
             entries.append(VerdictEntry(
                 ts=now, source="daily_monitor",
                 coin=coin, mark=marks.get(coin, 0.0),
                 verdict=verdict, rationale="(position)",
                 regime=regime, phase=phase,
+                rs_30d=rs_30, rs_90d=rs_90,
             ))
         # Morning digest verdicts — journaled only on the morning run
         for coin, mark, verdict, rationale, raw_v, raw_r in digest_verdicts:
             if verdict != "NODATA":
+                rs_30, rs_90 = rs_by_coin.get(coin, (None, None))
                 entries.append(VerdictEntry(
                     ts=now, source="whitelist_focus",
                     coin=coin, mark=mark, verdict=verdict, rationale=rationale,
                     regime=regime, phase=phase,
                     verdict_raw=raw_v, rationale_raw=raw_r,
+                    rs_30d=rs_30, rs_90d=rs_90,
                 ))
         if entries:
             append_verdicts(_state_dir / "verdict_journal.jsonl", entries)
