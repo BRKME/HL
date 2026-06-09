@@ -145,8 +145,8 @@ def test_run_daily_monitor_smoke(temp_repo):
 
 
 def test_run_daily_monitor_no_positions_sends_nothing(temp_repo):
-    """All wallets empty — should NOT spam '0 positions' messages
-    on every 2h cron tick. Silent is the new behavior."""
+    """All wallets empty in NON-morning slot — silent. Morning slot
+    (07:00 UTC = 10:00 MSK) is a separate path tested below."""
     empty_client = MagicMock()
     empty_client.get_clearinghouse_state.return_value = {
         "marginSummary": {"accountValue": "0.0"}, "assetPositions": [],
@@ -163,12 +163,60 @@ def test_run_daily_monitor_no_positions_sends_nothing(temp_repo):
          patch("src.daily_monitor.fetch_oracai_snapshot", return_value=None), \
          patch("src.daily_monitor.fetch_snapshot_days_ago", return_value=None), \
          patch("src.daily_monitor.send_messages", side_effect=lambda m: sent.append(m)):
+        # NOW is 06:00 UTC = 09:00 MSK, NOT the 10:00 MSK morning slot
         run_daily_monitor(
             whitelist_path=temp_repo / "whitelist.yaml",
             decisions_path=temp_repo / "decisions.jsonl",
             now=NOW,
         )
     assert sent == []  # no messages sent at all
+
+
+def test_run_daily_monitor_no_positions_morning_slot_sends_digest(
+    temp_repo, tmp_path, monkeypatch
+):
+    """Empty portfolio at 10:00 MSK (07:00 UTC) — bot still sends the
+    whitelist daily digest AND writes verdicts to the journal. This is
+    the fix for the gap where journal stopped accumulating when the
+    user closed all positions."""
+    empty_client = MagicMock()
+    empty_client.get_clearinghouse_state.return_value = {
+        "marginSummary": {"accountValue": "0.0"}, "assetPositions": [],
+    }
+    empty_client.get_spot_clearinghouse_state.return_value = {"balances": []}
+    empty_client.resolve_spot_coin.side_effect = lambda s: s
+
+    morning = datetime(2026, 6, 9, 7, 0, tzinfo=timezone.utc)  # 10:00 MSK
+
+    # Redirect verdict_journal to tmp_path so this test doesn't touch
+    # real state/ — done by patching the Path resolution in _run_digest_only
+    journal_writes: list[list] = []
+
+    def stub_append(path, entries):
+        journal_writes.append(entries)
+        return len(entries)
+
+    sent: list[list[str]] = []
+    with patch("src.daily_monitor.HLClient", return_value=empty_client), \
+         patch("src.daily_monitor.fetch_meta_and_ctxs", return_value={"BTC": {"mark": 78000.0}, "ETH": {"mark": 2000.0}}), \
+         patch("src.daily_monitor.fetch_spot_meta_and_ctxs", return_value={}), \
+         patch("src.daily_monitor.fetch_combined_performance", return_value=None), \
+         patch("src.daily_monitor.fetch_sl_orders_for_wallets", return_value=[]), \
+         patch("src.daily_monitor.fetch_oracai_snapshot",
+               return_value={"regime": "BEAR", "cycle": {"phase": "EARLY_BEAR"}}), \
+         patch("src.daily_monitor.fetch_snapshot_days_ago", return_value=None), \
+         patch("src.daily_monitor.fetch_candles", return_value=[]), \
+         patch("src.verdict_journal.append_verdicts", side_effect=stub_append), \
+         patch("src.daily_monitor.send_messages", side_effect=lambda m: sent.append(m)):
+        run_daily_monitor(
+            whitelist_path=temp_repo / "whitelist.yaml",
+            decisions_path=temp_repo / "decisions.jsonl",
+            now=morning,
+        )
+    # Digest message sent
+    assert len(sent) == 1
+    body = "\n".join(sent[0])
+    assert "Whitelist daily" in body
 
 
 def test_run_daily_monitor_survives_oracai_failure(temp_repo):
