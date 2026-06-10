@@ -1,0 +1,42 @@
+name: tactical-signals
+
+# Событийные тактические сигналы (день-неделя): смена вердикта LONG/SHORT по
+# BTC/ETH с учётом фандинга и нетто-позиции китов. Каждые 2 часа круглосуточно
+# (крипта 24/7); память против повторов — state/tactical_state.json.
+on:
+  schedule:
+    - cron: "30 */2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  tactical:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: pip install -r requirements.txt
+
+      - name: Run tactical signals
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python -m src.tactical_signals
+
+      - name: Commit state
+        run: |
+          git config user.name "tactical-bot"
+          git config user.email "bot@tactical.local"
+          git add state/tactical_state.json || true
+          git diff --cached --quiet || git commit -m "tactical: update state [skip ci]"
+          for i in 1 2 3; do
+            git pull --rebase origin main && git push && break
+            echo "push attempt $i failed, retrying..."; sleep 5
+          done
