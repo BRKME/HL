@@ -642,6 +642,24 @@ def _raw_decision(
     return ("WAIT", "Тренд не определён.")
 
 
+def enforce_hierarchy(verdict: str, rationale: str,
+                      regime: Optional[str]) -> tuple[str, str]:
+    """Последний рубеж инварианта иерархии: стратегия BULL → тактика не SHORT.
+
+    Применяется к ФИНАЛЬНОМУ вердикту, чтобы никакой будущий код-путь не мог
+    обойти правило. Шорт против бычьего стратегического режима = ставка против
+    макро-дрифта с неограниченным риском; «вершинность» при BULL выражается
+    фиксацией прибыли, а не разворотной позицией. Цену правила меряет
+    raw-vs-final A/B журнал.
+    """
+    if verdict == "SHORT" and (regime or "").upper() == "BULL":
+        return ("WAIT",
+                "Сетап на short есть, но стратегия (OracAI) = BULL — иерархия "
+                "таймфреймов запрещает шорт против бычьего режима. Фиксируй "
+                "прибыль в лонгах, подтяни стопы; шорты — когда режим развернётся.")
+    return verdict, rationale
+
+
 def _apply_regime(
     raw_verdict: str, raw_rationale: str,
     trend_score: int, oversold: bool, overheated: bool,
@@ -652,7 +670,9 @@ def _apply_regime(
 
     Reversal phases (CAPITULATION/ACCUMULATION at bottom, EUPHORIA/
     DISTRIBUTION at top) ENABLE contrarian entries even when raw said
-    WAIT or trend says opposite.
+    WAIT or trend says opposite — НО контрарианский SHORT у вершины
+    разрешён только когда стратегический режим уже НЕ BULL (инвариант
+    иерархии: тактика не торгует против стратегии).
 
     Ongoing trend phases (EARLY_BEAR, MID_BEAR for bear; EARLY_BULL,
     MID_BULL, MARKUP for bull) BLOCK counter-trend entries.
@@ -666,6 +686,7 @@ def _apply_regime(
     is_top = phase in top_phases if phase else False
     is_bear = (regime == "BEAR" or (phase and phase in bear_phases))
     is_bull = (regime == "BULL" or (phase and phase in bull_phases))
+    strategy_bull = (regime or "").upper() == "BULL"
 
     exh_text = ", ".join(exh_reasons) if exh_reasons else ""
 
@@ -673,14 +694,23 @@ def _apply_regime(
     # raw said WAIT or SHORT
     if is_bottom and oversold:
         phase_name = phase.lower() if phase else "bottom"
-        return ("LONG",
-                f"{phase_name} + oversold ({exh_text}) — потенциальное дно.")
+        final = ("LONG",
+                 f"{phase_name} + oversold ({exh_text}) — потенциальное дно.")
+        return enforce_hierarchy(*final, regime=regime)
 
-    # Top phases: overheated + euphoria = SHORT opportunity
+    # Top phases: overheated + euphoria = SHORT opportunity — но ТОЛЬКО если
+    # стратегия уже не BULL. При BULL «вершинность» = фиксация, не разворот.
     if is_top and overheated:
+        if strategy_bull:
+            phase_name = phase.lower() if phase else "top"
+            return ("WAIT",
+                    f"{phase_name} + overbought ({exh_text}), но стратегия "
+                    f"BULL — иерархия запрещает шорт против режима. Фиксируй "
+                    f"прибыль, подтяни стопы; шорт откроется со сменой режима.")
         phase_name = phase.lower() if phase else "top"
-        return ("SHORT",
-                f"{phase_name} + overbought ({exh_text}) — потенциальная вершина.")
+        final = ("SHORT",
+                 f"{phase_name} + overbought ({exh_text}) — потенциальная вершина.")
+        return enforce_hierarchy(*final, regime=regime)
 
     # Trend phases as blockers
     if raw_verdict == "LONG" and is_bear and not is_bottom:
@@ -690,8 +720,8 @@ def _apply_regime(
         return ("WAIT",
                 f"{raw_rationale.rstrip('.')} Но broad regime BULL — против тренда не входить.")
 
-    # Otherwise raw stands
-    return (raw_verdict, raw_rationale)
+    # Otherwise raw stands — сквозь последний рубеж иерархии
+    return enforce_hierarchy(raw_verdict, raw_rationale, regime=regime)
 
 
 

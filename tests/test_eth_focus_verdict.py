@@ -119,13 +119,18 @@ def test_capitulation_without_oversold_no_long():
     assert v != "LONG"
 
 
-def test_euphoria_with_overheated_returns_short():
+def test_euphoria_with_overheated_in_bull_is_wait():
+    """Инвариант иерархии (политика оператора, 2026-06-10): стратегия BULL →
+    тактика никогда не SHORT. Раньше здесь ожидался SHORT — контрарианский
+    разворот у вершины; теперь при BULL это WAIT с фиксацией прибыли, а SHORT
+    остаётся доступен только когда режим уже не бычий (см.
+    tests/test_strategy_hierarchy.py)."""
     ta = {"above_ema50": True, "above_ema200": True, "rsi_d1": 78}
     v, r = _compute_verdict(ta=ta, funding_apr_pct=20,
         whale_net_long=None, whale_cluster_count=0,
         regime="BULL", phase="EUPHORIA")
-    assert v == "SHORT"
-    assert "euphoria" in r.lower() or "вершина" in r.lower()
+    assert v == "WAIT"
+    assert "фиксируй" in r.lower() or "иерарх" in r.lower()
 
 
 def test_late_bear_with_oversold_returns_long():
