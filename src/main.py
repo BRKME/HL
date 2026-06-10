@@ -12,7 +12,7 @@ from pathlib import Path
 
 import yaml
 
-from . import oracai, hl_api, ta, scoring, render, telegram_sender, lp_summary
+from . import oracai, hl_api, ta, scoring, render, telegram_sender, lp_summary, ladder
 
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -30,6 +30,16 @@ def run() -> None:
     print(f"[oracai] signal={signal['signal']} leverage={signal['leverage']} "
           f"defensive={signal.get('defensive', False)}", flush=True)
 
+    # 1b. Лестница цикла (стратегический слой) — мягкий fail-safe: нет/устарела
+    # → блок просто не показывается. Вердикты planner'а она НЕ меняет.
+    ladder_contract = ladder.fetch_ladder()
+    ladder_ctx = ladder.render_context(ladder_contract)
+    if ladder_ctx:
+        print(f"[ladder] zone={ladder_ctx['zone']} "
+              f"event={'yes' if ladder_ctx['event_line'] else 'no'}", flush=True)
+    else:
+        print("[ladder] контракт недоступен/устарел — блок пропущен", flush=True)
+
     # Sanity check: сколько SKIP подряд было до этого
     skip_streak = _count_recent_skip_streak()
     if skip_streak >= 3 and signal["signal"] == "SKIP":
@@ -40,10 +50,10 @@ def run() -> None:
 
     # SKIP/EXIT — короткий отчёт без анализа кандидатов
     if signal["signal"] in ("SKIP", "EXIT"):
-        msg = render.render_report(signal=signal, picks=[], skipped=[])
+        msg = render.render_report(signal=signal, picks=[], skipped=[], ladder_ctx=ladder_ctx)
         telegram_sender.send_messages([msg])
         # LP summary disabled - was sending outdated/useless data
-        _persist_decision(started, signal, picks=[], skipped=[])
+        _persist_decision(started, signal, picks=[], skipped=[], ladder_contract=ladder_contract)
         return
 
     # 2. Whitelist + HL meta
@@ -129,17 +139,17 @@ def run() -> None:
             "raw": signal["raw"],
             "defensive": False,
         }
-        msg = render.render_report(signal=signal_fallback, picks=[], skipped=skipped)
+        msg = render.render_report(signal=signal_fallback, picks=[], skipped=skipped, ladder_ctx=ladder_ctx)
         telegram_sender.send_messages([msg])
         # LP summary disabled
-        _persist_decision(started, signal_fallback, picks=[], skipped=skipped)
+        _persist_decision(started, signal_fallback, picks=[], skipped=skipped, ladder_contract=ladder_contract)
         return
 
     # 5. Render + send
-    msg = render.render_report(signal=signal, picks=picks, skipped=skipped)
+    msg = render.render_report(signal=signal, picks=picks, skipped=skipped, ladder_ctx=ladder_ctx)
     telegram_sender.send_messages([msg])
     # LP summary disabled
-    _persist_decision(started, signal, picks=picks, skipped=skipped)
+    _persist_decision(started, signal, picks=picks, skipped=skipped, ladder_contract=ladder_contract)
 
 
 def _send_lp_summary() -> None:
@@ -190,7 +200,8 @@ def _load_whitelist() -> dict:
         return yaml.safe_load(f)
 
 
-def _persist_decision(started, signal: dict, *, picks: list, skipped: list) -> None:
+def _persist_decision(started, signal: dict, *, picks: list, skipped: list,
+                      ladder_contract: dict | None = None) -> None:
     """История решений — для последующего анализа точности."""
     rec = {
         "ts": started.isoformat(),
@@ -202,6 +213,12 @@ def _persist_decision(started, signal: dict, *, picks: list, skipped: list) -> N
             {k: v for k, v in p.items() if k not in ("ind", "hl_ctx")} for p in picks
         ],
         "skipped": skipped,
+        # стратегический контекст лестницы на момент решения — для будущей
+        # оценки, как тактика planner'а соотносилась с фазой цикла
+        "ladder": ({"zone": ladder_contract.get("zone"),
+                    "mvrv": ladder_contract.get("mvrv"),
+                    "signal": (ladder_contract.get("signal") or {}).get("action")}
+                   if ladder_contract else None),
     }
     with DECISIONS_PATH.open("a", encoding="utf-8") as f:
         f.write(json.dumps(rec, ensure_ascii=False, default=str) + "\n")

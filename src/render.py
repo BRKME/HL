@@ -96,8 +96,13 @@ _HEADLINES = {
 }
 
 
-def render_report(*, signal: dict, picks: list[dict], skipped: list[dict]) -> str:
-    """Один HTML-документ для Telegram. Должен укладываться в ~3800 символов."""
+def render_report(*, signal: dict, picks: list[dict], skipped: list[dict],
+                  ladder_ctx: dict | None = None) -> str:
+    """Один HTML-документ для Telegram. Должен укладываться в ~3800 символов.
+
+    ladder_ctx — опциональный блок стратегической лестницы цикла из OracAI
+    (см. src/ladder.py). None → блок не показывается (fail-safe).
+    """
     env = _env()
     now = datetime.now(_MOSCOW)
 
@@ -135,6 +140,7 @@ def render_report(*, signal: dict, picks: list[dict], skipped: list[dict]) -> st
         "signal_emoji": _signal_emoji(sig),
         "signal_label": _signal_label(sig, signal["leverage"]),
         "headline": headline,
+        "ladder": ladder_ctx,
     }
 
     if sig in ("SKIP", "EXIT"):

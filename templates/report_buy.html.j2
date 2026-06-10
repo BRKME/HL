@@ -18,5 +18,8 @@
 <b>🚫 Не покупаем (из whitelist):</b>
 {% for s in skipped %}• <b>{{ s.symbol | e }}</b> — {{ s.reason_human | e }}
 {% endfor %}{% endif %}
-
+{% if ladder %}
+🪜 <b>{{ ladder.status_line | e }}</b>
+{% if ladder.event_line %}{{ ladder.event_line | e }}
+{% endif %}{% endif %}
 <i>Следующая проверка: суббота через 7 дней.</i>

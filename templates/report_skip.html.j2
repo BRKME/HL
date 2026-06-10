@@ -8,6 +8,11 @@
 
 <b>🛑 Эту неделю не покупаем. $200 → стейбл (USDC).</b>
 
+{% if ladder %}
+🪜 <b>{{ ladder.status_line | e }}</b>
+{% if ladder.event_line %}{{ ladder.event_line | e }}
+{% endif %}<i>{{ ladder.note | e }}</i>
+{% endif %}
 {% if signal_type == 'EXIT' %}<b>Что делать:</b>
 • Закрыть открытые перпы на HL
 • Свежие $200 → USDC
