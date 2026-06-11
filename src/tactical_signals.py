@@ -25,6 +25,17 @@ from typing import Any, Optional
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 STATE_PATH = _REPO_ROOT / "state" / "tactical_state.json"
 WHALE_SIGNALS_PATH = _REPO_ROOT / "state" / "whale_signals.jsonl"
+TACTICAL_JOURNAL = _REPO_ROOT / "state" / "tactical_journal.jsonl"
+
+
+def _append_tactical_journal(row: dict) -> None:
+    """KPI-журнал: каждый эмитированный сигнал и каждый подавленный (shadow).
+    Сигнал без измеренного исхода — шум; исходы считает tactical_eval."""
+    try:
+        with TACTICAL_JOURNAL.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(row, ensure_ascii=False) + "\n")
+    except Exception as e:  # noqa: BLE001
+        print(f"[tactical] journal write failed: {e}")
 
 # Монеты тактического слоя. Сознательно узко: качество сигнала важнее охвата;
 # киты трекаются в основном на мейджорах.
@@ -264,6 +275,17 @@ def run() -> list[str]:
             ok, block_note = whale_filter(verdict, stance)
             if not ok:
                 print(f"[tactical] {coin}: {block_note}")
+                entry0 = float(ta.get("last") or ctx.get("mark") or 0)
+                _append_tactical_journal({
+                    "ts": now.isoformat(), "coin": coin, "direction": verdict,
+                    "entry": entry0,
+                    "sl": sl_for(verdict, entry0, ta.get("atr14"),
+                                 ta.get("swing_low"), ta.get("swing_high")),
+                    "regime": regime, "phase": phase,
+                    "funding_apr_pct": funding,
+                    "whale_stance": stance,
+                    "emitted": False, "suppressed_by": "whales",
+                })
                 emit = False
 
         if emit:
@@ -278,6 +300,14 @@ def run() -> list[str]:
             )
             sent.append(msg)
             directions.append(verdict)
+            _append_tactical_journal({
+                "ts": now.isoformat(), "coin": coin, "direction": verdict,
+                "entry": entry, "sl": sl,
+                "regime": regime, "phase": phase,
+                "funding_apr_pct": funding,
+                "whale_stance": stance,
+                "emitted": True, "suppressed_by": None,
+            })
             state[coin] = {"last_verdict": verdict,
                            "last_alert_ts": now.isoformat()}
         else:
