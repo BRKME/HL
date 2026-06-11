@@ -83,7 +83,13 @@ class Portfolio:
     wallets_seen: list[str] = field(default_factory=list)
     # Per-wallet account value (perp marginSummary). Used by the daily
     # monitor to show 'Кошельки: 1 $X • Marta $Y • Arkadii $Z' line.
-    wallet_values: dict[str, float] = field(default_factory=dict)
+    wallet_values: dict[str, Optional[float]] = field(default_factory=dict)
+    failed_wallets: list[str] = field(default_factory=list)
+
+    @property
+    def all_wallets_failed(self) -> bool:
+        return bool(self.wallet_values) and all(
+            v is None for v in self.wallet_values.values())
 
     @classmethod
     def from_raw(
@@ -97,7 +103,8 @@ class Portfolio:
         perp_positions: list[PerpPosition] = []
         spot_positions: list[SpotPosition] = []
         total_value = 0.0
-        wallet_values: dict[str, float] = {}
+        wallet_values: dict[str, Optional[float]] = {}
+        failed_wallets: list[str] = []
 
         for label, data in raw_responses.items():
             perp_raw = data.get("perp", {})
@@ -105,12 +112,17 @@ class Portfolio:
 
             # account value from perp summary (spot value is in balances)
             margin = perp_raw.get("marginSummary", {}) or {}
-            try:
-                wallet_val = float(margin.get("accountValue", 0) or 0)
-            except (TypeError, ValueError):
-                wallet_val = 0.0
-            wallet_values[label] = wallet_val
-            total_value += wallet_val
+            if perp_raw.get("_fetch_failed"):
+                # упавший fetch — это НЕ нулевой баланс; рендер покажет n/a
+                wallet_values[label] = None
+                failed_wallets.append(label)
+            else:
+                try:
+                    wallet_val = float(margin.get("accountValue", 0) or 0)
+                except (TypeError, ValueError):
+                    wallet_val = 0.0
+                wallet_values[label] = wallet_val
+                total_value += wallet_val
 
             for ap in perp_raw.get("assetPositions", []) or []:
                 pos = ap.get("position")
@@ -142,6 +154,7 @@ class Portfolio:
             total_account_value=total_value,
             wallets_seen=list(raw_responses.keys()),
             wallet_values=wallet_values,
+            failed_wallets=failed_wallets,
         )
 
 

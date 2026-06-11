@@ -125,3 +125,15 @@ class TestAlertText:
         for part in ("BTC", "LONG", "61", "58", "фандинг", "-12", "кит",
                      "TRANSITION"):
             assert part.lower() in msg.lower() or part in msg
+
+
+class TestCorrelationNote:
+    def test_two_same_direction_warns(self):
+        note = tsig.correlation_note(["LONG", "LONG"])
+        assert note is not None and "бета" in note.lower()
+
+    def test_single_signal_no_note(self):
+        assert tsig.correlation_note(["LONG"]) is None
+
+    def test_opposite_directions_no_note(self):
+        assert tsig.correlation_note(["LONG", "SHORT"]) is None

@@ -169,6 +169,17 @@ def build_alert(*, coin: str, direction: str, entry: float, sl: Optional[float],
     return "\n".join(lines)
 
 
+
+def correlation_note(directions: list[str]) -> Optional[str]:
+    """BTC и ETH в одну сторону за один проход — одна бета-ставка дважды."""
+    acts = [d for d in directions if d in ("LONG", "SHORT")]
+    if len(acts) >= 2 and len(set(acts)) == 1:
+        return ("⚠️ Несколько монет в одну сторону за проход — это одна "
+                "бета-ставка на рынок: дели тактический размер между ними, "
+                "не удваивай риск.")
+    return None
+
+
 # ── состояние и оркестрация ─────────────────────────────────────────────────
 
 def _load_state() -> dict:
@@ -219,6 +230,7 @@ def run() -> list[str]:
 
     meta = hl_api.fetch_meta_and_ctxs()
     sent: list[str] = []
+    directions: list[str] = []
 
     for coin in TACTICAL_COINS:
         hl_sym = hl_api.resolve_symbol(coin, meta)
@@ -265,6 +277,7 @@ def run() -> list[str]:
                 regime=regime,
             )
             sent.append(msg)
+            directions.append(verdict)
             state[coin] = {"last_verdict": verdict,
                            "last_alert_ts": now.isoformat()}
         else:
@@ -274,6 +287,10 @@ def run() -> list[str]:
               f"whales={stance or '—'} emitted={bool(emit)}")
 
     _save_state(state)
+
+    corr = correlation_note(directions)
+    if corr:
+        sent.append(corr)
 
     if sent:
         try:

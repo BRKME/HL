@@ -106,9 +106,11 @@ def _render_header(
     - Top concentration — replaced by full Веса line below
     """
     msk = now.astimezone(_MOSCOW)
+    total_txt = (f"${_fmt_money(total_value)}" if total_value is not None
+                 else "n/a ⚠️ HL API недоступен")
     return (
         f"📊 <b>HL Portfolio</b> — {_ru_date(msk)}, {msk.strftime('%H:%M')} MSK "
-        f"• ${_fmt_money(total_value)}"
+        f"• {total_txt}"
     )
 
 
@@ -164,14 +166,18 @@ def _render_wallets(wallet_values: Optional[dict[str, float]]) -> Optional[str]:
     """Per-wallet balance line: 'Кошельки: 1 $1 050 • Marta $80 • Arkadii $30'.
 
     Preserves insertion order of wallet_values (= whitelist.yaml order).
-    Wallets with $0 balance are still shown — explicit '$0' is informative
-    (you know that wallet exists and is empty, not 'forgot').
+    Wallets with a GENUINE $0 balance are still shown — explicit '$0' is
+    informative. A FAILED fetch is value None and renders 'n/a⚠️': показывать
+    $0 при упавшем API — ложь (баг 11.06: все кошельки «$0» при живом P&L).
     """
     if not wallet_values:
         return None
     bits = []
     for label, val in wallet_values.items():
-        bits.append(f"{_e(str(label))} ${_fmt_money(val)}")
+        if val is None:
+            bits.append(f"{_e(str(label))} n/a⚠️")
+        else:
+            bits.append(f"{_e(str(label))} ${_fmt_money(val)}")
     return "Кошельки: " + " • ".join(bits)
 
 

@@ -79,7 +79,8 @@ def _fetch_wallet_state(client: HLClient, address: str) -> tuple[dict, dict]:
         perp = client.get_clearinghouse_state(address)
     except Exception as e:
         logger.warning("perp fetch failed for %s: %s", address[:10], e)
-        perp = {"marginSummary": {"accountValue": "0"}, "assetPositions": []}
+        perp = {"marginSummary": {"accountValue": "0"}, "assetPositions": [],
+                "_fetch_failed": True}
     try:
         spot = client.get_spot_clearinghouse_state(address)
     except Exception as e:
@@ -440,7 +441,8 @@ def run_daily_monitor(
         alerts=alerts,
         marks=marks,
         current_snapshot=today_snapshot,
-        total_account_value=portfolio.total_account_value,
+        total_account_value=(None if portfolio.all_wallets_failed
+                             else portfolio.total_account_value),
         now=now,
         spot=portfolio.spot,
         wallet_count=len(accounts),
