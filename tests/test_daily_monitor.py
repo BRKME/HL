@@ -172,13 +172,13 @@ def test_run_daily_monitor_no_positions_sends_nothing(temp_repo):
     assert sent == []  # no messages sent at all
 
 
-def test_run_daily_monitor_no_positions_morning_slot_sends_digest(
+def test_run_daily_monitor_no_positions_journals_silently(
     temp_repo, tmp_path, monkeypatch
 ):
-    """Empty portfolio at 10:00 MSK (07:00 UTC) — bot still sends the
-    whitelist daily digest AND writes verdicts to the journal. This is
-    the fix for the gap where journal stopped accumulating when the
-    user closed all positions."""
+    """Empty portfolio — bot does NOT send any message (operator 13.06: a
+    no-position portfolio digest is noise; signal belongs in the moment via
+    the tactical layer). Verdicts are STILL journaled silently so the dataset
+    keeps growing for KPI/backtest."""
     empty_client = MagicMock()
     empty_client.get_clearinghouse_state.return_value = {
         "marginSummary": {"accountValue": "0.0"}, "assetPositions": [],
@@ -213,10 +213,9 @@ def test_run_daily_monitor_no_positions_morning_slot_sends_digest(
             decisions_path=temp_repo / "decisions.jsonl",
             now=morning,
         )
-    # Digest message sent
-    assert len(sent) == 1
-    body = "\n".join(sent[0])
-    assert "Whitelist daily" in body
+    # Без позиций ничего не шлём — но вердикты журналируются
+    assert len(sent) == 0
+    assert len(journal_writes) >= 1
 
 
 def test_run_daily_monitor_survives_oracai_failure(temp_repo):

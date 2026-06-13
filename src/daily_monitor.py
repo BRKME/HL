@@ -89,6 +89,20 @@ def _fetch_wallet_state(client: HLClient, address: str) -> tuple[dict, dict]:
     return perp, spot
 
 
+def _should_send_report(has_perp: bool, has_spot: bool,
+                        all_failed: bool, hour: int) -> bool:
+    """Слать ли портфельный дайджест.
+
+    Оператор (13.06): без открытых позиций сообщение бессмысленно — молчим
+    в любой слот (утренний digest-only отменён, сигнал нужен в моменте).
+    Если все кошельки fetch-failed — данные недостоверны, тоже молчим
+    (защита от бага «$0 при живом P&L»). Шлём только при реальной позиции.
+    """
+    if all_failed:
+        return False
+    return bool(has_perp or has_spot)
+
+
 def _build_portfolio(client: HLClient, accounts: list[dict]) -> Portfolio:
     raw: dict[str, dict] = {}
     for a in accounts:
@@ -150,7 +164,7 @@ def _safe_oracai_yesterday(now: datetime) -> Optional[dict]:
         return None
 
 
-def _run_digest_only(now: datetime, accounts: list[dict]) -> None:
+def _journal_verdicts_silently(now: datetime, accounts: list[dict]) -> None:
     """Morning whitelist digest path when user has no positions.
 
     Builds the same Whitelist daily message that would normally appear at
@@ -224,15 +238,11 @@ def _run_digest_only(now: datetime, accounts: list[dict]) -> None:
         ))
     try:
         append_verdicts(state_dir / "verdict_journal.jsonl", entries)
-        logger.info("Journaled %d verdicts (digest-only path)", len(entries))
+        logger.info("Journaled %d verdicts (no-position path, silent)", len(entries))
     except Exception as e:
         logger.warning("Journal append failed: %s", e)
-
-    try:
-        send_messages([digest])
-        logger.info("Digest-only message sent (%d chars)", len(digest))
-    except Exception as e:
-        logger.warning("Telegram send failed: %s", e)
+    # NB: больше НЕ шлём digest в Telegram — без позиций сообщение бесполезно
+    # (оператор 13.06). Журнал вердиктов продолжает копиться для KPI/бэктеста.
 
 
 def run_daily_monitor(
@@ -251,23 +261,22 @@ def run_daily_monitor(
 
     has_perp = bool(portfolio.perp)
     has_spot = bool(portfolio.spot) and any(s.total > 0 for s in portfolio.spot)
-    empty_portfolio = not has_perp and not has_spot
+    all_failed = portfolio.all_wallets_failed
 
-    # On the morning slot (10:00 MSK = 07:00 UTC), always run the whitelist
-    # digest and journal it — even if user has no open positions. This is
-    # the daily signal that needs to keep coming for the bot to be useful
-    # AND for the verdict journal to keep accumulating data for future
-    # backtesting. Empty-portfolio silence at other slots is correct.
-    is_morning_slot = (now.hour == 7)
-
-    if empty_portfolio and not is_morning_slot:
-        logger.info("No positions and not morning slot — skipping report.")
-        return
-
-    if empty_portfolio:
-        # Morning slot with no positions: send digest-only message + journal.
-        # Skip the portfolio rendering path entirely.
-        _run_digest_only(now, accounts)
+    # Дайджест шлётся только при реальных открытых позициях. Без позиций —
+    # тишина в любой слот (утренний digest-only отменён 13.06: сигнал нужен в
+    # моменте, для этого тактический слой). Сбой fetch всех кошельков =
+    # недостоверные данные → тоже молчим, чтобы не слать ложный $0.
+    if not _should_send_report(has_perp, has_spot, all_failed, now.hour):
+        if all_failed:
+            logger.info("All wallet fetches failed — skipping (untrustworthy).")
+        else:
+            logger.info("No open positions — skipping report.")
+            # датасет вердиктов всё равно копим (тихо, без Telegram)
+            try:
+                _journal_verdicts_silently(now, accounts)
+            except Exception as e:
+                logger.warning("Silent journaling failed: %s", e)
         return
 
     decisions = load_decisions(decisions_path, lookback_days=DECISION_LOOKBACK_DAYS, now=now)
