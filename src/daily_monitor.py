@@ -44,6 +44,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_WHITELIST = REPO_ROOT / "whitelist.yaml"
 DEFAULT_DECISIONS = REPO_ROOT / "decisions.jsonl"
 DECISION_LOOKBACK_DAYS = 14
+MIN_PORTFOLIO_USD = 5.0  # ниже — портфель считается пустым, дайджест не шлётся
 
 logger = logging.getLogger("daily_monitor")
 
@@ -90,15 +91,21 @@ def _fetch_wallet_state(client: HLClient, address: str) -> tuple[dict, dict]:
 
 
 def _should_send_report(has_perp: bool, has_spot: bool,
-                        all_failed: bool, hour: int) -> bool:
+                        all_failed: bool, hour: int,
+                        total_value: float = 0.0) -> bool:
     """Слать ли портфельный дайджест.
 
     Оператор (13.06): без открытых позиций сообщение бессмысленно — молчим
-    в любой слот (утренний digest-only отменён, сигнал нужен в моменте).
-    Если все кошельки fetch-failed — данные недостоверны, тоже молчим
-    (защита от бага «$0 при живом P&L»). Шлём только при реальной позиции.
+    в любой слот. Если все кошельки fetch-failed — данные недостоверны, молчим.
+
+    Решающий инвариант — суммарная стоимость портфеля: если она near-zero
+    (< MIN_PORTFOLIO_USD), не шлём НИЧЕГО, чем бы ни оказались распарсенные
+    «позиции» (пыль, нулевые остатки, заглушки сбоя). Заголовок '$0' при живом
+    P&L = ровно этот случай, и он больше не должен проходить.
     """
     if all_failed:
+        return False
+    if total_value < MIN_PORTFOLIO_USD:
         return False
     return bool(has_perp or has_spot)
 
@@ -267,7 +274,8 @@ def run_daily_monitor(
     # тишина в любой слот (утренний digest-only отменён 13.06: сигнал нужен в
     # моменте, для этого тактический слой). Сбой fetch всех кошельков =
     # недостоверные данные → тоже молчим, чтобы не слать ложный $0.
-    if not _should_send_report(has_perp, has_spot, all_failed, now.hour):
+    if not _should_send_report(has_perp, has_spot, all_failed, now.hour,
+                               total_value=portfolio.total_account_value):
         if all_failed:
             logger.info("All wallet fetches failed — skipping (untrustworthy).")
         else:
