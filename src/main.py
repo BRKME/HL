@@ -21,6 +21,21 @@ DECISIONS_PATH = _REPO_ROOT / "decisions.jsonl"
 WEEKLY_BUDGET_USD = 200.0
 
 
+def _maybe_send(msgs: list[str]) -> None:
+    """Отправка в Telegram, если планировщик не в тихом режиме.
+
+    Субботний пост в канал отключён (оператор: сигнал нужен в моменте, а не по
+    расписанию — для этого есть тактический слой). Под WEEKLY_SILENT=1
+    планировщик продолжает считать вердикт и писать decisions.jsonl (нужно для
+    advisor-alpha KPI в воскресной сводке), но НЕ шлёт сообщение.
+    """
+    import os
+    if os.getenv("WEEKLY_SILENT") == "1":
+        print("[weekly] silent mode — decision logged, no telegram post")
+        return
+    telegram_sender.send_messages(msgs)
+
+
 def run() -> None:
     started = datetime.now(timezone.utc)
 
@@ -52,7 +67,7 @@ def run() -> None:
     if signal["signal"] in ("SKIP", "EXIT"):
         had_pos = _had_open_position_last_week()
         msg = render.render_report(signal=signal, picks=[], skipped=[], ladder_ctx=ladder_ctx, had_position=had_pos)
-        telegram_sender.send_messages([msg])
+        _maybe_send([msg])
         # LP summary disabled - was sending outdated/useless data
         _persist_decision(started, signal, picks=[], skipped=[], ladder_contract=ladder_contract)
         return
@@ -141,14 +156,14 @@ def run() -> None:
             "defensive": False,
         }
         msg = render.render_report(signal=signal_fallback, picks=[], skipped=skipped, ladder_ctx=ladder_ctx)
-        telegram_sender.send_messages([msg])
+        _maybe_send([msg])
         # LP summary disabled
         _persist_decision(started, signal_fallback, picks=[], skipped=skipped, ladder_contract=ladder_contract)
         return
 
     # 5. Render + send
     msg = render.render_report(signal=signal, picks=picks, skipped=skipped, ladder_ctx=ladder_ctx)
-    telegram_sender.send_messages([msg])
+    _maybe_send([msg])
     # LP summary disabled
     _persist_decision(started, signal, picks=picks, skipped=skipped, ladder_contract=ladder_contract)
 
@@ -162,7 +177,7 @@ def _send_lp_summary() -> None:
             return
         msg = lp_summary.render_lp_summary(report)
         if msg:
-            telegram_sender.send_messages([msg])
+            _maybe_send([msg])
     except Exception as e:
         # LP-секция не должна валить основной отчёт
         print(f"[lp] не удалось отправить LP-резюме: {e}", flush=True)

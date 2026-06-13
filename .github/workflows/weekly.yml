@@ -1,8 +1,11 @@
 name: weekly-plan
 
 on:
+  # Субботний пост в канал ОТКЛЮЧЁН (оператор 13.06: сигнал нужен в моменте, а
+  # не по расписанию — для этого тактический слой tactical-signals.yml).
+  # Планировщик всё ещё бежит еженедельно, но ТИХО (WEEKLY_SILENT=1): пишет
+  # decisions.jsonl для advisor-alpha KPI, ничего не шлёт в Telegram.
   schedule:
-    # Суббота 06:00 UTC = 09:00 MSK (с учётом задержки GH Actions ~10-12 MSK)
     - cron: "0 6 * * 6"
   workflow_dispatch: {}
 
@@ -21,6 +24,7 @@ jobs:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       TELEGRAM_OWNER_CHAT_ID: ${{ secrets.TELEGRAM_OWNER_CHAT_ID }}
+      WEEKLY_SILENT: "1"
 
     steps:
       - uses: actions/checkout@v4
@@ -37,7 +41,7 @@ jobs:
           python -m pip install -U pip
           pip install -r requirements.txt
 
-      - name: Run weekly planner
+      - name: Run weekly planner (silent — logs decisions, no channel post)
         run: python -m src.main
 
       - name: Commit decisions log

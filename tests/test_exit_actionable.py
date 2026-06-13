@@ -46,3 +46,25 @@ def test_exit_with_position_keeps_close_advice():
     msg = render.render_report(signal=sig, picks=[], skipped=[],
                                ladder_ctx=None, had_position=True)
     assert "Закрыть открытые перпы" in msg
+
+
+def test_silent_mode_suppresses_telegram(monkeypatch):
+    """WEEKLY_SILENT=1 — планировщик пишет decisions, но НЕ шлёт в канал
+    (субботний пост отключён: сигнал нужен в моменте, не по расписанию)."""
+    import src.main as m
+    sent = []
+    monkeypatch.setattr(m.telegram_sender, "send_messages",
+                        lambda msgs: sent.extend(msgs))
+    monkeypatch.setenv("WEEKLY_SILENT", "1")
+    m._maybe_send(["test message"])
+    assert sent == []
+
+
+def test_normal_mode_sends(monkeypatch):
+    import src.main as m
+    sent = []
+    monkeypatch.setattr(m.telegram_sender, "send_messages",
+                        lambda msgs: sent.extend(msgs))
+    monkeypatch.delenv("WEEKLY_SILENT", raising=False)
+    m._maybe_send(["test message"])
+    assert sent == ["test message"]
