@@ -188,34 +188,28 @@ def test_render_digest_sorts_by_count_descending():
 
 # ---------- rank-events section ----------
 
-def test_digest_includes_new_entrant_section():
+def test_digest_new_entrant_only_is_none():
+    # rank-события убраны из канала: один NEW_ENTRANT -> нечего слать
     sigs = [Signal(
         rule="WHALE_NEW_ENTRANT", severity=SEV_INFO, coin="*",
         message="новый кит",
         details={"whale": "0xabc123def456abc123def456abc123def456abcd",
                  "last_rank": 23, "consecutive_in_top": 3, "runs_in_top": 3},
     )]
-    msg = render_digest(sigs, now=NOW)
-    assert "🆕" in msg
-    assert "0xabc123" in msg
-    assert "rank 23" in msg or "23" in msg
+    assert render_digest(sigs, now=NOW) is None
 
 
-def test_digest_includes_drop_off_section():
+def test_digest_drop_off_only_is_none():
     sigs = [Signal(
         rule="WHALE_DROP_OFF", severity=SEV_INFO, coin="*",
         message="кит ушёл",
         details={"whale": "0xdef789abc123def789abc123def789abc123def7",
                  "last_rank": 47, "runs_in_top": 25, "consecutive_in_top": 0},
     )]
-    msg = render_digest(sigs, now=NOW)
-    assert "📉" in msg
-    assert "0xdef789" in msg
-    assert "25" in msg  # runs_in_top
-    assert "Изменения" in msg or "топ" in msg.lower()
+    assert render_digest(sigs, now=NOW) is None
 
 
-def test_digest_combines_rank_events_with_other_sections():
+def test_digest_keeps_new_open_drops_rank_event():
     sigs = [
         Signal(rule=SIG_NEW_OPEN, severity=SEV_INFO, coin="ETH",
                message="x", details={"whale": "0xa", "direction": "long",
@@ -225,5 +219,37 @@ def test_digest_combines_rank_events_with_other_sections():
                                      "last_rank": 15, "consecutive_in_top": 4, "runs_in_top": 4}),
     ]
     msg = render_digest(sigs, now=NOW)
-    assert "ETH" in msg
-    assert "🆕" in msg
+    assert "ETH" in msg            # полезный NEW_OPEN остаётся
+    assert "вошёл в топ" not in msg     # rank-событие вырезано
+    assert "Изменения в топе" not in msg
+
+
+# ---------- rank-секция убрана из дайджеста (UX-фидбек 12.06) ----------
+
+def test_digest_omits_rank_churn():
+    """Вошёл/ушёл из топа — ротация лидерборда, не для канала."""
+    from src.whale_report import Signal
+    sigs = [
+        Signal(rule="WHALE_NEW_ENTRANT", severity=0, coin="", message="",
+               details={"whale": "0xabc", "last_rank": 44, "consecutive_in_top": 3}),
+        Signal(rule="WHALE_DROP_OFF", severity=0, coin="", message="",
+               details={"whale": "0xdef", "runs_in_top": 90, "last_rank": 50}),
+    ]
+    msg = render_digest(sigs, now=NOW)
+    # только rank-сигналы -> дайджест пустой (None), не шлётся
+    assert msg is None
+
+
+def test_digest_keeps_actionable_drops_rank():
+    """Полезные overlap/new_open остаются, rank-шум вырезан из смешанного."""
+    from src.whale_report import Signal
+    sigs = [
+        Signal(rule="WHALE_OVERLAP", severity=1, coin="BTC", message="3 кита в BTC",
+               details={"coin": "BTC", "whale_side": "long", "count": 3}),
+        Signal(rule="WHALE_NEW_ENTRANT", severity=0, coin="", message="",
+               details={"whale": "0xabc", "last_rank": 44, "consecutive_in_top": 3}),
+    ]
+    msg = render_digest(sigs, now=NOW)
+    assert msg is not None
+    assert "топ" not in msg.lower() or "вошёл" not in msg
+    assert "Изменения в топе" not in msg

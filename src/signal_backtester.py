@@ -438,14 +438,19 @@ def render_comparison_report(
     sorted_keys = sorted(all_keys, key=_score)
 
     parts = [head]
+    shown = 0
+    SURVIVE_THRESHOLD = 10_000   # «настоящие киты»: сигнал должен выжить здесь
     for key in sorted_keys:
         coin, rule, direction = key
         per_t = by_key.get(key, {})
         if not per_t:
             continue
-        # Only show groups that have meaningful data somewhere
-        max_n = max(g.n_events for g in per_t.values())
-        if max_n < 3:
+        # Показываем ТОЛЬКО сигналы, переживающие фильтр крупного notional с
+        # данными — это и есть критерий «настоящих китов». Группы, схлопывающие
+        # в '≥$10k: 0 ev', были шумом мелких сделок и каналу не нужны.
+        survives = any(t >= SURVIVE_THRESHOLD and g.n_events >= 3
+                       for t, g in per_t.items())
+        if not survives:
             continue
 
         parts.append(f"\n<b>{html.escape(coin)} {_short_rule(rule)} {direction.upper()}</b>")
@@ -465,8 +470,14 @@ def render_comparison_report(
                 f"24h WR {wr24:.0f}% avg {avg24:+.1f}% • "
                 f"7d WR {wr168:.0f}% avg {avg168:+.1f}%{alpha}"
             )
+        shown += 1
 
-    parts.append("\n<i>Чем строже фильтр, тем 'настоящее' киты. Если WR держится "
-                  "при росте порога — сигнал реален. Если WR проваливается — "
-                  "был шум.</i>")
+    if shown == 0:
+        return (head + "\nНи один сигнал не пережил фильтр крупного notional "
+                "(≥$10k) с N≥3 — на этой неделе «настоящих» китовых паттернов "
+                "не выделено. Это нормальный результат, не ошибка.")
+
+    parts.append("\n<i>Показаны только сигналы, пережившие фильтр ≥$10k — "
+                 "те, где за паттерном стоят крупные киты, а не шум мелких "
+                 "сделок.</i>")
     return "\n".join(parts)

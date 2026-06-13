@@ -220,8 +220,6 @@ def render_digest(signals: list[Signal], now: datetime) -> Optional[str]:
 
     overlap = [s for s in signals if s.rule == SIG_OVERLAP]
     new_open = [s for s in signals if s.rule == SIG_NEW_OPEN]
-    rank_signals = [s for s in signals if s.rule in ("WHALE_NEW_ENTRANT", "WHALE_DROP_OFF")]
-
     msk = now.astimezone(_MOSCOW)
     parts = [
         f"🐋 <b>Whale digest за 24ч</b> — {_ru_date(msk)}, {msk.strftime('%H:%M')} MSK",
@@ -234,11 +232,9 @@ def render_digest(signals: list[Signal], now: datetime) -> Optional[str]:
     block = _digest_new_open_section(new_open)
     if block:
         parts.append(block)
-    block = _digest_rank_section(rank_signals)
-    if block:
-        parts.append(block)
-
     # other info-level rules — generic fallback
+    # rank-churn (NEW_ENTRANT/DROP_OFF) намеренно исключён из канала —
+    # ротация лидерборда не несёт торгового решения (UX-фидбек 12.06).
     other = [s for s in signals if s.rule not in (
         SIG_OVERLAP, SIG_NEW_OPEN, "WHALE_NEW_ENTRANT", "WHALE_DROP_OFF",
     )]
@@ -247,6 +243,8 @@ def render_digest(signals: list[Signal], now: datetime) -> Optional[str]:
         for s in other[:_MAX_LINES_PER_SECTION]:
             parts.append(f"• {_e(s.message)}")
 
+    if len(parts) <= 2:          # только заголовок + "Всего сигналов" -> нечего слать
+        return None
     msg = "\n".join(parts)
     if len(msg) > _TG_LIMIT:
         while len(msg) > _TG_LIMIT and len(parts) > 2:
