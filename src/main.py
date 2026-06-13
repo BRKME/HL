@@ -50,7 +50,8 @@ def run() -> None:
 
     # SKIP/EXIT — короткий отчёт без анализа кандидатов
     if signal["signal"] in ("SKIP", "EXIT"):
-        msg = render.render_report(signal=signal, picks=[], skipped=[], ladder_ctx=ladder_ctx)
+        had_pos = _had_open_position_last_week()
+        msg = render.render_report(signal=signal, picks=[], skipped=[], ladder_ctx=ladder_ctx, had_position=had_pos)
         telegram_sender.send_messages([msg])
         # LP summary disabled - was sending outdated/useless data
         _persist_decision(started, signal, picks=[], skipped=[], ladder_contract=ladder_contract)
@@ -165,6 +166,28 @@ def _send_lp_summary() -> None:
     except Exception as e:
         # LP-секция не должна валить основной отчёт
         print(f"[lp] не удалось отправить LP-резюме: {e}", flush=True)
+
+
+def _had_open_position_last_week() -> bool:
+    """Мог ли остаться открытый перп с прошлой недели?
+
+    True только если последний вердикт был входным (STRONG/MODERATE).
+    После SKIP/EXIT позиций нет — и совет «закрыть перпы» бессмыслен.
+    """
+    if not DECISIONS_PATH.exists():
+        return False
+    try:
+        with DECISIONS_PATH.open(encoding="utf-8") as f:
+            lines = [l.strip() for l in f if l.strip()]
+    except Exception:
+        return False
+    for line in reversed(lines):
+        try:
+            rec = json.loads(line)
+        except Exception:
+            return False
+        return rec.get("signal") in ("STRONG", "MODERATE")
+    return False
 
 
 def _count_recent_skip_streak() -> int:

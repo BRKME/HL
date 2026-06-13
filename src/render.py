@@ -97,11 +97,14 @@ _HEADLINES = {
 
 
 def render_report(*, signal: dict, picks: list[dict], skipped: list[dict],
-                  ladder_ctx: dict | None = None) -> str:
+                  ladder_ctx: dict | None = None,
+                  had_position: bool = False) -> str:
     """Один HTML-документ для Telegram. Должен укладываться в ~3800 символов.
 
     ladder_ctx — опциональный блок стратегической лестницы цикла из OracAI
     (см. src/ladder.py). None → блок не показывается (fail-safe).
+    had_position — был ли вход в позицию на прошлой неделе; от этого зависит,
+    показывать ли EXIT-совет «закрыть перпы» (иначе он бьёт по воздуху).
     """
     env = _env()
     now = datetime.now(_MOSCOW)
@@ -125,6 +128,9 @@ def render_report(*, signal: dict, picks: list[dict], skipped: list[dict],
     sig = signal["signal"]
     if sig == "MODERATE" and signal.get("defensive"):
         headline = _HEADLINES["MODERATE_DEFENSIVE"]
+    elif sig == "EXIT" and not had_position:
+        # выходить не из чего — честный заголовок вместо «выходим из позиций»
+        headline = "🔴 Остаёмся вне рынка (стейбл)"
     else:
         headline = _HEADLINES.get(sig, sig)
 
@@ -141,6 +147,7 @@ def render_report(*, signal: dict, picks: list[dict], skipped: list[dict],
         "signal_label": _signal_label(sig, signal["leverage"]),
         "headline": headline,
         "ladder": ladder_ctx,
+        "had_position": had_position,
     }
 
     if sig in ("SKIP", "EXIT"):

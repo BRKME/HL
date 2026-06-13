@@ -6,15 +6,16 @@
 {{ r | e }}
 {% endfor %}
 
-<b>🛑 Эту неделю не покупаем. $200 → стейбл (USDC).</b>
+<b>🛑 Эту неделю не покупаем — свежий капитал в стейбл (USDC).</b>
 
 {% if ladder %}
 🪜 <b>{{ ladder.status_line | e }}</b>
 {% if ladder.event_line %}{{ ladder.event_line | e }}
 {% endif %}<i>{{ ladder.note | e }}</i>
 {% endif %}
-{% if signal_type == 'EXIT' %}<b>Что делать:</b>
+{% if signal_type == 'EXIT' and had_position %}<b>Что делать:</b>
 • Закрыть открытые перпы на HL
-• Свежие $200 → USDC
+• Освободившийся капитал → USDC
+{% elif signal_type == 'EXIT' %}<i>Открытых позиций нет (прошлую неделю не входили) — просто остаёмся в стейбле.</i>
 {% endif %}
 <i>Следующая проверка: суббота через 7 дней.</i>
