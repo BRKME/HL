@@ -156,6 +156,23 @@ def _advisor_kpi_line() -> Optional[str]:
     return advisor_alpha(ready)["line"] if ready else None
 
 
+MIN_ACCOUNT_USD = 50.0   # ниже — проценты P&L не показательны (центы от копеек)
+
+
+def format_portfolio_line(pnl: float, roi: float, account_value: float) -> str:
+    """Портфельная строка KPI.
+
+    На малом счёте (< MIN_ACCOUNT_USD) проценты P&L — шум (1.7% от $7 = центы),
+    поэтому не выпячиваем их: помечаем режим паузы и показываем абсолют. Это
+    защита от ложного прочтения малой базы, в духе «рано судить» у тактики.
+    """
+    if account_value < MIN_ACCOUNT_USD:
+        return (f"Портфель: малый счёт ${account_value:,.0f} (пауза) — "
+                f"проценты не показательны, неделя {pnl:+,.0f}$")
+    return (f"Портфель: неделя {pnl:+,.0f}$ ({roi:+.1f}%) · "
+            f"счёт ${account_value:,.0f}")
+
+
 def _portfolio_kpi_line() -> Optional[str]:
     try:
         import yaml
@@ -166,9 +183,8 @@ def _portfolio_kpi_line() -> Optional[str]:
             return None
         perf = fetch_combined_performance([a["address"] for a in accounts])
         wk = perf.week
-        roi = wk.roi_pct
-        return (f"Портфель: неделя {wk.pnl:+,.0f}$ ({roi:+.1f}%) · "
-                f"счёт ${perf.current_account_value:,.0f}")
+        return format_portfolio_line(wk.pnl, wk.roi_pct,
+                                     perf.current_account_value)
     except Exception as e:  # noqa: BLE001
         print(f"[kpi] portfolio: {e}")
         return None
