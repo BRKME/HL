@@ -34,7 +34,7 @@ jobs:
         run: |
           git config user.name "tactical-bot"
           git config user.email "bot@tactical.local"
-          git add state/tactical_state.json state/tactical_journal.jsonl || true
+          git add state/tactical_state.json state/tactical_journal.jsonl state/last_channel_send.txt || true
           git diff --cached --quiet || git commit -m "tactical: update state [skip ci]"
           for i in 1 2 3; do
             git pull --rebase origin main && git push && break

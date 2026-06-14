@@ -50,7 +50,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           if [ -f "state/verdict_journal.jsonl" ]; then
-            git add state/verdict_journal.jsonl || true
+            git add state/verdict_journal.jsonl state/last_channel_send.txt || true
           fi
           if git diff --cached --quiet; then
             echo "no verdict journal changes to commit"

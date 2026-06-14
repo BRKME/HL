@@ -1,0 +1,35 @@
+name: heartbeat
+
+# Ежедневный сигнал жизни — но ТОЛЬКО если за сутки в канал ничего не слалось.
+# В дни с сигналами/отчётами/лестницей heartbeat молчит (маркер last-send свеж).
+# Появляется в тихие дни, чтобы тишина не путалась с «бот упал».
+on:
+  schedule:
+    - cron: "0 8 * * *"   # 11:00 MSK
+  workflow_dispatch:
+
+jobs:
+  heartbeat:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - name: Heartbeat (only if channel silent 24h)
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python -m src.heartbeat
+
+      - name: Commit last-send marker
+        run: |
+          git config user.name "heartbeat-bot"
+          git config user.email "bot@heartbeat.local"
+          git add state/last_channel_send.txt 2>/dev/null || true
+          git diff --cached --quiet || git commit -m "heartbeat: mark send [skip ci]"
+          for i in 1 2 3; do
+            git pull --rebase origin main && git push && break
+            sleep 5
+          done

@@ -60,15 +60,35 @@ def _send(bot_token: str, chat_id: str, text: str, parse_mode: str = "HTML") -> 
     r.raise_for_status()
 
 
+_LAST_SEND_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "state", "last_channel_send.txt")
+
+
+def _mark_sent() -> None:
+    """Отметить факт отправки в канал (для heartbeat: шлёт только в тишину)."""
+    try:
+        import datetime as _dt
+        os.makedirs(os.path.dirname(_LAST_SEND_PATH), exist_ok=True)
+        with open(_LAST_SEND_PATH, "w") as f:
+            f.write(_dt.datetime.now(_dt.timezone.utc).isoformat())
+    except Exception:
+        pass
+
+
 def send_messages(messages: list[str]) -> None:
     """Send each message in sequence with 1.5s pause between."""
     bot_token, chat_id, _ = _read_env()
+    sent_any = False
     for i, text in enumerate(messages):
         if not text:
             continue
         _send(bot_token, chat_id, text)
+        sent_any = True
         if i < len(messages) - 1:
             time.sleep(1.5)
+    if sent_any:
+        _mark_sent()
 
 
 def alert_owner(html_text: str) -> None:
