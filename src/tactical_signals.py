@@ -128,6 +128,29 @@ def whale_filter(direction: str, stance: Optional[str]) -> tuple[bool, str]:
 
 # ── эмиссия ──────────────────────────────────────────────────────────────────
 
+def tactical_state_summary(state: dict, now: datetime) -> str:
+    """Краткая сводка текущих вердиктов для heartbeat: что система «думает»
+    сейчас и сколько держит без смены. Делает молчание читаемым — оператор
+    видит, что слой держит позицию-мнение, а не завис.
+    """
+    if not state:
+        return "Тактика: вердиктов пока нет"
+    bits = []
+    for coin in sorted(state):
+        st = state[coin] or {}
+        v = st.get("last_verdict", "?")
+        ch = st.get("last_change_ts")
+        days_txt = ""
+        if ch:
+            try:
+                d = (now - datetime.fromisoformat(ch)).days
+                days_txt = f", без смены {d}д"
+            except ValueError:
+                pass
+        bits.append(f"{coin} {v}{days_txt}")
+    return "Тактика: " + " · ".join(bits)
+
+
 def should_emit(verdict: str, prev_verdict: Optional[str],
                 last_alert_ts: Optional[str], now: datetime) -> bool:
     """Алерт = смена вердикта на действие + кулдаун. WAIT не алертится."""
@@ -309,9 +332,16 @@ def run() -> list[str]:
                 "emitted": True, "suppressed_by": None,
             })
             state[coin] = {"last_verdict": verdict,
-                           "last_alert_ts": now.isoformat()}
+                           "last_alert_ts": now.isoformat(),
+                           "last_change_ts": now.isoformat()}
         else:
-            state[coin] = {**st, "last_verdict": verdict}
+            # вердикт не сменился: сохраняем дату последней СМЕНЫ для
+            # наблюдаемости (heartbeat покажет 'без смены N дней')
+            changed = st.get("last_change_ts")
+            if st.get("last_verdict") != verdict:
+                changed = now.isoformat()   # сменился без эмиссии (кулдаун/киты)
+            state[coin] = {**st, "last_verdict": verdict,
+                           "last_change_ts": changed or now.isoformat()}
 
         print(f"[tactical] {coin}: verdict={verdict} prev={prev} "
               f"whales={stance or '—'} emitted={bool(emit)}")

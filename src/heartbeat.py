@@ -41,16 +41,34 @@ def should_send_heartbeat(last_send_ts: Optional[str], now: datetime) -> bool:
 
 
 def build_heartbeat(regime: Optional[str], phase: Optional[str],
-                    has_positions: bool, now: datetime) -> str:
-    """Короткий статус: жив, режим/фаза, есть ли позиции."""
+                    has_positions: bool, now: datetime,
+                    tactical_line: Optional[str] = None) -> str:
+    """Короткий статус: жив, режим/фаза, позиции, текущие тактические вердикты."""
     reg = regime or "n/a"
     ph = phase or "n/a"
     pos = "есть открытые позиции" if has_positions else "позиций нет (вне рынка)"
     date = now.strftime("%d.%m.%Y")
-    return (f"✅ HL бот жив · {date}\n"
-            f"Режим: {reg} · фаза: {ph}\n"
-            f"Портфель: {pos}\n"
-            f"<i>Тихий день — сигналов не было. Это статус-пинг, не сигнал.</i>")
+    lines = [f"✅ HL бот жив · {date}",
+             f"Режим: {reg} · фаза: {ph}",
+             f"Портфель: {pos}"]
+    if tactical_line:
+        lines.append(tactical_line)
+    lines.append("<i>Тихий день — новых сигналов нет (вердикт не менялся). "
+                 "Это статус-пинг, не сигнал.</i>")
+    return "\n".join(lines)
+
+
+def _tactical_line() -> Optional[str]:
+    """Сводка текущих тактических вердиктов (мягкий fail-safe)."""
+    try:
+        import json
+        from src.tactical_signals import tactical_state_summary
+        p = _REPO_ROOT / "state" / "tactical_state.json"
+        state = json.loads(p.read_text()) if p.exists() else {}
+        return tactical_state_summary(state, datetime.now(timezone.utc))
+    except Exception as e:  # noqa: BLE001
+        print(f"[heartbeat] tactical summary n/a: {e}")
+        return None
 
 
 def main() -> None:
@@ -77,7 +95,8 @@ def main() -> None:
     except Exception as e:  # noqa: BLE001
         print(f"[heartbeat] portfolio n/a: {e}")
 
-    msg = build_heartbeat(regime, phase, has_positions, now)
+    msg = build_heartbeat(regime, phase, has_positions, now,
+                          tactical_line=_tactical_line())
     print(msg)
     try:
         # Heartbeat — тоже сообщение в канал, поэтому шлём через send_messages:
