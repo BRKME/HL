@@ -138,7 +138,8 @@ def tactical_state_summary(state: dict, now: datetime) -> str:
     bits = []
     for coin in sorted(state):
         st = state[coin] or {}
-        v = st.get("last_verdict", "?")
+        # действенный вердикт (LONG/SHORT), а не мелькнувший WAIT
+        v = st.get("last_action_verdict") or st.get("last_verdict", "?")
         ch = st.get("last_change_ts")
         days_txt = ""
         if ch:
@@ -290,7 +291,11 @@ def run() -> list[str]:
         )
 
         st = state.get(coin, {})
-        prev = st.get("last_verdict")
+        # Сравниваем с последним ДЕЙСТВЕННЫМ вердиктом (LONG/SHORT), а не с
+        # буквально предыдущим: проход через WAIT (нейтраль) не должен считаться
+        # сменой и порождать ложный перевход (баг 21.06: SHORT→WAIT→SHORT слало
+        # повторный алерт). last_action_verdict переживает периоды WAIT.
+        prev = st.get("last_action_verdict") or st.get("last_verdict")
         emit = should_emit(verdict, prev, st.get("last_alert_ts"), now)
 
         stance = whale_stance(whale_sigs, coin, now)
@@ -332,15 +337,21 @@ def run() -> list[str]:
                 "emitted": True, "suppressed_by": None,
             })
             state[coin] = {"last_verdict": verdict,
+                           "last_action_verdict": verdict,
                            "last_alert_ts": now.isoformat(),
                            "last_change_ts": now.isoformat()}
         else:
-            # вердикт не сменился: сохраняем дату последней СМЕНЫ для
-            # наблюдаемости (heartbeat покажет 'без смены N дней')
+            # Вердикт не эмитили. last_change_ts отражает смену ДЕЙСТВЕННОГО
+            # вердикта: WAIT (нейтраль) НЕ считается сменой и не сбрасывает
+            # счётчик «без смены N дней» и не затирает last_action_verdict.
+            prev_action = st.get("last_action_verdict") or st.get("last_verdict")
             changed = st.get("last_change_ts")
-            if st.get("last_verdict") != verdict:
-                changed = now.isoformat()   # сменился без эмиссии (кулдаун/киты)
+            new_action = prev_action
+            if verdict in ("LONG", "SHORT") and prev_action != verdict:
+                changed = now.isoformat()      # реальная смена действия без эмиссии (кулдаун/киты)
+                new_action = verdict
             state[coin] = {**st, "last_verdict": verdict,
+                           "last_action_verdict": new_action,
                            "last_change_ts": changed or now.isoformat()}
 
         print(f"[tactical] {coin}: verdict={verdict} prev={prev} "
