@@ -58,16 +58,77 @@ def build_heartbeat(regime: Optional[str], phase: Optional[str],
     return "\n".join(lines)
 
 
+def _latest_emitted(journal_path, coin: str) -> Optional[dict]:
+    """Последний эмитированный сигнал по монете (entry/sl/direction)."""
+    import json
+    found = None
+    try:
+        for line in journal_path.read_text().splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                r = json.loads(line)
+            except Exception:
+                continue
+            if r.get("coin") == coin and r.get("emitted"):
+                found = r
+    except Exception:
+        return None
+    return found
+
+
+def _current_price(coin: str) -> Optional[float]:
+    """Текущая цена монеты тем же путём, что тактика (последняя свеча HL).
+    Мягкий fail-safe — без неё строка покажет вход/SL без «сейчас»."""
+    try:
+        from src import hl_api
+        candles = hl_api.fetch_candles(coin, interval="1d", lookback_days=3)
+        if candles:
+            last = candles[-1]
+            if isinstance(last, dict):
+                return float(last.get("c") or last.get("close") or 0) or None
+            return float(getattr(last, "close", 0)) or None
+    except Exception:
+        return None
+    return None
+
+
 def _tactical_line() -> Optional[str]:
-    """Сводка текущих тактических вердиктов (мягкий fail-safe)."""
+    """Полный вид модели для heartbeat: направление, исходный вход @ цена, SL,
+    текущая цена. Чтобы пропустивший алерт оператор видел уровни и мог войти
+    по текущей цене, не дожидаясь следующего сигнала (~2 недели)."""
     try:
         import json
-        from src.tactical_signals import tactical_state_summary
-        p = _REPO_ROOT / "state" / "tactical_state.json"
-        state = json.loads(p.read_text()) if p.exists() else {}
-        return tactical_state_summary(state, datetime.now(timezone.utc))
+        from src.tactical_signals import tactical_levels_line
+        sp = _REPO_ROOT / "state" / "tactical_state.json"
+        jp = _REPO_ROOT / "state" / "tactical_journal.jsonl"
+        state = json.loads(sp.read_text()) if sp.exists() else {}
+        now = datetime.now(timezone.utc)
+        signals = {}
+        for coin, st in state.items():
+            st = st or {}
+            verdict = st.get("last_action_verdict") or st.get("last_verdict")
+            if verdict not in ("LONG", "SHORT"):
+                continue
+            sig = _latest_emitted(jp, coin) or {}
+            days = None
+            ch = st.get("last_change_ts")
+            if ch:
+                try:
+                    days = (now - datetime.fromisoformat(ch)).days
+                except ValueError:
+                    pass
+            signals[coin] = {
+                "direction": verdict,
+                "entry": sig.get("entry"),
+                "sl": sig.get("sl"),
+                "current": _current_price(coin),
+                "days": days,
+            }
+        return tactical_levels_line(signals) or None
     except Exception as e:  # noqa: BLE001
-        print(f"[heartbeat] tactical summary n/a: {e}")
+        print(f"[heartbeat] tactical levels n/a: {e}")
         return None
 
 

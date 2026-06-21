@@ -128,6 +128,44 @@ def whale_filter(direction: str, stance: Optional[str]) -> tuple[bool, str]:
 
 # ── эмиссия ──────────────────────────────────────────────────────────────────
 
+def tactical_levels_line(signals: dict) -> str:
+    """Строки уровней модели для heartbeat: направление, исходный вход @ цена,
+    SL, текущая цена. signals: {coin: {direction, entry, sl, current, days}}.
+
+    Исходные вход/SL — с момента сигнала (не пересчитываются), текущая цена —
+    рядом, чтобы пропустивший алерт оператор решил, входить ли по ней.
+    """
+    if not signals:
+        return ""
+    rows = []
+    for coin in sorted(signals):
+        s = signals[coin] or {}
+        d = s.get("direction", "?")
+        entry = s.get("entry")
+        sl = s.get("sl")
+        cur = s.get("current")
+        days = s.get("days")
+        emoji = "🔴" if d == "SHORT" else ("🟢" if d == "LONG" else "⚪")
+        parts = [f"{emoji} {coin} {d}"]
+        if entry:
+            parts.append(f"вход ${entry:,.0f}")
+        if sl:
+            parts.append(f"SL ${sl:,.0f}")
+        if cur:
+            # дельта от входа в пользу/против позиции
+            if entry:
+                raw = (cur - entry) / entry * 100
+                favor = raw if d == "LONG" else -raw   # для шорта падение = плюс
+                sign = "+" if favor >= 0 else ""
+                parts.append(f"сейчас ${cur:,.0f} ({sign}{favor:.1f}%)")
+            else:
+                parts.append(f"сейчас ${cur:,.0f}")
+        if days is not None:
+            parts.append(f"{days}д")
+        rows.append(" · ".join(parts))
+    return "\n".join(rows)
+
+
 def tactical_state_summary(state: dict, now: datetime) -> str:
     """Краткая сводка текущих вердиктов для heartbeat: что система «думает»
     сейчас и сколько держит без смены. Делает молчание читаемым — оператор
