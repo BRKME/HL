@@ -6,7 +6,7 @@
   "last_action_verdict": "SHORT"
  },
  "ETH": {
-  "last_verdict": "WAIT",
+  "last_verdict": "SHORT",
   "last_alert_ts": "2026-06-11T20:40:39.076786+00:00",
   "last_change_ts": "2026-06-16T21:24:08.996701+00:00",
   "last_action_verdict": "SHORT"
