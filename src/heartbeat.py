@@ -123,6 +123,7 @@ def _tactical_line() -> Optional[str]:
                 "direction": verdict,
                 "entry": sig.get("entry"),
                 "sl": sig.get("sl"),
+                "tp": sig.get("tp"),
                 "current": _current_price(coin),
                 "days": days,
             }

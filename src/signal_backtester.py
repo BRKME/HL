@@ -454,22 +454,57 @@ def render_comparison_report(
             continue
 
         parts.append(f"\n<b>{html.escape(coin)} {_short_rule(rule)} {direction.upper()}</b>")
-        for t in thresholds:
-            g = per_t.get(t)
-            label = f"≥${int(t/1000)}k" if t >= 1000 else "≥$0"
+
+        # Схлопываем пороги с ИДЕНТИЧНЫМИ цифрами: если фильтр по notional ничего
+        # не отсёк (на всех порогах те же N/WR/avg), три одинаковые строки — шум.
+        # Показываем одну и говорим, что фильтр не срезал — значит все события
+        # уже китовые.
+        def _sig(g):
             if g is None or g.n_events == 0:
-                parts.append(f"  {label:<8}: 0 ev")
-                continue
+                return None
+            return (g.n_events, round(g.win_rate.get(24, 0), 3),
+                    round(g.avg_return_pct.get(24, 0), 1),
+                    round(g.win_rate.get(168, 0), 3),
+                    round(g.avg_return_pct.get(168, 0), 1))
+
+        sigs = {t: _sig(per_t.get(t)) for t in thresholds}
+        non_null = [s for s in sigs.values() if s is not None]
+        all_same = len(non_null) > 1 and len(set(non_null)) == 1
+
+        def _fmt_line(label, g):
             wr24 = g.win_rate.get(24, 0.0) * 100
             avg24 = g.avg_return_pct.get(24, 0.0)
             wr168 = g.win_rate.get(168, 0.0) * 100
             avg168 = g.avg_return_pct.get(168, 0.0)
             alpha = " 🎯" if g.is_actionable() else ""
-            parts.append(
-                f"  {label:<8}: {g.n_events} ev, "
-                f"24h WR {wr24:.0f}% avg {avg24:+.1f}% • "
-                f"7d WR {wr168:.0f}% avg {avg168:+.1f}%{alpha}"
-            )
+            return (f"  {label:<8}: {g.n_events} ev, "
+                    f"24h WR {wr24:.0f}% avg {avg24:+.1f}% • "
+                    f"7d WR {wr168:.0f}% avg {avg168:+.1f}%{alpha}")
+
+        if all_same:
+            # все пороги одинаковы — одна строка по самому строгому с данными
+            strict_t = max(t for t in thresholds if _sig(per_t.get(t)) is not None)
+            g = per_t[strict_t]
+            parts.append(_fmt_line(f"≥${int(strict_t/1000)}k", g))
+            parts.append("  (фильтр $0/$10k/$50k не отсёк ничего — все события "
+                         "уже крупные)")
+        else:
+            for t in thresholds:
+                g = per_t.get(t)
+                label = f"≥${int(t/1000)}k" if t >= 1000 else "≥$0"
+                if g is None or g.n_events == 0:
+                    parts.append(f"  {label:<8}: 0 ev")
+                else:
+                    parts.append(_fmt_line(label, g))
+
+        # Незрелость идеальных цифр: WR 100% на коротком/незакрытом окне — это
+        # обычно артефакт (рынок шёл в одну сторону, исходы ещё не проверены
+        # разворотом), а не грааль. Честно помечаем.
+        g24 = per_t.get(max((t for t in thresholds if _sig(per_t.get(t))),
+                            default=thresholds[0]))
+        if g24 and g24.win_rate.get(24, 0) >= 0.99:
+            parts.append("  ⚠️ WR 100% — выборка незрелая (сигналы недавние, "
+                         "ещё не проверены разворотом), рано судить")
         shown += 1
 
     if shown == 0:

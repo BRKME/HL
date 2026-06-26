@@ -151,6 +151,9 @@ def tactical_levels_line(signals: dict) -> str:
             parts.append(f"вход ${entry:,.0f}")
         if sl:
             parts.append(f"SL ${sl:,.0f}")
+        tp = s.get("tp")
+        if tp:
+            parts.append(f"TP ${tp:,.0f}")
         if cur:
             # дельта от входа в пользу/против позиции
             if entry:
@@ -207,6 +210,28 @@ def should_emit(verdict: str, prev_verdict: Optional[str],
     return True
 
 
+def tp_for(direction: str, entry: float, sl: Optional[float],
+           rr: float = 1.5) -> Optional[float]:
+    """Take-profit: цель по прибыли на расстоянии rr × (риск до SL).
+
+    Риск = |entry − SL|. Прибыль = rr × риск (по умолчанию R:R 1.5 — забираем
+    в полтора раза больше, чем рискуем). Для SHORT цель ниже входа, для LONG —
+    выше. Привязка к SL делает цель осмысленной: видно соотношение риск/доход,
+    а не абстрактный уровень.
+    """
+    if not entry or entry <= 0 or not sl or sl <= 0:
+        return None
+    risk = abs(entry - sl)
+    if risk <= 0:
+        return None
+    reward = rr * risk
+    if direction == "SHORT":
+        return round(entry - reward, 6)
+    if direction == "LONG":
+        return round(entry + reward, 6)
+    return None
+
+
 def sl_for(direction: str, entry: float, atr: Optional[float],
            swing_low: Optional[float], swing_high: Optional[float]) -> Optional[float]:
     """SL: за 2·ATR, но не дальше ближайшего swing-уровня."""
@@ -226,15 +251,24 @@ def sl_for(direction: str, entry: float, atr: Optional[float],
 
 def build_alert(*, coin: str, direction: str, entry: float, sl: Optional[float],
                 rationale: str, funding_apr_pct: Optional[float],
-                whale_note: str, regime: Optional[str]) -> str:
+                whale_note: str, regime: Optional[str],
+                tp: Optional[float] = None) -> str:
     emoji = "🟢" if direction == "LONG" else "🔴"
     f_txt = (f"фандинг {funding_apr_pct:+.1f}% APR"
              if funding_apr_pct is not None else "фандинг n/a")
     sl_txt = f"SL {sl:,.0f}" if sl and sl >= 100 else (f"SL {sl}" if sl else "SL вручную")
+    # TP с указанием R:R, чтобы цель была осмысленной (не абстрактный уровень)
+    tp_txt = ""
+    if tp and sl and entry:
+        risk = abs(entry - sl)
+        reward = abs(entry - tp)
+        rr = (reward / risk) if risk > 0 else 0
+        tp_fmt = f"{tp:,.0f}" if tp >= 100 else f"{tp}"
+        tp_txt = f" · TP {tp_fmt} (R:R 1:{rr:.1f})"
     lines = [
         f"{emoji} ТАКТИКА: {direction} {coin} @ {entry:,.0f}" if entry >= 100
         else f"{emoji} ТАКТИКА: {direction} {coin} @ {entry}",
-        f"{sl_txt} · {f_txt} · режим {regime or '?'}",
+        f"{sl_txt}{tp_txt} · {f_txt} · режим {regime or '?'}",
         f"→ {rationale}",
         f"{whale_note}",
         "Горизонт: дни. Размер — тактический, не из лестницы.",
@@ -358,8 +392,9 @@ def run() -> list[str]:
             entry = float(ta.get("last") or ctx.get("mark") or 0)
             sl = sl_for(verdict, entry, ta.get("atr14"),
                         ta.get("swing_low"), ta.get("swing_high"))
+            tp = tp_for(verdict, entry, sl, rr=1.5)
             msg = build_alert(
-                coin=coin, direction=verdict, entry=entry, sl=sl,
+                coin=coin, direction=verdict, entry=entry, sl=sl, tp=tp,
                 rationale=rationale, funding_apr_pct=funding,
                 whale_note=whale_stance_note(whale_sigs, coin, now, stance),
                 regime=regime,
@@ -368,7 +403,7 @@ def run() -> list[str]:
             directions.append(verdict)
             _append_tactical_journal({
                 "ts": now.isoformat(), "coin": coin, "direction": verdict,
-                "entry": entry, "sl": sl,
+                "entry": entry, "sl": sl, "tp": tp,
                 "regime": regime, "phase": phase,
                 "funding_apr_pct": funding,
                 "whale_stance": stance,
