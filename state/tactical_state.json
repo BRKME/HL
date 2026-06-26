@@ -6,9 +6,9 @@
   "last_change_ts": "2026-06-26T21:45:44.834132+00:00"
  },
  "ETH": {
-  "last_verdict": "LONG",
-  "last_action_verdict": "LONG",
+  "last_verdict": "SHORT",
+  "last_action_verdict": "SHORT",
   "last_alert_ts": "2026-06-26T18:08:12.327613+00:00",
-  "last_change_ts": "2026-06-26T20:15:24.278389+00:00"
+  "last_change_ts": "2026-06-26T23:40:10.994423+00:00"
  }
 }
