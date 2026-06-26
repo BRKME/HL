@@ -49,12 +49,7 @@ def run() -> None:
 
     signals = load_signals(signals_path)
     if not signals:
-        logger.info("no signals in %s — skipping run", signals_path)
-        try:
-            send_messages(["🎯 <b>Signal backtester</b>\n\n"
-                            "Сигналов пока нет — ждём накопления."])
-        except Exception as e:
-            logger.warning("Telegram send failed: %s", e)
+        logger.info("no signals in %s — silent (nothing to report)", signals_path)
         return
 
     coins = sorted({s.coin for s in signals if s.coin and s.coin != "*"})
@@ -92,8 +87,12 @@ def run() -> None:
         logger.warning("stats save failed: %s", e)
 
     try:
-        send_messages([msg])
-        logger.info("backtest report sent (%d chars)", len(msg))
+        from src.signal_backtester import has_actionable
+        if has_actionable(results_by_threshold):
+            send_messages([msg])
+            logger.info("backtest report sent (%d chars)", len(msg))
+        else:
+            logger.info("no mature pattern — staying silent (stats saved)")
     except Exception as e:
         logger.warning("Telegram send failed: %s", e)
 

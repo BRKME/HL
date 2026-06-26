@@ -386,6 +386,35 @@ def backtest_thresholds(
     }
 
 
+def _is_mature(g: "BacktestGroup") -> bool:
+    """Зрелость строже, чем is_actionable: помимо порогов N/WR паттерн должен
+    быть проверен РАЗНООБРАЗИЕМ исходов. WR ровно 100% или 0% на текущем окне =
+    все сигналы в одну сторону (один тренд), разворотом не проверено — это
+    подозрительно-идеально, не зрело. Именно это противоречие ('WR 100% но рано
+    судить') раздражало в отчёте."""
+    if not g.is_actionable():
+        return False
+    wr = g.win_rate.get(PRIMARY_HORIZON, 0.0)
+    return 0.0 < wr < 1.0       # видел оба исхода — проверен разнообразием
+
+
+def has_actionable(
+    results_by_threshold: dict[float, list["BacktestGroup"]],
+) -> bool:
+    """Есть ли зрелый паттерн, достойный отчёта в Telegram.
+
+    Зрелый = прошёл пороги N/WR И проверен разнообразием исходов (см.
+    _is_mature). Если ничего не дозрело — раннер молчит (статистика всё равно
+    сохраняется для тактического сигнала). Иначе сыпали бы 'WR 100% но рано
+    судить' — самопротиворечивый шум.
+    """
+    for groups in results_by_threshold.values():
+        for g in groups or []:
+            if _is_mature(g):
+                return True
+    return False
+
+
 def render_comparison_report(
     results_by_threshold: dict[float, list[BacktestGroup]],
     now: datetime,
