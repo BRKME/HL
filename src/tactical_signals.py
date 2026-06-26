@@ -96,6 +96,49 @@ def whale_stance(signals: list[dict], coin: str,
     return None
 
 
+WHALE_CONFIRM_MIN_N = 10        # ниже этого WR незрел -> не показываем проценты
+WHALE_CONFIRM_MIN_WR = 0.60     # порог «паттерн подтверждён»
+
+
+def _whale_confirm_line(coin: str, direction: str) -> str:
+    """Строка подтверждения из недельной статистики (state/whale_signal_stats.json).
+    Мягкий fail-safe: нет файла/ключа → 'история: нет данных'."""
+    try:
+        import json
+        from pathlib import Path
+        p = Path(__file__).resolve().parent.parent / "state" / "whale_signal_stats.json"
+        if not p.exists():
+            return whale_confirmation(direction, 0, None)
+        stats = json.loads(p.read_text())
+        rec = stats.get(f"{coin}:{direction.upper()}")
+        if not rec:
+            return whale_confirmation(direction, 0, None)
+        return whale_confirmation(direction, int(rec.get("n", 0)),
+                                  rec.get("wr"))
+    except Exception:
+        return whale_confirmation(direction, 0, None)
+
+
+def whale_confirmation(direction: str, n_events: int,
+                       wr: Optional[float]) -> str:
+    """Строка подтверждения тренда исторической китовой статистикой.
+
+    Решение аналитика: WR показываем ТОЛЬКО на зрелой выборке (N≥10). На малой
+    выборке высокий WR — артефакт (рынок шёл в одну сторону, исходы не
+    проверены разворотом); показывать его рядом с сигналом = ложная уверенность.
+    Поэтому: зрело+сильно → 'паттерн подтверждён, WR/N'; зрело+слабо → 'не
+    подтверждает'; незрело → 'рано судить, N=…' без процентов.
+    """
+    if not n_events or wr is None:
+        return "история: нет данных"
+    if n_events < WHALE_CONFIRM_MIN_N:
+        return f"история: рано судить (N={n_events}, копится)"
+    wr_pct = wr * 100
+    if wr >= WHALE_CONFIRM_MIN_WR:
+        return f"паттерн {direction} подтверждён: WR {wr_pct:.0f}% / {n_events} соб."
+    return f"история не подтверждает: WR {wr_pct:.0f}% / {n_events} соб. (слабо)"
+
+
 def whale_stance_note(signals: list[dict], coin: str, now: datetime,
                       stance: Optional[str]) -> str:
     if stance is None:
@@ -252,7 +295,7 @@ def sl_for(direction: str, entry: float, atr: Optional[float],
 def build_alert(*, coin: str, direction: str, entry: float, sl: Optional[float],
                 rationale: str, funding_apr_pct: Optional[float],
                 whale_note: str, regime: Optional[str],
-                tp: Optional[float] = None) -> str:
+                tp: Optional[float] = None, confirm: Optional[str] = None) -> str:
     emoji = "🟢" if direction == "LONG" else "🔴"
     f_txt = (f"фандинг {funding_apr_pct:+.1f}% APR"
              if funding_apr_pct is not None else "фандинг n/a")
@@ -271,8 +314,10 @@ def build_alert(*, coin: str, direction: str, entry: float, sl: Optional[float],
         f"{sl_txt}{tp_txt} · {f_txt} · режим {regime or '?'}",
         f"→ {rationale}",
         f"{whale_note}",
-        "Горизонт: дни. Размер — тактический, не из лестницы.",
     ]
+    if confirm:
+        lines.append(confirm)
+    lines.append("Горизонт: дни. Размер — тактический, не из лестницы.")
     return "\n".join(lines)
 
 
@@ -393,11 +438,12 @@ def run() -> list[str]:
             sl = sl_for(verdict, entry, ta.get("atr14"),
                         ta.get("swing_low"), ta.get("swing_high"))
             tp = tp_for(verdict, entry, sl, rr=1.5)
+            confirm = _whale_confirm_line(coin, verdict)
             msg = build_alert(
                 coin=coin, direction=verdict, entry=entry, sl=sl, tp=tp,
                 rationale=rationale, funding_apr_pct=funding,
                 whale_note=whale_stance_note(whale_sigs, coin, now, stance),
-                regime=regime,
+                regime=regime, confirm=confirm,
             )
             sent.append(msg)
             directions.append(verdict)

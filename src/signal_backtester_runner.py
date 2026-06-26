@@ -74,6 +74,23 @@ def run() -> None:
     )
     msg = render_comparison_report(results_by_threshold, now=now)
 
+    # Сохраняем сводку WR/N по (монета, направление) для строки подтверждения
+    # в тактическом сигнале — чтобы не гонять бэктест ежечасно. Берём данные с
+    # фильтром $10k (настоящие киты) на горизонте 24ч.
+    try:
+        import json
+        summary = {}
+        for g in results_by_threshold.get(10_000, []):
+            if g.direction and g.n_events > 0:
+                key = f"{g.coin}:{g.direction.upper()}"
+                summary[key] = {"n": g.n_events,
+                                "wr": round(g.win_rate.get(24, 0.0), 4)}
+        out = repo_root / "state" / "whale_signal_stats.json"
+        out.write_text(json.dumps(summary, ensure_ascii=False), encoding="utf-8")
+        logger.info("saved whale_signal_stats: %d keys", len(summary))
+    except Exception as e:
+        logger.warning("stats save failed: %s", e)
+
     try:
         send_messages([msg])
         logger.info("backtest report sent (%d chars)", len(msg))
