@@ -8,7 +8,7 @@ on:
   workflow_dispatch: {}
 
 permissions:
-  contents: read
+  contents: write          # для коммита state/whale_signal_stats.json обратно
 
 concurrency:
   group: hl-signal-backtester
@@ -41,3 +41,15 @@ jobs:
 
       - name: Run signal backtester
         run: python -m src.signal_backtester_runner
+
+      - name: Commit stats back
+        run: |
+          git config user.name "Aleksander Brk"
+          git config user.email "106615154+BRKME@users.noreply.github.com"
+          if [ -n "$(git status --porcelain state/whale_signal_stats.json)" ]; then
+            git add state/whale_signal_stats.json
+            git commit -m "backtester: update whale_signal_stats [skip ci]"
+            git push
+          else
+            echo "no stats change to commit"
+          fi
