@@ -119,6 +119,39 @@ def _whale_confirm_line(coin: str, direction: str) -> str:
         return whale_confirmation(direction, 0, None)
 
 
+FUNDING_NEUTRAL_PCT = 1.0       # |APR| ниже — фандинг считаем нейтральным
+
+
+def funding_comment(funding_apr_pct: Optional[float], direction: str) -> str:
+    """Человекочитаемая расшифровка фандинга: кто кому платит (для твоей
+    позиции) + что это значит про настроение рынка.
+
+    Положительный фандинг = лонги платят шортам = рынок перекошен в лонги.
+    Отрицательный = шорты платят лонгам = рынок перекошен в шорты. Для твоей
+    позиции это плюс (получаешь выплаты) или минус (платишь) в зависимости от
+    направления.
+    """
+    if funding_apr_pct is None:
+        return ""
+    f = funding_apr_pct
+    if abs(f) < FUNDING_NEUTRAL_PCT:
+        return "фандинг нейтрален (около нуля) — перекоса в рынке нет"
+    if f > 0:
+        # лонги платят шортам; рынок перекошен в лонги
+        if direction == "SHORT":
+            return ("лонги платят шортам → ты получаешь выплаты; "
+                    "рынок перекошен в лонги")
+        return ("лонги платят шортам → ты платишь за позицию; "
+                "рынок перекошен в лонги")
+    else:
+        # шорты платят лонгам; рынок перекошен в шорты
+        if direction == "LONG":
+            return ("шорты платят лонгам → ты получаешь выплаты; "
+                    "рынок перекошен в шорты")
+        return ("шорты платят лонгам → ты платишь за позицию; "
+                "рынок перекошен в шорты")
+
+
 def whale_confirmation(direction: str, n_events: int,
                        wr: Optional[float]) -> str:
     """Строка подтверждения тренда исторической китовой статистикой.
@@ -312,9 +345,12 @@ def build_alert(*, coin: str, direction: str, entry: float, sl: Optional[float],
         f"{emoji} ТАКТИКА: {direction} {coin} @ {entry:,.0f}" if entry >= 100
         else f"{emoji} ТАКТИКА: {direction} {coin} @ {entry}",
         f"{sl_txt}{tp_txt} · {f_txt} · режим {regime or '?'}",
-        f"→ {rationale}",
-        f"{whale_note}",
     ]
+    fc = funding_comment(funding_apr_pct, direction)
+    if fc:
+        lines.append(f"💰 {fc}")
+    lines.append(f"→ {rationale}")
+    lines.append(f"{whale_note}")
     if confirm:
         lines.append(confirm)
     lines.append("Горизонт: дни. Размер — тактический, не из лестницы.")
