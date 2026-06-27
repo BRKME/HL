@@ -122,6 +122,45 @@ def _whale_confirm_line(coin: str, direction: str) -> str:
 FUNDING_NEUTRAL_PCT = 1.0       # |APR| ниже — фандинг считаем нейтральным
 
 
+def signal_strength(direction: str, regime: Optional[str],
+                    funding_apr_pct: Optional[float],
+                    whale_aligned: Optional[bool]) -> str:
+    """Сила сигнала из согласованности факторов: режим, фандинг, киты.
+
+    Базовый балл 1 (средний). Режим в сторону сигнала +1, против −2 (конфликт
+    режима — серьёзно). Фандинг по сигналу +1, против (поздний вход в
+    перекошенную сторону) −1. Киты согласны +1, против −1. Итог: ≤0 низкая,
+    1 средняя, ≥2 высокая. Чтобы оператор видел — сильный сетап или пограничный.
+    """
+    score = 1
+    bull = direction == "LONG"
+    # режим
+    if regime:
+        reg_bull = regime in ("BULL", "EARLY_BULL", "ACCUMULATION")
+        reg_bear = regime in ("BEAR", "EARLY_BEAR", "MID_BEAR", "CAPITULATION")
+        if (bull and reg_bull) or (not bull and reg_bear):
+            score += 1
+        elif (bull and reg_bear) or (not bull and reg_bull):
+            score -= 2          # конфликт режима — сильный минус
+    # фандинг: положительный благоприятен шорту, отрицательный — лонгу
+    if funding_apr_pct is not None and abs(funding_apr_pct) >= 1.0:
+        f_favors_short = funding_apr_pct > 0
+        if (not bull and f_favors_short) or (bull and not f_favors_short):
+            score += 1
+        else:
+            score -= 1          # фандинг против (перекос в твою сторону)
+    # киты
+    if whale_aligned is True:
+        score += 1
+    elif whale_aligned is False:
+        score -= 1
+    if score <= 0:
+        return "низкая"
+    if score == 1:
+        return "средняя"
+    return "высокая"
+
+
 def funding_comment(funding_apr_pct: Optional[float], direction: str) -> str:
     """Человекочитаемая расшифровка фандинга: кто кому платит (для твоей
     позиции) + что это значит про настроение рынка.
@@ -139,17 +178,17 @@ def funding_comment(funding_apr_pct: Optional[float], direction: str) -> str:
     if f > 0:
         # лонги платят шортам; рынок перекошен в лонги
         if direction == "SHORT":
-            return ("лонги платят шортам → ты получаешь выплаты; "
-                    "рынок перекошен в лонги")
-        return ("лонги платят шортам → ты платишь за позицию; "
-                "рынок перекошен в лонги")
+            return ("лонги платят шортам → получаешь выплаты; рынок перекошен "
+                    "в лонги (попутно шорту)")
+        return ("лонги платят шортам → платишь за позицию; рынок перекошен в "
+                "лонги ⚠️ риск long squeeze (поздний вход в лонг)")
     else:
         # шорты платят лонгам; рынок перекошен в шорты
         if direction == "LONG":
-            return ("шорты платят лонгам → ты получаешь выплаты; "
-                    "рынок перекошен в шорты")
-        return ("шорты платят лонгам → ты платишь за позицию; "
-                "рынок перекошен в шорты")
+            return ("шорты платят лонгам → получаешь выплаты; рынок перекошен "
+                    "в шорты (попутно лонгу)")
+        return ("шорты платят лонгам → платишь за позицию; рынок перекошен в "
+                "шорты ⚠️ риск short squeeze (поздний вход в шорт)")
 
 
 def whale_confirmation(direction: str, n_events: int,
@@ -328,33 +367,67 @@ def sl_for(direction: str, entry: float, atr: Optional[float],
 def build_alert(*, coin: str, direction: str, entry: float, sl: Optional[float],
                 rationale: str, funding_apr_pct: Optional[float],
                 whale_note: str, regime: Optional[str],
-                tp: Optional[float] = None, confirm: Optional[str] = None) -> str:
+                tp: Optional[float] = None, confirm: Optional[str] = None,
+                whale_aligned: Optional[bool] = None) -> str:
     emoji = "🟢" if direction == "LONG" else "🔴"
-    f_txt = (f"фандинг {funding_apr_pct:+.1f}% APR"
-             if funding_apr_pct is not None else "фандинг n/a")
-    sl_txt = f"SL {sl:,.0f}" if sl and sl >= 100 else (f"SL {sl}" if sl else "SL вручную")
-    # TP с указанием R:R, чтобы цель была осмысленной (не абстрактный уровень)
-    tp_txt = ""
+
+    def _p(x):     # формат цены
+        return f"{x:,.0f}" if x and x >= 100 else f"{x}"
+
+    # 1. Заголовок: направление + сила сигнала (главное — что и насколько уверенно)
+    strength = signal_strength(direction, regime, funding_apr_pct, whale_aligned)
+    lines = [f"{emoji} {direction} {coin} · сила: {strength}"]
+
+    # 2. Уровни сделки — отдельной строкой, ничем не разбавлены (для исполнения)
+    sl_part = f"SL {_p(sl)}" if sl else "SL вручную"
+    tp_part = ""
     if tp and sl and entry:
         risk = abs(entry - sl)
-        reward = abs(entry - tp)
-        rr = (reward / risk) if risk > 0 else 0
-        tp_fmt = f"{tp:,.0f}" if tp >= 100 else f"{tp}"
-        tp_txt = f" · TP {tp_fmt} (R:R 1:{rr:.1f})"
-    lines = [
-        f"{emoji} ТАКТИКА: {direction} {coin} @ {entry:,.0f}" if entry >= 100
-        else f"{emoji} ТАКТИКА: {direction} {coin} @ {entry}",
-        f"{sl_txt}{tp_txt} · {f_txt} · режим {regime or '?'}",
-    ]
+        rr = (abs(entry - tp) / risk) if risk > 0 else 0
+        tp_part = f" · TP {_p(tp)} (R:R 1:{rr:.1f})"
+    lines.append(f"Вход {_p(entry)} · {sl_part}{tp_part}")
+
+    # 3. Блок рынка — контекст, отделён от уровней сделки
+    lines.append("")
+    reg_txt = f"📉 Рынок: {regime}" if regime else "📉 Рынок: ?"
+    if rationale:
+        reg_txt += f", {rationale.rstrip('.')}"
+    lines.append(reg_txt)
     fc = funding_comment(funding_apr_pct, direction)
     if fc:
-        lines.append(f"💰 {fc}")
-    lines.append(f"→ {rationale}")
-    lines.append(f"{whale_note}")
-    if confirm:
-        lines.append(confirm)
-    lines.append("Горизонт: дни. Размер — тактический, не из лестницы.")
+        f_num = f"{funding_apr_pct:+.1f}%" if funding_apr_pct is not None else "n/a"
+        lines.append(f"💰 Фандинг {f_num} — {fc}")
+
+    # 4. Киты — ОДНА честная строка (схлопываем пустые «нет данных»)
+    whale_line = _merge_whale_lines(whale_note, confirm, coin)
+    if whale_line:
+        lines.append(f"🐋 {whale_line}")
+
+    lines.append("")
+    lines.append("Горизонт: дни · размер тактический, не из лестницы")
     return "\n".join(lines)
+
+
+def _merge_whale_lines(whale_note: str, confirm: Optional[str],
+                       coin: str) -> str:
+    """Схлопывает строки про китов в одну. Если обе про отсутствие данных —
+    одна честная строка, а не два 'нет данных' подряд."""
+    note = (whale_note or "").strip()
+    conf = (confirm or "").strip()
+    empty_markers = ("нет данных", "смешанно/нет данных", "рано судить", "копится")
+    note_empty = (not note) or any(m in note for m in empty_markers)
+    conf_empty = (not conf) or any(m in conf for m in empty_markers)
+    if note_empty and conf_empty:
+        # обе пустые — одна честная строка про отсутствие крупных сигналов
+        return f"по {coin}: крупных сигналов нет"
+    parts = []
+    if not note_empty:
+        parts.append(note)
+    if not conf_empty:
+        parts.append(conf)
+    if not parts:        # на всякий случай
+        return f"по {coin}: крупных сигналов нет"
+    return " · ".join(parts)
 
 
 
@@ -475,11 +548,15 @@ def run() -> list[str]:
                         ta.get("swing_low"), ta.get("swing_high"))
             tp = tp_for(verdict, entry, sl, rr=1.5)
             confirm = _whale_confirm_line(coin, verdict)
+            # киты согласны с сигналом? (для оценки силы)
+            wa = None
+            if stance in ("LONG", "SHORT"):
+                wa = (stance == verdict)
             msg = build_alert(
                 coin=coin, direction=verdict, entry=entry, sl=sl, tp=tp,
                 rationale=rationale, funding_apr_pct=funding,
                 whale_note=whale_stance_note(whale_sigs, coin, now, stance),
-                regime=regime, confirm=confirm,
+                regime=regime, confirm=confirm, whale_aligned=wa,
             )
             sent.append(msg)
             directions.append(verdict)
