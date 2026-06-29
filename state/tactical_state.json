@@ -1,14 +1,14 @@
 {
  "BTC": {
-  "last_verdict": "LONG",
-  "last_action_verdict": "LONG",
-  "last_alert_ts": "2026-06-28T17:41:39.119648+00:00",
-  "last_change_ts": "2026-06-28T17:41:39.119648+00:00"
+  "last_verdict": "SHORT",
+  "last_action_verdict": "SHORT",
+  "last_alert_ts": "2026-06-29T11:29:08.411514+00:00",
+  "last_change_ts": "2026-06-29T11:29:08.411514+00:00"
  },
  "ETH": {
-  "last_verdict": "LONG",
-  "last_action_verdict": "LONG",
-  "last_alert_ts": "2026-06-28T19:51:01.582858+00:00",
-  "last_change_ts": "2026-06-29T05:08:01.625963+00:00"
+  "last_verdict": "SHORT",
+  "last_action_verdict": "SHORT",
+  "last_alert_ts": "2026-06-29T11:29:08.411514+00:00",
+  "last_change_ts": "2026-06-29T11:29:08.411514+00:00"
  }
 }
