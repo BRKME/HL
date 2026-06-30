@@ -1,9 +1,9 @@
 {
  "BTC": {
-  "last_verdict": "SHORT",
-  "last_action_verdict": "SHORT",
-  "last_alert_ts": "2026-06-29T11:29:08.411514+00:00",
-  "last_change_ts": "2026-06-29T18:27:54.199450+00:00"
+  "last_verdict": "LONG",
+  "last_action_verdict": "LONG",
+  "last_alert_ts": "2026-06-30T04:40:44.881748+00:00",
+  "last_change_ts": "2026-06-30T04:40:44.881748+00:00"
  },
  "ETH": {
   "last_verdict": "SHORT",
