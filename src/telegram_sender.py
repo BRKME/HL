@@ -72,12 +72,18 @@ def _in_pytest() -> bool:
     return "pytest" in _sys.modules or os.getenv("PYTEST_CURRENT_TEST") is not None
 
 
+# Дефолтный (боевой) путь маркера. Guard ниже сравнивает с АКТУАЛЬНЫМ
+# _LAST_SEND_PATH: тест, подменивший путь на tmp через monkeypatch, пишет
+# свободно — защищаем только настоящий state-файл.
+_DEFAULT_LAST_SEND_PATH = _LAST_SEND_PATH
+
+
 def _mark_sent() -> None:
     """Отметить факт отправки в канал (для heartbeat: шлёт только в тишину).
 
-    В pytest НЕ пишем: тестовый прогон обновлял боевой timestamp, и heartbeat
-    считал канал живым — молчал дольше положенного."""
-    if _in_pytest():
+    В pytest НЕ пишем в боевой путь: тестовый прогон обновлял живой timestamp,
+    и heartbeat считал канал только-что-живым — молчал дольше положенного."""
+    if _in_pytest() and _LAST_SEND_PATH == _DEFAULT_LAST_SEND_PATH:
         return
     try:
         import datetime as _dt

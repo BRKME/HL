@@ -123,12 +123,25 @@ def test_alert_owner_uses_owner_chat_when_set(monkeypatch):
         assert payload["chat_id"] == "67890"
 
 
-def test_mark_sent_noop_under_pytest(tmp_path, monkeypatch):
+def test_mark_sent_protects_live_state_under_pytest():
     """_mark_sent в pytest НЕ пишет боевой state/last_channel_send.txt:
     тестовый прогон обновлял timestamp -> heartbeat считал канал живым и
-    молчал дольше положенного (класс бага calibration_table из Polymarket)."""
+    молчал дольше положенного (класс бага calibration_table из Polymarket).
+    Подменённый через monkeypatch путь (tmp) при этом писаться ДОЛЖЕН —
+    это проверяет test_heartbeat_send_marks_last_send."""
+    import os
+    import src.telegram_sender as ts
+    p = ts._LAST_SEND_PATH
+    before = open(p).read() if os.path.exists(p) else None
+    ts._mark_sent()
+    after = open(p).read() if os.path.exists(p) else None
+    assert before == after, "_mark_sent тронул боевой файл во время pytest"
+
+
+def test_mark_sent_writes_when_path_injected(tmp_path, monkeypatch):
+    """Инжектированный путь пишется даже в pytest (нужно heartbeat-тестам)."""
     import src.telegram_sender as ts
     fake = tmp_path / "last_channel_send.txt"
     monkeypatch.setattr(ts, "_LAST_SEND_PATH", str(fake))
     ts._mark_sent()
-    assert not fake.exists(), "_mark_sent записал файл во время pytest"
+    assert fake.exists()
