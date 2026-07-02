@@ -65,8 +65,20 @@ _LAST_SEND_PATH = os.path.join(
     "state", "last_channel_send.txt")
 
 
+def _in_pytest() -> bool:
+    """True только в pytest, НЕ в боевых воркфлоу (CI=true стоит везде в Actions,
+    поэтому os.getenv('CI') не годится — проверено на Polymarket_insider)."""
+    import sys as _sys
+    return "pytest" in _sys.modules or os.getenv("PYTEST_CURRENT_TEST") is not None
+
+
 def _mark_sent() -> None:
-    """Отметить факт отправки в канал (для heartbeat: шлёт только в тишину)."""
+    """Отметить факт отправки в канал (для heartbeat: шлёт только в тишину).
+
+    В pytest НЕ пишем: тестовый прогон обновлял боевой timestamp, и heartbeat
+    считал канал живым — молчал дольше положенного."""
+    if _in_pytest():
+        return
     try:
         import datetime as _dt
         os.makedirs(os.path.dirname(_LAST_SEND_PATH), exist_ok=True)

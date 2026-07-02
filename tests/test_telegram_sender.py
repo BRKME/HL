@@ -121,3 +121,14 @@ def test_alert_owner_uses_owner_chat_when_set(monkeypatch):
         ts.alert_owner("oops")
         payload = mock_post.call_args.kwargs["json"]
         assert payload["chat_id"] == "67890"
+
+
+def test_mark_sent_noop_under_pytest(tmp_path, monkeypatch):
+    """_mark_sent в pytest НЕ пишет боевой state/last_channel_send.txt:
+    тестовый прогон обновлял timestamp -> heartbeat считал канал живым и
+    молчал дольше положенного (класс бага calibration_table из Polymarket)."""
+    import src.telegram_sender as ts
+    fake = tmp_path / "last_channel_send.txt"
+    monkeypatch.setattr(ts, "_LAST_SEND_PATH", str(fake))
+    ts._mark_sent()
+    assert not fake.exists(), "_mark_sent записал файл во время pytest"
