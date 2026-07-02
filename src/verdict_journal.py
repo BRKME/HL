@@ -77,6 +77,18 @@ class VerdictEntry:
             d["rs_30d"] = float(self.rs_30d)
         if self.rs_90d is not None:
             d["rs_90d"] = float(self.rs_90d)
+        # Пре-регистрация 02.07.2026 (разбор журнала за июнь): raw LONG,
+        # заблокированный bear-режимом в WAIT, — это ралли внутри медвежьего
+        # рынка. Эмпирика месяца: fwd72 после таких WAIT −5.98%, 57% случаев
+        # падают ≥5% (худшие −16%) — пропущенный шорт КРУПНЕЕ взятого (−3.60%).
+        # Поле теневое: живой вердикт НЕ меняем (выборка ~10-15 независимых
+        # эпизодов — мало). Правило зафиксировано ДО данных: чекпоинт конец
+        # июля, порог конверсии в боевой SHORT — N≥15 эпизодов, fwd72 ≤ −4%
+        # в ≥60% случаев.
+        bear_ctx = ("BEAR" in str(self.regime or "").upper()
+                    or "BEAR" in str(self.phase or "").upper())
+        if self.verdict == "WAIT" and self.verdict_raw == "LONG" and bear_ctx:
+            d["shadow"] = "SHORT_RALLY_IN_BEAR"
         return d
 
 

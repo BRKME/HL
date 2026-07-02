@@ -173,3 +173,51 @@ def test_rs_fields_round_trip(tmp_path):
     loaded = load_verdicts(path)[0]
     assert loaded.rs_30d == 45.5
     assert loaded.rs_90d == -12.3
+
+
+# ── Пре-регистрация 02.07.2026 (разбор журнала: WAIT-in-bear c raw LONG дал
+# fwd72 −5.98%, 57% падений ≥5% — пропущенные шорты крупнее взятых). Теневое
+# поле, НЕ влияет на живой вердикт; чекпоинт конец июля, N≥15 эпизодов. ──
+import datetime as _dt
+
+
+def _shadow_entry(verdict, verdict_raw, regime=None, phase=None):
+    from src.verdict_journal import VerdictEntry
+    return VerdictEntry(
+        ts=_dt.datetime(2026, 7, 2, tzinfo=_dt.timezone.utc),
+        source="whitelist_focus", coin="TAO", mark=208.0,
+        verdict=verdict, rationale="x", regime=regime, phase=phase,
+        verdict_raw=verdict_raw, rationale_raw="y")
+
+
+def test_shadow_short_rally_in_bear_tagged():
+    """Ралли внутри медвежьего режима: raw LONG заблокирован в WAIT — кандидат
+    теневого шорта."""
+    d = _shadow_entry("WAIT", "LONG", regime="BEAR").to_dict()
+    assert d.get("shadow") == "SHORT_RALLY_IN_BEAR"
+
+
+def test_shadow_fires_on_bear_phase_too():
+    d = _shadow_entry("WAIT", "LONG", regime="TRANSITION", phase="MID_BEAR").to_dict()
+    assert d.get("shadow") == "SHORT_RALLY_IN_BEAR"
+
+
+def test_no_shadow_when_raw_wait():
+    """«Коррекция в восходящем тренде» (raw WAIT) — НЕ кандидат."""
+    d = _shadow_entry("WAIT", "WAIT", regime="BEAR").to_dict()
+    assert "shadow" not in d
+
+
+def test_no_shadow_outside_bear():
+    d = _shadow_entry("WAIT", "LONG", regime="BULL", phase="ACCUMULATION").to_dict()
+    assert "shadow" not in d
+
+
+def test_no_shadow_when_verdict_not_wait():
+    d = _shadow_entry("SHORT", "LONG", regime="BEAR").to_dict()
+    assert "shadow" not in d
+
+
+def test_shadow_never_changes_live_verdict_fields():
+    d = _shadow_entry("WAIT", "LONG", regime="BEAR").to_dict()
+    assert d["verdict"] == "WAIT" and d["verdict_raw"] == "LONG"
