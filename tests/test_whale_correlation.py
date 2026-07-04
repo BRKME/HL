@@ -465,12 +465,12 @@ def test_detect_all_24h_dedup_suppresses_repeat_signals():
 
 def _fill_n(whale, coin, notional, tid):
     return _fill(whale=whale, coin=coin, direction="Open Short",
-                 notional_usd=notional, tid=tid)
+                 notional=notional, tid=tid)
 
 
 def test_new_open_aggregates_fills_same_whale_coin_side():
     fills = [_fill_n("0xcf5343aaaa", "ETH", 63_000, f"t{i}") for i in range(53)]
-    scores = {"0xcf5343aaaa": _score("0xcf5343aaaa", winrate=0.98, trades=50)}
+    scores = {"0xcf5343aaaa": _good_score("0xcf5343aaaa", win_rate=0.98)}
     sigs = detect_new_open(fills, scores, whitelist={"ETH"}, config=CorrelationConfig())
     assert len(sigs) == 1
     s = sigs[0]
@@ -480,20 +480,20 @@ def test_new_open_aggregates_fills_same_whale_coin_side():
 
 
 def test_new_open_does_not_merge_different_sides_or_coins():
-    fills = [_fill_n("0xw", "ETH", 60_000, "a"),
+    fills = [_fill_n("0xw", "ETH", 160_000, "a"),
              _fill(whale="0xw", coin="ETH", direction="Open Long",
-                   notional_usd=70_000, tid="b"),
-             _fill_n("0xw", "BTC", 90_000, "c")]
-    scores = {"0xw": _score("0xw", winrate=0.98, trades=50)}
+                   notional=170_000, tid="b"),
+             _fill_n("0xw", "BTC", 190_000, "c")]
+    scores = {"0xw": _good_score("0xw", win_rate=0.98)}
     sigs = detect_new_open(fills, scores, whitelist={"ETH", "BTC"},
                            config=CorrelationConfig())
     assert len(sigs) == 3
 
 
 def test_new_open_aggregate_passes_floor_on_sum():
-    """Три филла по $20k каждый ниже пола $50k, но сумма $60k — сигнал есть."""
-    fills = [_fill_n("0xw", "ETH", 20_000, f"t{i}") for i in range(3)]
-    scores = {"0xw": _score("0xw", winrate=0.98, trades=50)}
+    """Три филла по $40k каждый ниже пола $100k, но сумма $120k — сигнал есть."""
+    fills = [_fill_n("0xw", "ETH", 40_000, f"t{i}") for i in range(3)]
+    scores = {"0xw": _good_score("0xw", win_rate=0.98)}
     sigs = detect_new_open(fills, scores, whitelist={"ETH"},
                            config=CorrelationConfig())
-    assert len(sigs) == 1 and sigs[0].details["notional_usd"] == pytest.approx(60_000)
+    assert len(sigs) == 1 and sigs[0].details["notional_usd"] == pytest.approx(120_000)
