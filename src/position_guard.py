@@ -88,12 +88,25 @@ _REASON_HUMAN = {
 }
 
 
-def format_exit_alert(coin: str, ex: dict) -> str:
-    return (f"{_REASON_HUMAN[ex['reason']]}\n"
+def format_exit_alert(coin: str, ex: dict, real_side=None) -> str:
+    """real_side: сторона РЕАЛЬНОЙ позиции в портфеле ('LONG'/'SHORT'),
+    'FLAT' если портфель проверен и позиции нет, None если проверить не
+    удалось. Кейс 04.07: гвард кричал «закрыть позицию» про модельные
+    сигналы — оператор не мог отличить трекинг от реальности."""
+    head = (f"{_REASON_HUMAN[ex['reason']]}\n"
             f"<b>{coin} {ex['direction']}</b> · вход ${ex['entry']:,.0f} · "
-            f"сейчас ${ex['exit_price']:,.0f} · {ex['pnl_r']:+.2f}R\n"
-            f"<i>Политика выхода ({ex['reason']}): закрыть позицию. "
-            f"Это исполнение правила, зафиксированного на входе, не сигнал.</i>")
+            f"сейчас ${ex['exit_price']:,.0f} · {ex['pnl_r']:+.2f}R\n")
+    if real_side == ex["direction"]:
+        tail = (f"<i>Позиция ЕСТЬ в портфеле — закрой её. Политика выхода "
+                f"({ex['reason']}): исполнение правила, зафиксированного на входе.</i>")
+    elif real_side is None:
+        tail = (f"<i>Портфель проверить не удалось — проверь портфель сам: "
+                f"если позиция открыта, закрой ({ex['reason']}). "
+                f"В трекинге сигнал закрыт.</i>")
+    else:
+        tail = (f"<i>Модельный выход ({ex['reason']}): в портфеле позиции нет, "
+                f"сигнал закрыт в трекинге для статистики. Действий не требуется.</i>")
+    return head + tail
 
 
 def format_regime_alert(prev: Optional[str], regime: str) -> str:
@@ -126,6 +139,25 @@ def _latest_emitted(coin: str) -> Optional[dict]:
     except Exception:
         return None
     return found
+
+
+def _real_position_side(coin: str):
+    """Сторона реальной perp-позиции по монете: 'LONG'/'SHORT', 'FLAT' если
+    портфель прочитан и позиции нет, None при любом сбое (сеть/конфиг)."""
+    try:
+        from src.daily_monitor import load_accounts, _build_portfolio
+        from src.hl_client import HLClient
+        accounts = load_accounts(_REPO_ROOT / "whitelist.yaml")
+        if not accounts:
+            return None
+        pf = _build_portfolio(HLClient(), accounts)
+        for p in pf.perp:
+            if p.coin == coin and abs(p.net_size) > 0:
+                return "LONG" if p.net_size > 0 else "SHORT"
+        return "FLAT"
+    except Exception as e:  # noqa: BLE001
+        print(f"[guard] portfolio n/a: {e}")
+        return None
 
 
 def run() -> int:
@@ -169,7 +201,7 @@ def run() -> int:
         ex = evaluate_exit(sig, price, verdict, regime)
         if not ex:
             continue
-        alerts.append(format_exit_alert(coin, ex))
+        alerts.append(format_exit_alert(coin, ex, _real_position_side(coin)))
         # фиксация выхода: журнал + state (позиция закрыта в трекинге)
         rec = {"ts": now, "coin": coin, "direction": "EXIT",
                "exit_reason": ex["reason"], "exit_price": ex["exit_price"],

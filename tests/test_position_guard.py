@@ -64,3 +64,30 @@ def test_regime_change_detection_and_dedup():
     assert st["last_regime"] == "BULL"
     assert regime_changed(st, "BULL") is False     # дедуп
     assert regime_changed(st, "BEAR") is True      # разворот — событие
+
+
+# ── Реальность vs модель (04.07): оператор не смог отличить трекинг сигналов
+# от реального портфеля — «закрыть позицию» кричало про позиции, которых нет.
+# Формулировка алерта обязана сверяться с портфелем. ──
+from src.position_guard import format_exit_alert
+
+
+EX = {"reason": "sl_breach", "direction": "SHORT", "entry": 1572.0,
+      "exit_price": 1760.0, "pnl_r": -1.2, "sl": 1728.0, "tp": 1339.0}
+
+
+def test_alert_real_position_says_close():
+    msg = format_exit_alert("ETH", EX, real_side="SHORT")
+    assert "закрой" in msg.lower() and "портфеле" in msg.lower()
+    assert "модельн" not in msg.lower()
+
+
+def test_alert_paper_position_says_model_no_action():
+    msg = format_exit_alert("ETH", EX, real_side="FLAT")
+    assert "модельн" in msg.lower()
+    assert "действий не требуется" in msg.lower()
+
+
+def test_alert_unknown_portfolio_is_neutral():
+    msg = format_exit_alert("ETH", EX, real_side=None)
+    assert "проверь портфель" in msg.lower()
