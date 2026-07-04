@@ -26,9 +26,23 @@ jobs:
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
+          echo "=== porcelain before add ==="
+          git status --porcelain state/ || true
           git add state/tactical_state.json state/tactical_journal.jsonl state/guard_state.json 2>/dev/null || true
-          git diff --staged --quiet || git commit -m "guard: position/regime watch [skip ci]"
+          if git diff --staged --quiet; then
+            echo "nothing staged — guard made no changes this run"
+            exit 0
+          fi
+          git commit -m "guard: position/regime watch [skip ci]"
+          pushed=0
           for i in 1 2 3; do
-            git pull --rebase origin main && git push && break
+            if git pull --rebase origin main && git push; then
+              pushed=1; break
+            fi
             echo "push attempt $i failed, retrying..."; sleep 5
           done
+          if [ "$pushed" != "1" ]; then
+            echo "::error::guard state commit could not be pushed after 3 attempts"
+            exit 1
+          fi
+          echo "pushed $(git rev-parse --short HEAD)"

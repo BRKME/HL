@@ -457,3 +457,43 @@ def test_detect_all_24h_dedup_suppresses_repeat_signals():
     # Second run with same data — suppressed
     signals2 = detect_all(fills, scores, [], whitelist={"ETH"}, config=cfg, seen_signals=seen)
     assert signals2 == []
+
+
+# ── Агрегация филлов 04.07: кит 0xcf5343 набрал ETH SHORT 53 филлами и
+# монитор отправил 53 строки. Один прогон = один сигнал на (кит, монета,
+# сторона) с суммарным нотионалом и числом филлов. ──
+
+def _fill_n(whale, coin, notional, tid):
+    return _fill(whale=whale, coin=coin, direction="Open Short",
+                 notional_usd=notional, tid=tid)
+
+
+def test_new_open_aggregates_fills_same_whale_coin_side():
+    fills = [_fill_n("0xcf5343aaaa", "ETH", 63_000, f"t{i}") for i in range(53)]
+    scores = {"0xcf5343aaaa": _score("0xcf5343aaaa", winrate=0.98, trades=50)}
+    sigs = detect_new_open(fills, scores, whitelist={"ETH"}, config=CorrelationConfig())
+    assert len(sigs) == 1
+    s = sigs[0]
+    assert s.details["fills_count"] == 53
+    assert s.details["notional_usd"] == pytest.approx(53 * 63_000)
+    assert "53" in s.message and "SHORT" in s.message
+
+
+def test_new_open_does_not_merge_different_sides_or_coins():
+    fills = [_fill_n("0xw", "ETH", 60_000, "a"),
+             _fill(whale="0xw", coin="ETH", direction="Open Long",
+                   notional_usd=70_000, tid="b"),
+             _fill_n("0xw", "BTC", 90_000, "c")]
+    scores = {"0xw": _score("0xw", winrate=0.98, trades=50)}
+    sigs = detect_new_open(fills, scores, whitelist={"ETH", "BTC"},
+                           config=CorrelationConfig())
+    assert len(sigs) == 3
+
+
+def test_new_open_aggregate_passes_floor_on_sum():
+    """Три филла по $20k каждый ниже пола $50k, но сумма $60k — сигнал есть."""
+    fills = [_fill_n("0xw", "ETH", 20_000, f"t{i}") for i in range(3)]
+    scores = {"0xw": _score("0xw", winrate=0.98, trades=50)}
+    sigs = detect_new_open(fills, scores, whitelist={"ETH"},
+                           config=CorrelationConfig())
+    assert len(sigs) == 1 and sigs[0].details["notional_usd"] == pytest.approx(60_000)

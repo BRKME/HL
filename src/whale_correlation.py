@@ -219,45 +219,57 @@ def detect_new_open(
     whitelist: set[str],
     config: CorrelationConfig,
 ) -> list[Signal]:
-    """Solo high-WR whale opening a fresh position on a whitelist coin."""
-    out: list[Signal] = []
+    """Solo high-WR whale opening a fresh position on a whitelist coin.
+
+    Филлы агрегируются по (кит, монета, сторона): 04.07 кит набрал ETH SHORT
+    53 клипами и монитор отправил 53 строки. Позиция — одна, сигнал — один,
+    с суммарным нотионалом и числом филлов. Пол по нотионалу применяется к
+    СУММЕ (крупная позиция, набранная мелкими клипами, — это тот же сигнал)."""
+    groups: dict[tuple[str, str, str], list[WhaleFill]] = {}
     for f in fills:
         if f.coin not in whitelist:
             continue
         if not _is_open(f.direction):
             continue
-        is_focus = f.coin in config.focus_coins
+        if not _whale_is_scored(scores, f.whale):
+            continue
+        side = _side_from_direction(f.direction)
+        groups.setdefault((f.whale, f.coin, side), []).append(f)
+
+    out: list[Signal] = []
+    for (whale, coin, side), grp in groups.items():
+        total = sum(f.notional_usd for f in grp)
+        is_focus = coin in config.focus_coins
         notional_floor = (
             config.focus_min_notional_usd if is_focus else config.new_open_min_notional_usd
         )
-        if f.notional_usd < notional_floor:
-            continue
-        if not _whale_is_scored(scores, f.whale):
+        if total < notional_floor:
             continue
         wr_threshold = (
             config.focus_new_open_min_winrate if is_focus else config.new_open_min_winrate
         )
-        wr = _effective_winrate(scores, f.whale, f.coin)
+        wr = _effective_winrate(scores, whale, coin)
         if wr < wr_threshold:
             continue
-        side = _side_from_direction(f.direction)
         severity = SEV_WARN if is_focus else SEV_INFO
         focus_marker = "🎯 " if is_focus else ""
+        fills_note = f" ({len(grp)} филла/ов)" if len(grp) > 1 else ""
         out.append(Signal(
             rule=SIG_NEW_OPEN,
             severity=severity,
-            coin=f.coin,
+            coin=coin,
             message=(
-                f"{focus_marker}{f.coin}: кит {f.whale[:10]}… открыл "
-                f"{side.upper()} ${f.notional_usd:,.0f} (WR {wr:.0%})"
+                f"{focus_marker}{coin}: кит {whale[:10]}… открыл "
+                f"{side.upper()} ${total:,.0f}{fills_note} (WR {wr:.0%})"
             ),
             details={
-                "coin": f.coin,
-                "whale": f.whale,
+                "coin": coin,
+                "whale": whale,
                 "direction": side,
-                "notional_usd": f.notional_usd,
+                "notional_usd": total,
+                "fills_count": len(grp),
                 "winrate_used": wr,
-                "tid": f.tid,
+                "tid": grp[0].tid,
                 "focus": is_focus,
             },
         ))

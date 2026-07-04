@@ -157,6 +157,13 @@ def run() -> int:
         sig = _latest_emitted(coin)
         if not sig or sig.get("direction") != direction:
             continue
+        if _exit_already_recorded(coin, sig.get("entry")):
+            # выход уже зафиксирован в журнале, но state не очищен (частичный
+            # сбой персистенции) — чиним state молча, без повторного алерта
+            st["last_action_verdict"] = None
+            st["last_change_ts"] = now
+            tactical[coin] = st
+            continue
         price = _current_price(coin)
         verdict = st.get("last_verdict")
         ex = evaluate_exit(sig, price, verdict, regime)
@@ -189,3 +196,22 @@ def run() -> int:
 
 if __name__ == "__main__":
     run()
+
+
+def _exit_already_recorded(coin: str, entry) -> bool:
+    """EXIT по этой позиции (coin+entry) уже в журнале — не алертить дважды."""
+    try:
+        for line in TACTICAL_JOURNAL.read_text().splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                r = json.loads(line)
+            except Exception:
+                continue
+            if (r.get("coin") == coin and r.get("direction") == "EXIT"
+                    and r.get("entry") == entry):
+                return True
+    except Exception:
+        return False
+    return False
