@@ -21,3 +21,14 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python -m src.weekly_kpi
+      - name: Commit gate state
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add state/money_gate_state.json 2>/dev/null || true
+          git diff --staged --quiet && exit 0
+          git commit -m "kpi: money gate state [skip ci]"
+          for i in 1 2 3; do
+            git pull --rebase origin main && git push && break
+            echo "push attempt $i failed"; sleep 5
+          done

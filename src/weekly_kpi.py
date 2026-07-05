@@ -123,7 +123,32 @@ def _tactical_kpi_line() -> Optional[str]:
                                  r.get("sl"), candles)
         res["direction"] = r.get("direction")
         evaluated.append(res)
-    return te.aggregate(evaluated)["line"] if evaluated else None
+    res = te.aggregate(evaluated) if evaluated else None
+    if not res:
+        return None
+    lines = [res["line"]]
+    # Ворота денег (пре-регистрация 05.07): прогресс каждую неделю,
+    # разовый алерт при открытии (дедуп-флаг в state/money_gate_state.json).
+    try:
+        from src import money_gate as mg
+        import json as _json
+        gate = mg.check_gate(evaluated)
+        gate_state_path = _REPO_ROOT / "state" / "money_gate_state.json"
+        try:
+            gstate = _json.loads(gate_state_path.read_text())
+        except Exception:
+            gstate = {}
+        if gate["open"] and not gstate.get("alerted"):
+            lines.append(mg.format_gate_alert(gate))
+            gstate["alerted"] = True
+            gstate["opened_at"] = datetime.now(timezone.utc).isoformat()
+            gstate["snapshot"] = gate
+            gate_state_path.write_text(_json.dumps(gstate, ensure_ascii=False, indent=1))
+        elif not gate["open"]:
+            lines.append(mg.format_gate_progress(gate))
+    except Exception as e:  # noqa: BLE001
+        print(f"[kpi] money gate: {e}")
+    return "\n".join(lines)
 
 
 def _advisor_kpi_line() -> Optional[str]:
