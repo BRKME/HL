@@ -34,15 +34,22 @@ jobs:
             exit 0
           fi
           git commit -m "guard: position/regime watch [skip ci]"
+          # Паттерн из whale-monitor (единственный доказанно рабочий здесь):
+          # push СНАЧАЛА, rebase только при отказе, и обязательно --autostash —
+          # гвард транзитивно (portfolio/oracai кэши) пачкает state/, и голый
+          # `pull --rebase origin main` детерминированно падал на unstaged
+          # changes все 3 попытки. Причина 4 суток фантомных повторов.
           pushed=0
           for i in 1 2 3; do
-            if git pull --rebase origin main && git push; then
-              pushed=1; break
+            if OUT=$(git push 2>&1); then
+              pushed=1; echo "$OUT"; break
             fi
-            echo "push attempt $i failed, retrying..."; sleep 5
+            echo "push attempt $i failed: $OUT"
+            git pull --rebase --autostash 2>&1 || true
+            sleep $((i * 2))
           done
           if [ "$pushed" != "1" ]; then
-            echo "::error::guard state commit could not be pushed after 3 attempts"
+            echo "::error::guard push failed 3x. last git output: ${OUT}"
             exit 1
           fi
           echo "pushed $(git rev-parse --short HEAD)"
