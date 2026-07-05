@@ -91,3 +91,13 @@ def test_alert_paper_position_says_model_no_action():
 def test_alert_unknown_portfolio_is_neutral():
     msg = format_exit_alert("ETH", EX, real_side=None)
     assert "проверь портфель" in msg.lower()
+
+
+def test_main_block_is_last_statement():
+    """Регрессия 05.07: def, дописанный ПОСЛЕ `if __name__` блока, дал
+    NameError при python -m (run() исполняется раньше нижних определений) —
+    гвард молча крашился с c45a586. Блок __main__ обязан быть последним."""
+    import pathlib
+    src = pathlib.Path("src/position_guard.py").read_text()
+    tail = src[src.index('if __name__ == "__main__"'):]
+    assert "def " not in tail, "определения ниже __main__-блока недопустимы"

@@ -160,6 +160,25 @@ def _real_position_side(coin: str):
         return None
 
 
+def _exit_already_recorded(coin: str, entry) -> bool:
+    """EXIT по этой позиции (coin+entry) уже в журнале — не алертить дважды."""
+    try:
+        for line in TACTICAL_JOURNAL.read_text().splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                r = json.loads(line)
+            except Exception:
+                continue
+            if (r.get("coin") == coin and r.get("direction") == "EXIT"
+                    and r.get("entry") == entry):
+                return True
+    except Exception:
+        return False
+    return False
+
+
 def run() -> int:
     """Один проход гварда. Возвращает число отправленных алертов."""
     from src.heartbeat import _current_price
@@ -229,21 +248,3 @@ def run() -> int:
 if __name__ == "__main__":
     run()
 
-
-def _exit_already_recorded(coin: str, entry) -> bool:
-    """EXIT по этой позиции (coin+entry) уже в журнале — не алертить дважды."""
-    try:
-        for line in TACTICAL_JOURNAL.read_text().splitlines():
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                r = json.loads(line)
-            except Exception:
-                continue
-            if (r.get("coin") == coin and r.get("direction") == "EXIT"
-                    and r.get("entry") == entry):
-                return True
-    except Exception:
-        return False
-    return False
