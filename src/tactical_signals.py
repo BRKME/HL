@@ -40,7 +40,7 @@ def _append_tactical_journal(row: dict) -> None:
 # Монеты тактического слоя. Сознательно узко: качество сигнала важнее охвата;
 # киты трекаются в основном на мейджорах.
 TACTICAL_COINS = [c.strip() for c in
-                  os.environ.get("TACTICAL_COINS", "BTC,ETH").split(",") if c.strip()]
+                  os.environ.get("TACTICAL_COINS", "BTC,ETH,ZEC,NEAR,HYPE,ASTER,MORPHO,TAO").split(",") if c.strip()]
 
 COOLDOWN_HOURS = 12          # не чаще одного алерта на монету за этот срок
 WHALE_LOOKBACK_HOURS = 48    # окно свежести whale-сигналов
@@ -387,6 +387,13 @@ def build_alert(*, coin: str, direction: str, entry: float, sl: Optional[float],
         tp_part = f" · TP {_p(tp)} (R:R 1:{rr:.1f})"
     lines.append(f"Вход {_p(entry)} · {sl_part}{tp_part}")
 
+    # ⚖️ плечо/размер — риск-первая рекомендация (пре-регистрация 05.07)
+    if sl:
+        from src import leverage as _lev
+        _s = _lev.suggest(coin, direction, regime, entry, sl)
+        if _s:
+            lines.append(_lev.format_line(_s))
+
     # 3. Блок рынка — контекст, отделён от уровней сделки
     lines.append("")
     reg_txt = f"📉 Рынок: {regime}" if regime else "📉 Рынок: ?"
@@ -552,6 +559,8 @@ def run() -> list[str]:
             wa = None
             if stance in ("LONG", "SHORT"):
                 wa = (stance == verdict)
+            from src import leverage as _lev
+            _lev_s = _lev.suggest(coin, verdict, regime, entry, sl) if sl else None
             msg = build_alert(
                 coin=coin, direction=verdict, entry=entry, sl=sl, tp=tp,
                 rationale=rationale, funding_apr_pct=funding,
@@ -566,6 +575,8 @@ def run() -> list[str]:
                 "regime": regime, "phase": phase,
                 "funding_apr_pct": funding,
                 "whale_stance": stance,
+                "leverage": (_lev_s or {}).get("leverage"),
+                "size_pct_equity": (_lev_s or {}).get("size_pct_equity"),
                 "emitted": True, "suppressed_by": None,
             })
             state[coin] = {"last_verdict": verdict,

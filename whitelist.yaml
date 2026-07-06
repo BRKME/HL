@@ -87,6 +87,11 @@ tokens:
     hl_symbol: MORPHO
     coingecko_id: morpho
     thesis: "DeFi credit primitive, real revenue"
+  NEAR:
+    tier: 2
+    hl_symbol: NEAR
+    coingecko_id: near
+    thesis: "L1 с реальным AI-пивотом, ликвидный перп"
   TAO:
     tier: 3
     hl_symbol: TAO

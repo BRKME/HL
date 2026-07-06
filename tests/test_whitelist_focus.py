@@ -10,9 +10,10 @@ from src.whitelist_focus import (
 NOW = datetime(2026, 6, 2, 6, 5, tzinfo=timezone.utc)  # 09:05 MSK
 
 
-def test_focus_coins_are_the_six():
-    """Hardcoded: HYPE, BTC, ETH, NEAR, ZEC, TAO."""
-    assert FOCUS_COINS == ["HYPE", "BTC", "ETH", "NEAR", "ZEC", "TAO"]
+def test_focus_coins_are_the_eight():
+    """Вселенная 05.07.2026 (запрос оператора): 8 монет."""
+    assert FOCUS_COINS == ["BTC", "ETH", "ZEC", "NEAR", "HYPE",
+                           "ASTER", "MORPHO", "TAO"]
 
 
 def test_evaluate_coin_returns_wait_when_no_mark(tmp_path):
