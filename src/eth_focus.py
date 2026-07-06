@@ -494,6 +494,34 @@ def _compute_verdict(
     )[1]  # return (verdict, rationale) — final, regime-applied
 
 
+def direction_permission(raw_verdict, regime, phase):
+    """Приоритет слоёв (пре-регистрация 06.07.2026): РЕЖИМ (трендовый слой)
+    управляет разрешением направления; ФАЗА (MVRV-слой) решает только при
+    неопределённом режиме (TRANSITION/None).
+
+    Фикс паралича BULL+EARLY_BEAR: прежний OR (regime==BEAR or phase in
+    bear) делал is_bear и is_bull истинными одновременно — 120 подряд WAIT
+    с 03.07, валидные лонги HYPE/NEAR/ZEC блокировались с лживым rationale
+    «regime BEAR». Июньское поведение (режим BEAR/TRANSITION) сохранено
+    бит-в-бит. Возвращает (allowed, текст_блокирующего_слоя | None)."""
+    bear_phases = ("EARLY_BEAR", "MID_BEAR")
+    bull_phases = ("EARLY_BULL", "MID_BULL", "MARKUP")
+    r = (regime or "").upper()
+    if raw_verdict == "LONG":
+        if r == "BEAR":
+            return False, "broad regime BEAR — против тренда не входить."
+        if r != "BULL" and phase in bear_phases:
+            return False, (f"фаза {phase} при неопределённом режиме — "
+                           "лонг не входить.")
+    elif raw_verdict == "SHORT":
+        if r == "BULL":
+            return False, "broad regime BULL — против тренда не входить."
+        if r != "BEAR" and phase in bull_phases:
+            return False, (f"фаза {phase} при неопределённом режиме — "
+                           "шорт не входить.")
+    return True, None
+
+
 def compute_verdict_pair(
     ta: Optional[dict],
     funding_apr_pct: Optional[float],
@@ -712,13 +740,13 @@ def _apply_regime(
                  f"{phase_name} + overbought ({exh_text}) — потенциальная вершина.")
         return enforce_hierarchy(*final, regime=regime)
 
-    # Trend phases as blockers
-    if raw_verdict == "LONG" and is_bear and not is_bottom:
-        return ("WAIT",
-                f"{raw_rationale.rstrip('.')} Но broad regime BEAR — против тренда не входить.")
-    if raw_verdict == "SHORT" and is_bull and not is_top:
-        return ("WAIT",
-                f"{raw_rationale.rstrip('.')} Но broad regime BULL — против тренда не входить.")
+    # Trend blockers — приоритет слоёв: режим > фаза (см. direction_permission)
+    if raw_verdict in ("LONG", "SHORT") and not (
+            (raw_verdict == "LONG" and is_bottom) or
+            (raw_verdict == "SHORT" and is_top)):
+        allowed, block_note = direction_permission(raw_verdict, regime, phase)
+        if not allowed:
+            return ("WAIT", f"{raw_rationale.rstrip('.')} Но {block_note}")
 
     # Otherwise raw stands — сквозь последний рубеж иерархии
     return enforce_hierarchy(raw_verdict, raw_rationale, regime=regime)

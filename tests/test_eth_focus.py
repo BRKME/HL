@@ -493,3 +493,40 @@ def test_read_recent_whale_fills_filters_by_age(tmp_path):
         }) + "\n")
     rows = _read_recent_whale_fills(tmp_path, coin="ETH", days=7, now=NOW)
     assert len(rows) == 1
+
+
+# ── Приоритет слоёв (пре-регистрация 06.07): режим управляет разрешением
+# направления, фаза — только при неопределённом режиме. Фикс паралича
+# BULL+EARLY_BEAR (120 подряд WAIT с 03.07, is_bear и is_bull одновременно). ──
+from src.eth_focus import direction_permission
+
+
+def test_bull_regime_allows_long_despite_bear_phase():
+    ok, note = direction_permission("LONG", "BULL", "EARLY_BEAR")
+    assert ok is True and note is None
+
+
+def test_bull_regime_still_blocks_short():
+    ok, note = direction_permission("SHORT", "BULL", "EARLY_BEAR")
+    assert ok is False and "BULL" in note and "BEAR" not in note
+
+
+def test_june_behavior_preserved_bear_regime_blocks_long():
+    ok, note = direction_permission("LONG", "BEAR", "MID_BEAR")
+    assert ok is False and "BEAR" in note
+
+
+def test_transition_defers_to_phase():
+    ok, note = direction_permission("LONG", "TRANSITION", "EARLY_BEAR")
+    assert ok is False and "фаза" in note.lower()
+    ok2, _ = direction_permission("SHORT", "TRANSITION", "EARLY_BULL")
+    assert ok2 is False
+    ok3, _ = direction_permission("SHORT", "TRANSITION", "EARLY_BEAR")
+    assert ok3 is True  # шорт в bear-фазе при TRANSITION — разрешён (как в июне)
+
+
+def test_none_regime_defers_to_phase():
+    ok, _ = direction_permission("LONG", None, "MID_BEAR")
+    assert ok is False
+    ok2, _ = direction_permission("LONG", None, "ACCUMULATION")
+    assert ok2 is True
