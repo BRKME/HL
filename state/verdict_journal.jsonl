@@ -613,3 +613,5 @@
 {"ts": "2026-07-06T18:54:36.840136+00:00", "source": "whitelist_focus", "coin": "TAO", "mark": 215.49, "verdict": "WAIT", "rationale": "тренд вниз Но broad regime BULL — против тренда не входить.", "regime": "BULL", "phase": "EARLY_BEAR", "verdict_raw": "SHORT", "rationale_raw": "тренд вниз.", "rs_30d": 6.5533731027924045, "rs_90d": -24.411688556435013}
 {"ts": "2026-07-06T20:52:16.084848+00:00", "source": "daily_monitor", "coin": "HYPE", "mark": 70.884, "verdict": "LONG", "rationale": "(position)", "regime": "BULL", "phase": "EARLY_BEAR"}
 {"ts": "2026-07-06T20:52:16.084848+00:00", "source": "daily_monitor", "coin": "MORPHO", "mark": 1.9863, "verdict": "LONG", "rationale": "(position)", "regime": "BULL", "phase": "EARLY_BEAR"}
+{"ts": "2026-07-07T10:25:55.803897+00:00", "source": "daily_monitor", "coin": "HYPE", "mark": 71.685, "verdict": "LONG", "rationale": "(position)", "regime": "BULL", "phase": "EARLY_BEAR"}
+{"ts": "2026-07-07T10:25:55.803897+00:00", "source": "daily_monitor", "coin": "MORPHO", "mark": 2.0135, "verdict": "LONG", "rationale": "(position)", "regime": "BULL", "phase": "EARLY_BEAR"}
