@@ -684,3 +684,6 @@
 {"ts": "2026-07-11T20:05:32.066996+00:00", "source": "daily_monitor", "coin": "ZEC", "mark": 514.95, "verdict": "LONG", "rationale": "(position)", "regime": "BULL", "phase": "EARLY_BEAR"}
 {"ts": "2026-07-11T20:05:32.066996+00:00", "source": "daily_monitor", "coin": "HYPE", "mark": 67.783, "verdict": "LONG", "rationale": "(position)", "regime": "BULL", "phase": "EARLY_BEAR"}
 {"ts": "2026-07-11T20:05:32.066996+00:00", "source": "daily_monitor", "coin": "MORPHO", "mark": 2.1363, "verdict": "LONG", "rationale": "(position)", "regime": "BULL", "phase": "EARLY_BEAR"}
+{"ts": "2026-07-12T09:01:44.069959+00:00", "source": "daily_monitor", "coin": "ZEC", "mark": 526.56, "verdict": "LONG", "rationale": "(position)", "regime": "BULL", "phase": "EARLY_BEAR"}
+{"ts": "2026-07-12T09:01:44.069959+00:00", "source": "daily_monitor", "coin": "HYPE", "mark": 67.151, "verdict": "LONG", "rationale": "(position)", "regime": "BULL", "phase": "EARLY_BEAR"}
+{"ts": "2026-07-12T09:01:44.069959+00:00", "source": "daily_monitor", "coin": "MORPHO", "mark": 1.991, "verdict": "LONG", "rationale": "(position)", "regime": "BULL", "phase": "EARLY_BEAR"}
