@@ -13,22 +13,22 @@
     "0x7fdafde5cfb5465924316eced2d3715494c517d1": {
       "address": "0x7fdafde5cfb5465924316eced2d3715494c517d1",
       "first_seen_in_top_ms": 1779007621198,
-      "runs_in_top": 280,
-      "consecutive_in_top": 0,
-      "last_rank": 48,
-      "last_seen_ms": 1783995003757,
+      "runs_in_top": 281,
+      "consecutive_in_top": 1,
+      "last_rank": 49,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
-      "drop_off_announced": true
+      "drop_off_announced": false
     },
     "0xd47587702a91731dc1089b5db0932cf820151a91": {
       "address": "0xd47587702a91731dc1089b5db0932cf820151a91",
       "first_seen_in_top_ms": 1779007621198,
       "runs_in_top": 150,
-      "consecutive_in_top": 3,
+      "consecutive_in_top": 0,
       "last_rank": 25,
       "last_seen_ms": 1784009292116,
       "new_entrant_announced": true,
-      "drop_off_announced": false
+      "drop_off_announced": true
     },
     "0xa65ce1d604fa901c13aa29f2126a57d9032e412b": {
       "address": "0xa65ce1d604fa901c13aa29f2126a57d9032e412b",
@@ -63,30 +63,30 @@
     "0xa312114b5795dff9b8db50474dd57701aa78ad1e": {
       "address": "0xa312114b5795dff9b8db50474dd57701aa78ad1e",
       "first_seen_in_top_ms": 1779007621198,
-      "runs_in_top": 175,
-      "consecutive_in_top": 14,
-      "last_rank": 14,
-      "last_seen_ms": 1784009292116,
+      "runs_in_top": 176,
+      "consecutive_in_top": 15,
+      "last_rank": 15,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
       "drop_off_announced": false
     },
     "0xb83de012dba672c76a7dbbbf3e459cb59d7d6e36": {
       "address": "0xb83de012dba672c76a7dbbbf3e459cb59d7d6e36",
       "first_seen_in_top_ms": 1779007621198,
-      "runs_in_top": 311,
-      "consecutive_in_top": 14,
-      "last_rank": 11,
-      "last_seen_ms": 1784009292116,
+      "runs_in_top": 312,
+      "consecutive_in_top": 15,
+      "last_rank": 9,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
       "drop_off_announced": false
     },
     "0x469e9a7f624b04c24f0e64edf8d8a277e6bf58a5": {
       "address": "0x469e9a7f624b04c24f0e64edf8d8a277e6bf58a5",
       "first_seen_in_top_ms": 1779007621198,
-      "runs_in_top": 251,
-      "consecutive_in_top": 38,
-      "last_rank": 6,
-      "last_seen_ms": 1784009292116,
+      "runs_in_top": 252,
+      "consecutive_in_top": 39,
+      "last_rank": 8,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
       "drop_off_announced": false
     },
@@ -103,20 +103,20 @@
     "0x77375a8c9d13bf79afb2a87f1b0ac1dfd5f5bf66": {
       "address": "0x77375a8c9d13bf79afb2a87f1b0ac1dfd5f5bf66",
       "first_seen_in_top_ms": 1779007621198,
-      "runs_in_top": 318,
-      "consecutive_in_top": 318,
-      "last_rank": 27,
-      "last_seen_ms": 1784009292116,
+      "runs_in_top": 319,
+      "consecutive_in_top": 319,
+      "last_rank": 26,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
       "drop_off_announced": false
     },
     "0x8af700ba841f30e0a3fcb0ee4c4a9d223e1efa05": {
       "address": "0x8af700ba841f30e0a3fcb0ee4c4a9d223e1efa05",
       "first_seen_in_top_ms": 1779007621198,
-      "runs_in_top": 207,
-      "consecutive_in_top": 70,
-      "last_rank": 5,
-      "last_seen_ms": 1784009292116,
+      "runs_in_top": 208,
+      "consecutive_in_top": 71,
+      "last_rank": 6,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
       "drop_off_announced": false
     },
@@ -143,10 +143,10 @@
     "0x9e8b1e51c642f4c8b87c6ba11c53d516a218afc4": {
       "address": "0x9e8b1e51c642f4c8b87c6ba11c53d516a218afc4",
       "first_seen_in_top_ms": 1779007621198,
-      "runs_in_top": 189,
-      "consecutive_in_top": 120,
+      "runs_in_top": 190,
+      "consecutive_in_top": 121,
       "last_rank": 1,
-      "last_seen_ms": 1784009292116,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
       "drop_off_announced": false
     },
@@ -243,10 +243,10 @@
     "0x48d826da83e69844f2f84b2db50703a933d137a2": {
       "address": "0x48d826da83e69844f2f84b2db50703a933d137a2",
       "first_seen_in_top_ms": 1779007621198,
-      "runs_in_top": 77,
-      "consecutive_in_top": 8,
-      "last_rank": 17,
-      "last_seen_ms": 1784009292116,
+      "runs_in_top": 78,
+      "consecutive_in_top": 9,
+      "last_rank": 20,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
       "drop_off_announced": false
     },
@@ -303,10 +303,10 @@
     "0xaf0fdd39e5d92499b0ed9f68693da99c0ec1e92e": {
       "address": "0xaf0fdd39e5d92499b0ed9f68693da99c0ec1e92e",
       "first_seen_in_top_ms": 1779007621198,
-      "runs_in_top": 240,
-      "consecutive_in_top": 103,
-      "last_rank": 31,
-      "last_seen_ms": 1784009292116,
+      "runs_in_top": 241,
+      "consecutive_in_top": 104,
+      "last_rank": 30,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
       "drop_off_announced": false
     },
@@ -443,20 +443,20 @@
     "0x8bae3527e5a33fa0cf184f37bc112d071463ab6d": {
       "address": "0x8bae3527e5a33fa0cf184f37bc112d071463ab6d",
       "first_seen_in_top_ms": 1779007621198,
-      "runs_in_top": 32,
-      "consecutive_in_top": 18,
-      "last_rank": 40,
-      "last_seen_ms": 1784009292116,
+      "runs_in_top": 33,
+      "consecutive_in_top": 19,
+      "last_rank": 39,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
       "drop_off_announced": false
     },
     "0x399965e15d4e61ec3529cc98b7f7ebb93b733336": {
       "address": "0x399965e15d4e61ec3529cc98b7f7ebb93b733336",
       "first_seen_in_top_ms": 1779007621198,
-      "runs_in_top": 199,
-      "consecutive_in_top": 55,
-      "last_rank": 32,
-      "last_seen_ms": 1784009292116,
+      "runs_in_top": 200,
+      "consecutive_in_top": 56,
+      "last_rank": 34,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
       "drop_off_announced": false
     },
@@ -513,20 +513,20 @@
     "0xe867fbdad3291530e41530301ecb77693850c78e": {
       "address": "0xe867fbdad3291530e41530301ecb77693850c78e",
       "first_seen_in_top_ms": 1779050830608,
-      "runs_in_top": 308,
-      "consecutive_in_top": 86,
-      "last_rank": 8,
-      "last_seen_ms": 1784009292116,
+      "runs_in_top": 309,
+      "consecutive_in_top": 87,
+      "last_rank": 7,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
       "drop_off_announced": false
     },
     "0x03b9a189e2480d1e4c3007080b29f362282130fa": {
       "address": "0x03b9a189e2480d1e4c3007080b29f362282130fa",
       "first_seen_in_top_ms": 1779050830608,
-      "runs_in_top": 268,
-      "consecutive_in_top": 55,
-      "last_rank": 7,
-      "last_seen_ms": 1784009292116,
+      "runs_in_top": 269,
+      "consecutive_in_top": 56,
+      "last_rank": 10,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
       "drop_off_announced": false
     },
@@ -563,10 +563,10 @@
     "0xb8ebd6ed57f4102be5b1caf60d01dd1c9f270f94": {
       "address": "0xb8ebd6ed57f4102be5b1caf60d01dd1c9f270f94",
       "first_seen_in_top_ms": 1779050830608,
-      "runs_in_top": 215,
-      "consecutive_in_top": 55,
-      "last_rank": 33,
-      "last_seen_ms": 1784009292116,
+      "runs_in_top": 216,
+      "consecutive_in_top": 56,
+      "last_rank": 40,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
       "drop_off_announced": false
     },
@@ -603,20 +603,20 @@
     "0x7839e2f2c375dd2935193f2736167514efff9916": {
       "address": "0x7839e2f2c375dd2935193f2736167514efff9916",
       "first_seen_in_top_ms": 1779050830608,
-      "runs_in_top": 246,
-      "consecutive_in_top": 70,
-      "last_rank": 30,
-      "last_seen_ms": 1784009292116,
+      "runs_in_top": 247,
+      "consecutive_in_top": 71,
+      "last_rank": 29,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
       "drop_off_announced": false
     },
     "0x218a65e21eddeece7a9df38c6bbdd89f692b7da2": {
       "address": "0x218a65e21eddeece7a9df38c6bbdd89f692b7da2",
       "first_seen_in_top_ms": 1779074823526,
-      "runs_in_top": 216,
-      "consecutive_in_top": 7,
-      "last_rank": 22,
-      "last_seen_ms": 1784009292116,
+      "runs_in_top": 217,
+      "consecutive_in_top": 8,
+      "last_rank": 23,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
       "drop_off_announced": false
     },
@@ -653,10 +653,10 @@
     "0x2d23b731e5f04996a2dfdbe434c7d922afdb5e00": {
       "address": "0x2d23b731e5f04996a2dfdbe434c7d922afdb5e00",
       "first_seen_in_top_ms": 1779074823526,
-      "runs_in_top": 127,
-      "consecutive_in_top": 5,
+      "runs_in_top": 128,
+      "consecutive_in_top": 6,
       "last_rank": 24,
-      "last_seen_ms": 1784009292116,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
       "drop_off_announced": false
     },
@@ -703,10 +703,10 @@
     "0x3440f23a87f1950e7a88cd248fd270e92d1132c5": {
       "address": "0x3440f23a87f1950e7a88cd248fd270e92d1132c5",
       "first_seen_in_top_ms": 1779091224792,
-      "runs_in_top": 66,
-      "consecutive_in_top": 4,
+      "runs_in_top": 67,
+      "consecutive_in_top": 5,
       "last_rank": 50,
-      "last_seen_ms": 1784009292116,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
       "drop_off_announced": false
     },
@@ -714,11 +714,11 @@
       "address": "0x8ed318c5eefd8c9b15b6ee351734c8a350b2f23a",
       "first_seen_in_top_ms": 1779127142128,
       "runs_in_top": 18,
-      "consecutive_in_top": 5,
+      "consecutive_in_top": 0,
       "last_rank": 45,
       "last_seen_ms": 1784009292116,
       "new_entrant_announced": true,
-      "drop_off_announced": false
+      "drop_off_announced": true
     },
     "0x20c2d95a3dfdca9e9ad12794d5fa6fad99da44f5": {
       "address": "0x20c2d95a3dfdca9e9ad12794d5fa6fad99da44f5",
@@ -963,10 +963,10 @@
     "0xc926ddba8b7617dbc65712f20cf8e1b58b8598d3": {
       "address": "0xc926ddba8b7617dbc65712f20cf8e1b58b8598d3",
       "first_seen_in_top_ms": 1779349667544,
-      "runs_in_top": 227,
-      "consecutive_in_top": 120,
-      "last_rank": 26,
-      "last_seen_ms": 1784009292116,
+      "runs_in_top": 228,
+      "consecutive_in_top": 121,
+      "last_rank": 27,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
       "drop_off_announced": false
     },
@@ -1044,11 +1044,11 @@
       "address": "0xfb941d2344b72ea9101400392b818173772d0ddf",
       "first_seen_in_top_ms": 1779591464190,
       "runs_in_top": 145,
-      "consecutive_in_top": 49,
+      "consecutive_in_top": 0,
       "last_rank": 49,
       "last_seen_ms": 1784009292116,
       "new_entrant_announced": true,
-      "drop_off_announced": false
+      "drop_off_announced": true
     },
     "0x0320e2787d5c62a4a81f219dfb3c5abdf6265362": {
       "address": "0x0320e2787d5c62a4a81f219dfb3c5abdf6265362",
@@ -1133,10 +1133,10 @@
     "0x17a4ce9320bec0ac79420f0af19848044a469d8d": {
       "address": "0x17a4ce9320bec0ac79420f0af19848044a469d8d",
       "first_seen_in_top_ms": 1780041165710,
-      "runs_in_top": 221,
-      "consecutive_in_top": 55,
+      "runs_in_top": 222,
+      "consecutive_in_top": 56,
       "last_rank": 12,
-      "last_seen_ms": 1784009292116,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
       "drop_off_announced": false
     },
@@ -1233,10 +1233,10 @@
     "0xfc667adba8d4837586078f4fdcdc29804337ca06": {
       "address": "0xfc667adba8d4837586078f4fdcdc29804337ca06",
       "first_seen_in_top_ms": 1780504995506,
-      "runs_in_top": 223,
-      "consecutive_in_top": 223,
+      "runs_in_top": 224,
+      "consecutive_in_top": 224,
       "last_rank": 2,
-      "last_seen_ms": 1784009292116,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
       "drop_off_announced": false
     },
@@ -1363,10 +1363,10 @@
     "0x7dacca323e44f168494c779bb5e7483c468ef410": {
       "address": "0x7dacca323e44f168494c779bb5e7483c468ef410",
       "first_seen_in_top_ms": 1780890140222,
-      "runs_in_top": 126,
-      "consecutive_in_top": 55,
-      "last_rank": 37,
-      "last_seen_ms": 1784009292116,
+      "runs_in_top": 127,
+      "consecutive_in_top": 56,
+      "last_rank": 31,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
       "drop_off_announced": false
     },
@@ -1403,20 +1403,20 @@
     "0xd8c5228c515db3043dfa0c8cd6f22450ee9a99b0": {
       "address": "0xd8c5228c515db3043dfa0c8cd6f22450ee9a99b0",
       "first_seen_in_top_ms": 1781252612564,
-      "runs_in_top": 123,
-      "consecutive_in_top": 7,
-      "last_rank": 35,
-      "last_seen_ms": 1784009292116,
+      "runs_in_top": 124,
+      "consecutive_in_top": 8,
+      "last_rank": 32,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
       "drop_off_announced": false
     },
     "0xb69fbfd47bcc51c2deb0587bd88f52e1c40238e5": {
       "address": "0xb69fbfd47bcc51c2deb0587bd88f52e1c40238e5",
       "first_seen_in_top_ms": 1781519347192,
-      "runs_in_top": 100,
-      "consecutive_in_top": 49,
-      "last_rank": 36,
-      "last_seen_ms": 1784009292116,
+      "runs_in_top": 101,
+      "consecutive_in_top": 50,
+      "last_rank": 35,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
       "drop_off_announced": false
     },
@@ -1473,10 +1473,10 @@
     "0xa9b95f2a2e7ef219021efc5c04c32761b8553bbd": {
       "address": "0xa9b95f2a2e7ef219021efc5c04c32761b8553bbd",
       "first_seen_in_top_ms": 1781925894868,
-      "runs_in_top": 112,
-      "consecutive_in_top": 55,
-      "last_rank": 18,
-      "last_seen_ms": 1784009292116,
+      "runs_in_top": 113,
+      "consecutive_in_top": 56,
+      "last_rank": 16,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
       "drop_off_announced": false
     },
@@ -1493,12 +1493,12 @@
     "0xd21d931890d27b6e7e2e668f27931e17698e90f1": {
       "address": "0xd21d931890d27b6e7e2e668f27931e17698e90f1",
       "first_seen_in_top_ms": 1781941676909,
-      "runs_in_top": 35,
-      "consecutive_in_top": 0,
-      "last_rank": 50,
-      "last_seen_ms": 1783976076445,
+      "runs_in_top": 36,
+      "consecutive_in_top": 1,
+      "last_rank": 41,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
-      "drop_off_announced": true
+      "drop_off_announced": false
     },
     "0xf605cd3adabbc3110bc3efb85ebe7be57590a527": {
       "address": "0xf605cd3adabbc3110bc3efb85ebe7be57590a527",
@@ -1533,10 +1533,10 @@
     "0x484bc1608211d0604bf70bae72792a56884562f8": {
       "address": "0x484bc1608211d0604bf70bae72792a56884562f8",
       "first_seen_in_top_ms": 1782147050537,
-      "runs_in_top": 102,
-      "consecutive_in_top": 69,
+      "runs_in_top": 103,
+      "consecutive_in_top": 70,
       "last_rank": 13,
-      "last_seen_ms": 1784009292116,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
       "drop_off_announced": false
     },
@@ -1553,32 +1553,32 @@
     "0x3dc908374e11623d8eb9f07dfc7a2e5e803a54b0": {
       "address": "0x3dc908374e11623d8eb9f07dfc7a2e5e803a54b0",
       "first_seen_in_top_ms": 1782183330999,
-      "runs_in_top": 70,
-      "consecutive_in_top": 7,
-      "last_rank": 23,
-      "last_seen_ms": 1784009292116,
+      "runs_in_top": 71,
+      "consecutive_in_top": 8,
+      "last_rank": 25,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
       "drop_off_announced": false
     },
     "0x6bb971430554e3af58fbd469bce46ab2359a2d23": {
       "address": "0x6bb971430554e3af58fbd469bce46ab2359a2d23",
       "first_seen_in_top_ms": 1782183330999,
-      "runs_in_top": 89,
-      "consecutive_in_top": 49,
-      "last_rank": 9,
-      "last_seen_ms": 1784009292116,
+      "runs_in_top": 90,
+      "consecutive_in_top": 50,
+      "last_rank": 14,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
       "drop_off_announced": false
     },
     "0x49e96e255ba418d08e66c35b588e2f2f3766e1d0": {
       "address": "0x49e96e255ba418d08e66c35b588e2f2f3766e1d0",
       "first_seen_in_top_ms": 1782200661594,
-      "runs_in_top": 74,
-      "consecutive_in_top": 0,
-      "last_rank": 7,
-      "last_seen_ms": 1783952831534,
+      "runs_in_top": 75,
+      "consecutive_in_top": 1,
+      "last_rank": 5,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
-      "drop_off_announced": true
+      "drop_off_announced": false
     },
     "0x4f7634c03ec4e87e14725c84913ade523c6fad5a": {
       "address": "0x4f7634c03ec4e87e14725c84913ade523c6fad5a",
@@ -1613,10 +1613,10 @@
     "0xa31441e058492bc7cfffda9aa7623c407ae83a81": {
       "address": "0xa31441e058492bc7cfffda9aa7623c407ae83a81",
       "first_seen_in_top_ms": 1782286660307,
-      "runs_in_top": 89,
-      "consecutive_in_top": 76,
-      "last_rank": 15,
-      "last_seen_ms": 1784009292116,
+      "runs_in_top": 90,
+      "consecutive_in_top": 77,
+      "last_rank": 17,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
       "drop_off_announced": false
     },
@@ -1693,20 +1693,20 @@
     "0xd487e26c62ed8c28ce3cc70b5791e501c2934982": {
       "address": "0xd487e26c62ed8c28ce3cc70b5791e501c2934982",
       "first_seen_in_top_ms": 1782723377014,
-      "runs_in_top": 11,
-      "consecutive_in_top": 8,
+      "runs_in_top": 12,
+      "consecutive_in_top": 9,
       "last_rank": 44,
-      "last_seen_ms": 1784009292116,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
       "drop_off_announced": false
     },
     "0xfe7ce058edc7cfcde9ef8262ba51f8d4796ab7ae": {
       "address": "0xfe7ce058edc7cfcde9ef8262ba51f8d4796ab7ae",
       "first_seen_in_top_ms": 1782768214715,
-      "runs_in_top": 44,
-      "consecutive_in_top": 14,
+      "runs_in_top": 45,
+      "consecutive_in_top": 15,
       "last_rank": 4,
-      "last_seen_ms": 1784009292116,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
       "drop_off_announced": false
     },
@@ -1734,11 +1734,11 @@
       "address": "0xf02d16a272a842f8bac1d9a9e773aba1933454c6",
       "first_seen_in_top_ms": 1782893354225,
       "runs_in_top": 41,
-      "consecutive_in_top": 1,
+      "consecutive_in_top": 0,
       "last_rank": 48,
       "last_seen_ms": 1784009292116,
       "new_entrant_announced": true,
-      "drop_off_announced": false
+      "drop_off_announced": true
     },
     "0x4a96036fb1529561fa3eeeb2781fad2d4f25500e": {
       "address": "0x4a96036fb1529561fa3eeeb2781fad2d4f25500e",
@@ -1753,20 +1753,20 @@
     "0xf822fa0fd364c573fcdb7009fcf47601bc8be01a": {
       "address": "0xf822fa0fd364c573fcdb7009fcf47601bc8be01a",
       "first_seen_in_top_ms": 1783046477034,
-      "runs_in_top": 22,
-      "consecutive_in_top": 7,
+      "runs_in_top": 23,
+      "consecutive_in_top": 8,
       "last_rank": 3,
-      "last_seen_ms": 1784009292116,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
       "drop_off_announced": false
     },
     "0xd67ca2c6f8bc84acf4fa4472b82a8740dc0a53ff": {
       "address": "0xd67ca2c6f8bc84acf4fa4472b82a8740dc0a53ff",
       "first_seen_in_top_ms": 1783046477034,
-      "runs_in_top": 38,
-      "consecutive_in_top": 14,
-      "last_rank": 34,
-      "last_seen_ms": 1784009292116,
+      "runs_in_top": 39,
+      "consecutive_in_top": 15,
+      "last_rank": 33,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
       "drop_off_announced": false
     },
@@ -1783,12 +1783,12 @@
     "0x1116b5fcc070945062e8879841c29807db373d0d": {
       "address": "0x1116b5fcc070945062e8879841c29807db373d0d",
       "first_seen_in_top_ms": 1783046477034,
-      "runs_in_top": 48,
-      "consecutive_in_top": 0,
-      "last_rank": 49,
-      "last_seen_ms": 1783976076445,
+      "runs_in_top": 49,
+      "consecutive_in_top": 1,
+      "last_rank": 47,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
-      "drop_off_announced": true
+      "drop_off_announced": false
     },
     "0x5986347c1d0133d02d307f08bb1efd44c2eb89d9": {
       "address": "0x5986347c1d0133d02d307f08bb1efd44c2eb89d9",
@@ -1803,10 +1803,10 @@
     "0xcf5343ba750a6e30afbb1dadda08bc78f8c8ee11": {
       "address": "0xcf5343ba750a6e30afbb1dadda08bc78f8c8ee11",
       "first_seen_in_top_ms": 1783087001439,
-      "runs_in_top": 30,
-      "consecutive_in_top": 5,
-      "last_rank": 43,
-      "last_seen_ms": 1784009292116,
+      "runs_in_top": 31,
+      "consecutive_in_top": 6,
+      "last_rank": 48,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
       "drop_off_announced": false
     },
@@ -1823,10 +1823,10 @@
     "0x023a3d058020fb76cca98f01b3c48c8938a22355": {
       "address": "0x023a3d058020fb76cca98f01b3c48c8938a22355",
       "first_seen_in_top_ms": 1783132636442,
-      "runs_in_top": 53,
-      "consecutive_in_top": 49,
+      "runs_in_top": 54,
+      "consecutive_in_top": 50,
       "last_rank": 21,
-      "last_seen_ms": 1784009292116,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
       "drop_off_announced": false
     },
@@ -1853,20 +1853,20 @@
     "0x051c2e6d49cf82ebc47f08f9b85800f94fc9693c": {
       "address": "0x051c2e6d49cf82ebc47f08f9b85800f94fc9693c",
       "first_seen_in_top_ms": 1783184468196,
-      "runs_in_top": 57,
-      "consecutive_in_top": 57,
-      "last_rank": 29,
-      "last_seen_ms": 1784009292116,
+      "runs_in_top": 58,
+      "consecutive_in_top": 58,
+      "last_rank": 28,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
       "drop_off_announced": false
     },
     "0x9e875bd28ee5001478c16cb0c8329116a3c3e816": {
       "address": "0x9e875bd28ee5001478c16cb0c8329116a3c3e816",
       "first_seen_in_top_ms": 1783219676209,
-      "runs_in_top": 55,
-      "consecutive_in_top": 55,
-      "last_rank": 10,
-      "last_seen_ms": 1784009292116,
+      "runs_in_top": 56,
+      "consecutive_in_top": 56,
+      "last_rank": 11,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
       "drop_off_announced": false
     },
@@ -1893,10 +1893,10 @@
     "0xa6ee1ed1ae80b8352603654b39f5e7b9bedd5078": {
       "address": "0xa6ee1ed1ae80b8352603654b39f5e7b9bedd5078",
       "first_seen_in_top_ms": 1783219676209,
-      "runs_in_top": 25,
-      "consecutive_in_top": 2,
-      "last_rank": 47,
-      "last_seen_ms": 1784009292116,
+      "runs_in_top": 26,
+      "consecutive_in_top": 3,
+      "last_rank": 45,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
       "drop_off_announced": false
     },
@@ -1923,10 +1923,10 @@
     "0xe09726ff25f5001f37b15049f54116cb83d7d0fe": {
       "address": "0xe09726ff25f5001f37b15049f54116cb83d7d0fe",
       "first_seen_in_top_ms": 1783219676209,
-      "runs_in_top": 22,
-      "consecutive_in_top": 2,
-      "last_rank": 41,
-      "last_seen_ms": 1784009292116,
+      "runs_in_top": 23,
+      "consecutive_in_top": 3,
+      "last_rank": 37,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
       "drop_off_announced": false
     },
@@ -2033,12 +2033,12 @@
     "0xfc27136e42af1732ddc9ce2605ea9bff1b959d9d": {
       "address": "0xfc27136e42af1732ddc9ce2605ea9bff1b959d9d",
       "first_seen_in_top_ms": 1783446988421,
-      "runs_in_top": 17,
-      "consecutive_in_top": 0,
+      "runs_in_top": 18,
+      "consecutive_in_top": 1,
       "last_rank": 18,
-      "last_seen_ms": 1783976076445,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
-      "drop_off_announced": true
+      "drop_off_announced": false
     },
     "0xe0ffc829349c88c159462942ad885f12130e7610": {
       "address": "0xe0ffc829349c88c159462942ad885f12130e7610",
@@ -2054,7 +2054,7 @@
       "address": "0xd1dd6d99c5fb5d31ff52eacce5046c7158859e85",
       "first_seen_in_top_ms": 1783505608264,
       "runs_in_top": 7,
-      "consecutive_in_top": 5,
+      "consecutive_in_top": 0,
       "last_rank": 38,
       "last_seen_ms": 1784009292116,
       "new_entrant_announced": true,
@@ -2063,10 +2063,10 @@
     "0xdd9f274410c8c704bdbb599dce6c4fb34be4f50a": {
       "address": "0xdd9f274410c8c704bdbb599dce6c4fb34be4f50a",
       "first_seen_in_top_ms": 1783531559877,
-      "runs_in_top": 9,
-      "consecutive_in_top": 7,
-      "last_rank": 42,
-      "last_seen_ms": 1784009292116,
+      "runs_in_top": 10,
+      "consecutive_in_top": 8,
+      "last_rank": 38,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
       "drop_off_announced": false
     },
@@ -2113,10 +2113,10 @@
     "0xcf90cfecf74e631feea816d02e757c0c8e895c0e": {
       "address": "0xcf90cfecf74e631feea816d02e757c0c8e895c0e",
       "first_seen_in_top_ms": 1783823332886,
-      "runs_in_top": 14,
-      "consecutive_in_top": 14,
+      "runs_in_top": 15,
+      "consecutive_in_top": 15,
       "last_rank": 19,
-      "last_seen_ms": 1784009292116,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
       "drop_off_announced": false
     },
@@ -2143,30 +2143,30 @@
     "0x84abc08c0ea62e687c370154de1f38ea462f4d37": {
       "address": "0x84abc08c0ea62e687c370154de1f38ea462f4d37",
       "first_seen_in_top_ms": 1783925422788,
-      "runs_in_top": 7,
-      "consecutive_in_top": 7,
-      "last_rank": 16,
-      "last_seen_ms": 1784009292116,
+      "runs_in_top": 8,
+      "consecutive_in_top": 8,
+      "last_rank": 42,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
       "drop_off_announced": false
     },
     "0x215b369a532dc84654c244449cb119986ceaf603": {
       "address": "0x215b369a532dc84654c244449cb119986ceaf603",
       "first_seen_in_top_ms": 1783925422788,
-      "runs_in_top": 5,
-      "consecutive_in_top": 2,
+      "runs_in_top": 6,
+      "consecutive_in_top": 3,
       "last_rank": 46,
-      "last_seen_ms": 1784009292116,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
       "drop_off_announced": false
     },
     "0x3e516cf3c9d4f29fae6c1324c2414dc872fc9c09": {
       "address": "0x3e516cf3c9d4f29fae6c1324c2414dc872fc9c09",
       "first_seen_in_top_ms": 1783925422788,
-      "runs_in_top": 7,
-      "consecutive_in_top": 7,
-      "last_rank": 39,
-      "last_seen_ms": 1784009292116,
+      "runs_in_top": 8,
+      "consecutive_in_top": 8,
+      "last_rank": 43,
+      "last_seen_ms": 1784022901134,
       "new_entrant_announced": true,
       "drop_off_announced": false
     },
@@ -2183,21 +2183,21 @@
     "0x17c3c8fdbcb7d1b240ce08965e09b1fc91cba868": {
       "address": "0x17c3c8fdbcb7d1b240ce08965e09b1fc91cba868",
       "first_seen_in_top_ms": 1783995003757,
-      "runs_in_top": 2,
-      "consecutive_in_top": 2,
-      "last_rank": 20,
-      "last_seen_ms": 1784009292116,
-      "new_entrant_announced": false,
+      "runs_in_top": 3,
+      "consecutive_in_top": 3,
+      "last_rank": 22,
+      "last_seen_ms": 1784022901134,
+      "new_entrant_announced": true,
       "drop_off_announced": false
     },
     "0x60a8c761f39696b3b419f31dcda20b405cb685f6": {
       "address": "0x60a8c761f39696b3b419f31dcda20b405cb685f6",
       "first_seen_in_top_ms": 1783995003757,
-      "runs_in_top": 2,
-      "consecutive_in_top": 2,
-      "last_rank": 28,
-      "last_seen_ms": 1784009292116,
-      "new_entrant_announced": false,
+      "runs_in_top": 3,
+      "consecutive_in_top": 3,
+      "last_rank": 36,
+      "last_seen_ms": 1784022901134,
+      "new_entrant_announced": true,
       "drop_off_announced": false
     }
   }
