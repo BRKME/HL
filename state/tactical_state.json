@@ -13,7 +13,7 @@
  },
  "ZEC": {
   "last_verdict": "LONG",
-  "last_action_verdict": null,
+  "last_action_verdict": "LONG",
   "last_alert_ts": "2026-07-15T03:42:13.044556+00:00",
   "last_change_ts": "2026-07-15T17:40:00.663621+00:00"
  },
@@ -24,10 +24,10 @@
   "last_change_ts": "2026-07-15T14:11:28.996578+00:00"
  },
  "HYPE": {
-  "last_verdict": "WAIT",
-  "last_action_verdict": null,
+  "last_verdict": "LONG",
+  "last_action_verdict": "LONG",
   "last_alert_ts": "2026-07-15T14:17:04.595372+00:00",
-  "last_change_ts": "2026-07-15T17:40:00.663621+00:00"
+  "last_change_ts": "2026-07-15T17:43:18.281522+00:00"
  },
  "ASTER": {
   "last_verdict": "WAIT",
