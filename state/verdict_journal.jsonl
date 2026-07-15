@@ -745,3 +745,5 @@
 {"ts": "2026-07-15T16:22:00.412167+00:00", "source": "daily_monitor", "coin": "HYPE", "mark": 67.464, "verdict": "LONG", "rationale": "(position)", "regime": "BULL", "phase": "EARLY_BEAR"}
 {"ts": "2026-07-15T18:07:37.173833+00:00", "source": "daily_monitor", "coin": "MORPHO", "mark": 2.0612, "verdict": "LONG", "rationale": "(position)", "regime": "BULL", "phase": "EARLY_BEAR"}
 {"ts": "2026-07-15T18:07:37.173833+00:00", "source": "daily_monitor", "coin": "HYPE", "mark": 67.905, "verdict": "LONG", "rationale": "(position)", "regime": "BULL", "phase": "EARLY_BEAR"}
+{"ts": "2026-07-15T20:08:55.974243+00:00", "source": "daily_monitor", "coin": "HYPE", "mark": 66.814, "verdict": "LONG", "rationale": "(position)", "regime": "BULL", "phase": "EARLY_BEAR"}
+{"ts": "2026-07-15T20:08:55.974243+00:00", "source": "daily_monitor", "coin": "MORPHO", "mark": 2.0446, "verdict": "LONG", "rationale": "(position)", "regime": "BULL", "phase": "EARLY_BEAR"}
