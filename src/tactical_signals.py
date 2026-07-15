@@ -308,6 +308,39 @@ def tactical_state_summary(state: dict, now: datetime) -> str:
     return "Тактика: " + " · ".join(bits)
 
 
+def prev_action_verdict(st: dict) -> Optional[str]:
+    """Последний ДЕЙСТВЕННЫЙ вердикт для сравнения в should_emit.
+
+    Явный None в last_action_verdict означает «позиция закрыта гвардом» —
+    это НЕ повод падать в fallback на last_verdict (баг 15.07: fallback
+    возвращал WAIT, else-ветка воскрешала действие без журнала и алерта,
+    а после кулдауна prev == verdict блокировал переэмиссию навсегда).
+    Fallback остаётся только для legacy-state без поля вовсе.
+    """
+    if "last_action_verdict" in st:
+        return st["last_action_verdict"]
+    return st.get("last_verdict")
+
+
+def next_state_entry(st: dict, verdict: str, now_iso: str) -> dict:
+    """Обновление state монеты, когда алерт НЕ эмитили (WAIT / кулдаун / киты).
+
+    Инвариант: last_action_verdict поднимается из None только через эмиссию
+    (журнал + алерт), молча действие не возникает. WAIT — нейтраль: не смена,
+    не сбрасывает счётчик и не затирает открытое действие (баг 21.06).
+    """
+    prev_action = prev_action_verdict(st)
+    changed = st.get("last_change_ts")
+    new_action = prev_action
+    if (verdict in ("LONG", "SHORT") and prev_action != verdict
+            and prev_action is not None):
+        changed = now_iso        # реальная смена стороны открытого действия
+        new_action = verdict
+    return {**st, "last_verdict": verdict,
+            "last_action_verdict": new_action,
+            "last_change_ts": changed or now_iso}
+
+
 def should_emit(verdict: str, prev_verdict: Optional[str],
                 last_alert_ts: Optional[str], now: datetime) -> bool:
     """Алерт = смена вердикта на действие + кулдаун. WAIT не алертится."""
@@ -528,7 +561,8 @@ def run() -> list[str]:
         # буквально предыдущим: проход через WAIT (нейтраль) не должен считаться
         # сменой и порождать ложный перевход (баг 21.06: SHORT→WAIT→SHORT слало
         # повторный алерт). last_action_verdict переживает периоды WAIT.
-        prev = st.get("last_action_verdict") or st.get("last_verdict")
+        # Явный None (закрыто гвардом) — «позиции нет», без fallback (баг 15.07).
+        prev = prev_action_verdict(st)
         emit = should_emit(verdict, prev, st.get("last_alert_ts"), now)
 
         stance = whale_stance(whale_sigs, coin, now)
@@ -584,18 +618,9 @@ def run() -> list[str]:
                            "last_alert_ts": now.isoformat(),
                            "last_change_ts": now.isoformat()}
         else:
-            # Вердикт не эмитили. last_change_ts отражает смену ДЕЙСТВЕННОГО
-            # вердикта: WAIT (нейтраль) НЕ считается сменой и не сбрасывает
-            # счётчик «без смены N дней» и не затирает last_action_verdict.
-            prev_action = st.get("last_action_verdict") or st.get("last_verdict")
-            changed = st.get("last_change_ts")
-            new_action = prev_action
-            if verdict in ("LONG", "SHORT") and prev_action != verdict:
-                changed = now.isoformat()      # реальная смена действия без эмиссии (кулдаун/киты)
-                new_action = verdict
-            state[coin] = {**st, "last_verdict": verdict,
-                           "last_action_verdict": new_action,
-                           "last_change_ts": changed or now.isoformat()}
+            # Вердикт не эмитили — обновление state через next_state_entry:
+            # WAIT нейтрален, а закрытое гвардом действие (None) не воскресает.
+            state[coin] = next_state_entry(st, verdict, now.isoformat())
 
         print(f"[tactical] {coin}: verdict={verdict} prev={prev} "
               f"whales={stance or '—'} emitted={bool(emit)}")
