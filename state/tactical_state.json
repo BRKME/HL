@@ -12,13 +12,13 @@
   "last_change_ts": "2026-07-05T17:32:27.303079+00:00"
  },
  "ZEC": {
-  "last_verdict": "LONG",
+  "last_verdict": "WAIT",
   "last_action_verdict": "LONG",
   "last_alert_ts": "2026-07-15T03:42:13.044556+00:00",
   "last_change_ts": "2026-07-15T03:42:13.044556+00:00"
  },
  "NEAR": {
-  "last_verdict": "LONG",
+  "last_verdict": "WAIT",
   "last_action_verdict": "LONG",
   "last_alert_ts": "2026-07-14T06:32:10.983691+00:00",
   "last_change_ts": "2026-07-14T06:32:10.983691+00:00"
