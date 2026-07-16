@@ -347,6 +347,37 @@ def _render_tracked(
     return "\n".join(lines)
 
 
+def pending_exits(journal_rows: list[dict]) -> dict:
+    """{coin: последняя эмитированная запись}, если эта запись — EXIT.
+
+    Якорь «позицию надо закрыть» — журнал, а не мигающий вердикт: 15.07
+    exit-алерт по HYPE утонул, потому что вердикт мигнул обратно в LONG
+    за 3 минуты и отчёт 21:07 показал 🟢. Пока последний эмитированный
+    сигнал — EXIT, требование закрыть висит; эмиссия нового входа
+    легитимизирует холд и гасит подсветку (по замороженным правилам).
+    Подавленные записи (emitted=False) не считаются — их оператор не видел.
+    """
+    last: dict = {}
+    for r in journal_rows:
+        if r.get("emitted") is False:
+            continue
+        coin = r.get("coin")
+        if coin:
+            last[coin] = r
+    return {c: r for c, r in last.items() if r.get("direction") == "EXIT"}
+
+
+def _fmt_msk(ts_iso: str) -> str:
+    """'2026-07-15T17:40:00+00:00' → '15.07 20:40' (МСК)."""
+    from datetime import datetime, timedelta, timezone
+    try:
+        dt = datetime.fromisoformat(ts_iso)
+        msk = dt.astimezone(timezone(timedelta(hours=3)))
+        return msk.strftime("%d.%m %H:%M")
+    except (ValueError, TypeError):
+        return ""
+
+
 def _render_orphan(
     matches: list[MatchResult],
     marks: dict[str, float],
@@ -355,6 +386,7 @@ def _render_orphan(
     total_account_value: float = 0.0,
     coin_atrs: Optional[dict[str, float]] = None,
     coin_verdicts: Optional[dict[str, str]] = None,
+    pending_exit: Optional[dict] = None,
 ) -> Optional[str]:
     """One-line per orphan (UI simplification round 3 + verdicts):
 
@@ -373,6 +405,7 @@ def _render_orphan(
     prev_day_marks = prev_day_marks or {}
     sl_orders = sl_orders or []
     coin_verdicts = coin_verdicts or {}
+    pending_exit = pending_exit or {}
     from src.sl_visibility import find_sl_for_position
 
     # Sort alphabetically by coin name (round 3 follow-up):
@@ -423,6 +456,18 @@ def _render_orphan(
             bits.append(f"{v_emoji} {verdict}{mismatch_mark}")
 
         lines.append(f"{prefix}" + " • ".join(bits))
+
+        # Неисполненный exit (16.07): последняя эмитированная запись
+        # журнала по монете — EXIT той же стороны, а позиция всё ещё
+        # открыта. Кричим до закрытия или до эмиссии нового входа —
+        # в отличие от вердикта, это не мигает.
+        pend = pending_exit.get(pos.coin)
+        if pend and str(pend.get("closed_direction", "")).upper() == side:
+            when = _fmt_msk(pend.get("ts", ""))
+            reason = pend.get("exit_reason", "exit")
+            lines.append(
+                f"   🔴 <b>ЗАКРОЙ ПО ПОЛИТИКЕ</b> — exit ({_e(str(reason))}) "
+                f"{when} МСК, позиция не закрыта")
     return "\n".join(lines)
 
 
@@ -635,11 +680,25 @@ def render_daily_report(
     if tracked_block:
         parts.append(tracked_block)
 
+    # Неисполненные exit из тактического журнала (16.07) — подсветка
+    # «ЗАКРОЙ» в строке позиции, якорь на журнал, не на мигающий вердикт.
+    pend = {}
+    try:
+        import json as _json
+        from pathlib import Path as _Path
+        _jp = _Path("state/tactical_journal.jsonl")
+        if _jp.exists():
+            rows = [_json.loads(l) for l in _jp.read_text().splitlines() if l.strip()]
+            pend = pending_exits(rows)
+    except Exception:
+        pend = {}
+
     orphan_block = _render_orphan(
         matches, marks, prev_day_marks,
         sl_orders=sl_orders,
         total_account_value=total_account_value,
         coin_verdicts=coin_verdicts,
+        pending_exit=pend,
     )
     if orphan_block:
         parts.append(orphan_block)
