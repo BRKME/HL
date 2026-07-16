@@ -91,3 +91,30 @@ def test_pending_exit_direction_mismatch_not_flagged():
                                "ts": "2026-07-15T17:40:00+00:00",
                                "closed_direction": "LONG"}})
     assert "ЗАКРОЙ" not in block
+
+
+# ── двойственность вердиктов: показываем оба источника при расхождении ──────
+
+def test_verdict_duality_shown_when_sources_differ():
+    """16.07: отчёт показывал ⚪ WAIT (дневной whitelist), а гвард живёт по
+    тактическому вердикту — противоречие в одном сообщении сбивало с толку.
+    При расхождении показываем оба с подписями; при совпадении — как раньше."""
+    from src.daily_report import _render_orphan
+    m = _orphan()
+    block = _render_orphan(
+        [m], marks={"HYPE": 67.3},
+        coin_verdicts={"HYPE": "WAIT"},
+        tactical_verdicts={"HYPE": "LONG"})
+    assert "⚪ WAIT дн." in block
+    assert "🟢 LONG такт." in block
+
+
+def test_verdict_single_when_sources_agree():
+    from src.daily_report import _render_orphan
+    m = _orphan()
+    block = _render_orphan(
+        [m], marks={"HYPE": 67.3},
+        coin_verdicts={"HYPE": "LONG"},
+        tactical_verdicts={"HYPE": "LONG"})
+    assert "дн." not in block and "такт." not in block
+    assert "🟢 LONG" in block

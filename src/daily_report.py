@@ -387,6 +387,7 @@ def _render_orphan(
     coin_atrs: Optional[dict[str, float]] = None,
     coin_verdicts: Optional[dict[str, str]] = None,
     pending_exit: Optional[dict] = None,
+    tactical_verdicts: Optional[dict[str, str]] = None,
 ) -> Optional[str]:
     """One-line per orphan (UI simplification round 3 + verdicts):
 
@@ -406,6 +407,7 @@ def _render_orphan(
     sl_orders = sl_orders or []
     coin_verdicts = coin_verdicts or {}
     pending_exit = pending_exit or {}
+    tactical_verdicts = tactical_verdicts or {}
     from src.sl_visibility import find_sl_for_position
 
     # Sort alphabetically by coin name (round 3 follow-up):
@@ -447,13 +449,24 @@ def _render_orphan(
         # 'your position is against the model'.
         verdict = coin_verdicts.get(pos.coin)
         if verdict in ("LONG", "SHORT", "WAIT"):
-            v_emoji = {"LONG": "🟢", "SHORT": "🔴", "WAIT": "⚪"}[verdict]
+            _EMO = {"LONG": "🟢", "SHORT": "🔴", "WAIT": "⚪"}
+            v_emoji = _EMO[verdict]
             mismatch = (
                 (side == "LONG" and verdict == "SHORT") or
                 (side == "SHORT" and verdict == "LONG")
             )
             mismatch_mark = " ⚠️" if mismatch else ""
-            bits.append(f"{v_emoji} {verdict}{mismatch_mark}")
+            # Двойственность источников (16.07): дневной whitelist-вердикт и
+            # тактический (по которому живёт гвард) могут расходиться — до
+            # 16.07 отчёт показывал только дневной, и «⚪ WAIT» в одном
+            # сообщении с молчащим гвардом сбивал с толку. При расхождении
+            # показываем оба с подписями; унификация источников — план 20.07.
+            tact = tactical_verdicts.get(pos.coin)
+            if tact in ("LONG", "SHORT", "WAIT") and tact != verdict:
+                bits.append(f"{v_emoji} {verdict} дн. · "
+                            f"{_EMO[tact]} {tact} такт.{mismatch_mark}")
+            else:
+                bits.append(f"{v_emoji} {verdict}{mismatch_mark}")
 
         lines.append(f"{prefix}" + " • ".join(bits))
 
@@ -693,12 +706,25 @@ def render_daily_report(
     except Exception:
         pend = {}
 
+    tact_verdicts = {}
+    try:
+        import json as _json2
+        from pathlib import Path as _Path2
+        _tp = _Path2("state/tactical_state.json")
+        if _tp.exists():
+            _ts = _json2.loads(_tp.read_text())
+            tact_verdicts = {c: (v or {}).get("last_verdict")
+                             for c, v in _ts.items() if isinstance(v, dict)}
+    except Exception:
+        tact_verdicts = {}
+
     orphan_block = _render_orphan(
         matches, marks, prev_day_marks,
         sl_orders=sl_orders,
         total_account_value=total_account_value,
         coin_verdicts=coin_verdicts,
         pending_exit=pend,
+        tactical_verdicts=tact_verdicts,
     )
     if orphan_block:
         parts.append(orphan_block)
