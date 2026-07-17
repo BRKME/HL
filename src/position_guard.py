@@ -88,6 +88,18 @@ _REASON_HUMAN = {
 }
 
 
+def exit_alert_needed(real_side) -> bool:
+    """Пуш о выходе нужен, только если есть что делать или есть сомнение.
+
+    'FLAT' (портфель проверен, позиции нет) — «действий не требуется»
+    не заслуживает уведомления (17.07, шум по ZEC). None (проверка
+    портфеля упала) алертит по-прежнему — перестраховка. Журнальная
+    запись пишется в ЛЮБОМ случае: exit_reason кормит статистику
+    (ворота zone_strength на разморозке 20.07).
+    """
+    return real_side != "FLAT"
+
+
 def format_exit_alert(coin: str, ex: dict, real_side=None) -> str:
     """real_side: сторона РЕАЛЬНОЙ позиции в портфеле ('LONG'/'SHORT'),
     'FLAT' если портфель проверен и позиции нет, None если проверить не
@@ -220,13 +232,17 @@ def run() -> int:
         ex = evaluate_exit(sig, price, verdict, regime)
         if not ex:
             continue
-        alerts.append(format_exit_alert(coin, ex, _real_position_side(coin)))
-        # фиксация выхода: журнал + state (позиция закрыта в трекинге)
+        real_side = _real_position_side(coin)
+        if exit_alert_needed(real_side):
+            alerts.append(format_exit_alert(coin, ex, real_side))
+        # фиксация выхода: журнал + state (позиция закрыта в трекинге).
+        # Пишется ВСЕГДА, notified показывает, ушёл ли пуш оператору.
         rec = {"ts": now, "coin": coin, "direction": "EXIT",
                "exit_reason": ex["reason"], "exit_price": ex["exit_price"],
                "pnl_r": ex["pnl_r"], "entry": ex["entry"], "sl": ex["sl"],
                "tp": ex["tp"], "closed_direction": direction,
-               "regime": regime, "emitted": True, "suppressed_by": None}
+               "regime": regime, "emitted": True, "suppressed_by": None,
+               "notified": exit_alert_needed(real_side)}
         with TACTICAL_JOURNAL.open("a") as f:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
         st["last_action_verdict"] = None

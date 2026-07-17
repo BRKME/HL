@@ -101,3 +101,17 @@ def test_main_block_is_last_statement():
     src = pathlib.Path("src/position_guard.py").read_text()
     tail = src[src.index('if __name__ == "__main__"'):]
     assert "def " not in tail, "определения ниже __main__-блока недопустимы"
+
+
+# ── 17.07: модельный выход без позиции — журнал да, пуш нет ─────────────────
+
+def test_exit_alert_needed_only_when_not_flat():
+    """Пуш «в портфеле позиции нет, действий не требуется» — шум: нет
+    действия, не нужно уведомление. Журнальная запись остаётся всегда
+    (exit_reason кормит ворота zone_strength 20.07). None (портфель
+    проверить не удалось) по-прежнему алертит — перестраховка."""
+    from src.position_guard import exit_alert_needed
+    assert exit_alert_needed("LONG") is True
+    assert exit_alert_needed("SHORT") is True
+    assert exit_alert_needed(None) is True     # проверка упала — алертим
+    assert exit_alert_needed("FLAT") is False  # подтверждённо вне позиции
