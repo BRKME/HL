@@ -769,3 +769,4 @@
 {"ts": "2026-07-18T14:19:55.832762+00:00", "source": "daily_monitor", "coin": "MORPHO", "mark": 1.9889, "verdict": "LONG", "rationale": "(position)", "regime": "BULL", "phase": "EARLY_BEAR"}
 {"ts": "2026-07-18T15:57:23.861068+00:00", "source": "daily_monitor", "coin": "MORPHO", "mark": 1.9852, "verdict": "LONG", "rationale": "(position)", "regime": "BULL", "phase": "EARLY_BEAR"}
 {"ts": "2026-07-18T17:56:04.278084+00:00", "source": "daily_monitor", "coin": "MORPHO", "mark": 1.9764, "verdict": "LONG", "rationale": "(position)", "regime": "BULL", "phase": "EARLY_BEAR"}
+{"ts": "2026-07-18T20:03:42.556320+00:00", "source": "daily_monitor", "coin": "MORPHO", "mark": 2.0259, "verdict": "LONG", "rationale": "(position)", "regime": "BULL", "phase": "EARLY_BEAR"}
