@@ -35,10 +35,10 @@
   "last_change_ts": "2026-07-06T20:19:39.100244+00:00"
  },
  "MORPHO": {
-  "last_verdict": "WAIT",
-  "last_action_verdict": null,
-  "last_alert_ts": "2026-07-18T17:27:29.514003+00:00",
-  "last_change_ts": "2026-07-20T18:20:45.941877+00:00"
+  "last_verdict": "LONG",
+  "last_action_verdict": "LONG",
+  "last_alert_ts": "2026-07-20T18:26:40.642472+00:00",
+  "last_change_ts": "2026-07-20T18:26:40.642472+00:00"
  },
  "TAO": {
   "last_verdict": "WAIT",
