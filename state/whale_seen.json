@@ -2,21 +2,9 @@
   "entries": [
     {
       "rule": "WHALE_NEW_OPEN",
-      "whale": "0xf5d81a135f756ca16544e53c20fc20643ec3ad53",
-      "coin": "ETH",
-      "ts": 1784122662
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0xf5d81a135f756ca16544e53c20fc20643ec3ad53",
-      "coin": "HYPE",
-      "ts": 1784122662
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0xf5d81a135f756ca16544e53c20fc20643ec3ad53",
+      "whale": "0x8c96e5a2d770f9f2c9d2464ce4e741df0b2bca57",
       "coin": "BTC",
-      "ts": 1784122662
+      "ts": 1784529758
     }
   ]
 }
