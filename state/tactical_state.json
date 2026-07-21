@@ -25,9 +25,9 @@
  },
  "HYPE": {
   "last_verdict": "WAIT",
-  "last_action_verdict": "LONG",
+  "last_action_verdict": null,
   "last_alert_ts": "2026-07-21T07:03:36.420307+00:00",
-  "last_change_ts": "2026-07-21T07:03:36.420307+00:00"
+  "last_change_ts": "2026-07-21T17:46:30.947112+00:00"
  },
  "ASTER": {
   "last_verdict": "WAIT",
