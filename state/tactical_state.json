@@ -19,9 +19,9 @@
  },
  "NEAR": {
   "last_verdict": "WAIT",
-  "last_action_verdict": "LONG",
+  "last_action_verdict": null,
   "last_alert_ts": "2026-07-20T14:36:35.596839+00:00",
-  "last_change_ts": "2026-07-20T14:36:35.596839+00:00"
+  "last_change_ts": "2026-07-21T19:52:24.783110+00:00"
  },
  "HYPE": {
   "last_verdict": "WAIT",
