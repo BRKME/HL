@@ -787,3 +787,5 @@
 {"ts": "2026-07-21T12:23:39.073168+00:00", "source": "daily_monitor", "coin": "ETH", "mark": 1940.2, "verdict": "WAIT", "rationale": "(position)", "regime": "BULL", "phase": "EARLY_BEAR"}
 {"ts": "2026-07-21T15:03:36.960622+00:00", "source": "daily_monitor", "coin": "ETH", "mark": 1925.8, "verdict": "WAIT", "rationale": "(position)", "regime": "BULL", "phase": "EARLY_BEAR"}
 {"ts": "2026-07-21T15:03:36.960622+00:00", "source": "daily_monitor", "coin": "MORPHO", "mark": 2.0085, "verdict": "LONG", "rationale": "(position)", "regime": "BULL", "phase": "EARLY_BEAR"}
+{"ts": "2026-07-21T18:15:57.996111+00:00", "source": "daily_monitor", "coin": "ETH", "mark": 1920.5, "verdict": "WAIT", "rationale": "(position)", "regime": "BULL", "phase": "EARLY_BEAR"}
+{"ts": "2026-07-21T18:15:57.996111+00:00", "source": "daily_monitor", "coin": "MORPHO", "mark": 2.02976, "verdict": "LONG", "rationale": "(position)", "regime": "BULL", "phase": "EARLY_BEAR"}
