@@ -795,3 +795,4 @@
 {"ts": "2026-07-22T12:24:52.758630+00:00", "source": "daily_monitor", "coin": "ZEC", "mark": 512.95, "verdict": "LONG", "rationale": "(position)", "regime": "BULL", "phase": "EARLY_BEAR"}
 {"ts": "2026-07-22T15:03:44.984058+00:00", "source": "daily_monitor", "coin": "ZEC", "mark": 511.58, "verdict": "LONG", "rationale": "(position)", "regime": "BULL", "phase": "EARLY_BEAR"}
 {"ts": "2026-07-22T18:07:11.005689+00:00", "source": "daily_monitor", "coin": "ZEC", "mark": 515.91, "verdict": "LONG", "rationale": "(position)", "regime": "BULL", "phase": "EARLY_BEAR"}
+{"ts": "2026-07-22T20:10:55.979383+00:00", "source": "daily_monitor", "coin": "ZEC", "mark": 509.17, "verdict": "LONG", "rationale": "(position)", "regime": "BULL", "phase": "EARLY_BEAR"}
