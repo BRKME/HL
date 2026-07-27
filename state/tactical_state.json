@@ -30,7 +30,7 @@
   "last_change_ts": "2026-07-21T17:46:30.947112+00:00"
  },
  "ASTER": {
-  "last_verdict": "WAIT",
+  "last_verdict": "SHORT",
   "last_action_verdict": null,
   "last_alert_ts": "2026-07-27T04:11:12.401480+00:00",
   "last_change_ts": "2026-07-27T11:41:07.982234+00:00"
