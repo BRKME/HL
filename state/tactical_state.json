@@ -43,8 +43,8 @@
  },
  "TAO": {
   "last_verdict": "WAIT",
-  "last_action_verdict": "SHORT",
+  "last_action_verdict": null,
   "last_alert_ts": "2026-07-27T04:11:12.401480+00:00",
-  "last_change_ts": "2026-07-27T04:11:12.401480+00:00"
+  "last_change_ts": "2026-07-27T23:27:40.577855+00:00"
  }
 }
