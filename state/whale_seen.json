@@ -2,9 +2,9 @@
   "entries": [
     {
       "rule": "WHALE_NEW_OPEN",
-      "whale": "0x8c96e5a2d770f9f2c9d2464ce4e741df0b2bca57",
-      "coin": "BTC",
-      "ts": 1784529758
+      "whale": "0x461cc78cc9ddd66b0778aea759bdf0866a5ad2f2",
+      "coin": "ZEC",
+      "ts": 1785358327
     }
   ]
 }
