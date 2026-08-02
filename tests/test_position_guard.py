@@ -115,3 +115,105 @@ def test_exit_alert_needed_only_when_not_flat():
     assert exit_alert_needed("SHORT") is True
     assert exit_alert_needed(None) is True     # проверка упала — алертим
     assert exit_alert_needed("FLAT") is False  # подтверждённо вне позиции
+
+
+# ===================== Гистерезис verdict_flip (02.08) =====================
+# Пре-регистрация: docs/PLAN_UNFREEZE_20_07.md п.1. K=3 откалиброван на
+# журнале с 01.07 (шумовые серии WAIT: 1-2 тика, настоящие: 6+).
+
+from src.position_guard import (  # noqa: E402
+    FLIP_CONFIRM_RUNS, POLICY_VERSION, is_reversal, next_flip_streak,
+)
+
+
+def _long_sig(entry=100.0, sl=90.0, tp=130.0):
+    return {"direction": "LONG", "entry": entry, "sl": sl, "tp": tp}
+
+
+def _short_sig(entry=100.0, sl=110.0, tp=70.0):
+    return {"direction": "SHORT", "entry": entry, "sl": sl, "tp": tp}
+
+
+def test_k_is_three():
+    """K зафиксирован в коде: разрыв в данных между 2 и 6 тиками."""
+    assert FLIP_CONFIRM_RUNS == 3
+
+
+def test_single_wait_dip_does_not_exit():
+    """Нырок на один прогон — шум, позиция держится."""
+    ex = evaluate_exit(_long_sig(), price=105.0, verdict="WAIT",
+                       regime=None, flip_streak=1)
+    assert ex is None
+
+
+def test_two_wait_dips_still_hold():
+    ex = evaluate_exit(_long_sig(), price=105.0, verdict="WAIT",
+                       regime=None, flip_streak=2)
+    assert ex is None
+
+
+def test_k_consecutive_wait_triggers_exit():
+    """На K-м подряд прогоне выход состоится."""
+    ex = evaluate_exit(_long_sig(), price=105.0, verdict="WAIT",
+                       regime=None, flip_streak=FLIP_CONFIRM_RUNS)
+    assert ex is not None
+    assert ex["reason"] == "verdict_flip"
+
+
+def test_opposite_verdict_exits_immediately_long():
+    """LONG + вердикт SHORT = разворот, гистерезис не применяется."""
+    ex = evaluate_exit(_long_sig(), price=105.0, verdict="SHORT",
+                       regime=None, flip_streak=1)
+    assert ex is not None
+    assert ex["reason"] == "verdict_flip"
+
+
+def test_opposite_verdict_exits_immediately_short():
+    ex = evaluate_exit(_short_sig(), price=95.0, verdict="LONG",
+                       regime=None, flip_streak=1)
+    assert ex is not None
+    assert ex["reason"] == "verdict_flip"
+
+
+def test_streak_resets_when_verdict_returns():
+    assert next_flip_streak(2, "LONG", "LONG") == 0
+    assert next_flip_streak(2, None, "LONG") == 0
+
+
+def test_streak_increments_while_off_side():
+    assert next_flip_streak(0, "WAIT", "LONG") == 1
+    assert next_flip_streak(1, "WAIT", "LONG") == 2
+    assert next_flip_streak(2, "WAIT", "LONG") == 3
+
+
+def test_is_reversal_only_for_opposite_side():
+    assert is_reversal("SHORT", "LONG") is True
+    assert is_reversal("LONG", "SHORT") is True
+    assert is_reversal("WAIT", "LONG") is False
+    assert is_reversal(None, "LONG") is False
+
+
+def test_sl_breach_ignores_hysteresis():
+    """Стоп — пре-коммит входа, гистерезис на него не распространяется."""
+    ex = evaluate_exit(_long_sig(), price=89.0, verdict="WAIT",
+                       regime=None, flip_streak=1)
+    assert ex["reason"] == "sl_breach"
+
+
+def test_regime_flip_fires_while_flip_pending():
+    """Режимный разворот — независимая причина, висящий flip её не глушит."""
+    ex = evaluate_exit(_long_sig(), price=105.0, verdict="WAIT",
+                       regime="BEAR", flip_streak=1)
+    assert ex is not None
+    assert ex["reason"] == "regime_flip"
+
+
+def test_default_flip_streak_preserves_old_behaviour():
+    """Вызов без flip_streak (старый код/тесты) выходит сразу, как раньше."""
+    ex = evaluate_exit(_long_sig(), price=105.0, verdict="WAIT", regime=None)
+    assert ex is not None
+    assert ex["reason"] == "verdict_flip"
+
+
+def test_policy_version_is_two():
+    assert POLICY_VERSION == 2

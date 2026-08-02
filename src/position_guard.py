@@ -31,10 +31,58 @@ GUARD_STATE = STATE_DIR / "guard_state.json"
 
 _OPPOSES = {"SHORT": "BULL", "LONG": "BEAR"}
 
+# --- Гистерезис verdict_flip (разморозка 20.07, внедрено 02.08) -------------
+#
+# Проблема: тактика считает WAIT нейтралью, гвард по тому же WAIT кричит
+# «выходи». Итог на 45 выходов — 42 verdict_flip (93%), из 39 перевходов
+# 8 случились через 6–12 минут после выхода. Это дребезг, не решения.
+#
+# Калибровка K на журнале с 01.07 (15 серий WAIT подряд):
+#   длина 1 тик  — 4 серии  \  шум
+#   длина 2 тика — 2 серии  /
+#   длина 6+     — 9 серий (6,10,20,25,29,35,45,50,50) — настоящие
+# Между 2 и 6 разрыв: K=3 срезает весь шумовой кластер и не задевает ни
+# одной настоящей серии. Гвард ходит раз в 2 часа => K=3 ≈ 6 часов.
+FLIP_CONFIRM_RUNS = 3
+
+# Версия exit-политики. Пишется в каждую exit-запись журнала, чтобы
+# пред/пост-выборки не смешивались в статистике: 1 = мгновенный flip
+# (до 02.08), 2 = с гистерезисом.
+POLICY_VERSION = 2
+
+
+def is_reversal(verdict: Optional[str], direction: str) -> bool:
+    """Вердикт ПРОТИВОПОЛОЖЕН стороне позиции — это разворот, не шум.
+
+    LONG-позиция + вердикт SHORT (и наоборот) выходит немедленно, без
+    гистерезиса. Ждать подтверждения на развороте — терять деньги.
+    """
+    return ((direction == "LONG" and verdict == "SHORT")
+            or (direction == "SHORT" and verdict == "LONG"))
+
+
+def next_flip_streak(prev_streak: int, verdict: Optional[str],
+                     direction: str) -> int:
+    """Счётчик подряд идущих прогонов, где вердикт не на стороне позиции.
+
+    Возврат вердикта на сторону (или его отсутствие) обнуляет счётчик —
+    именно это гасит одиночные WAIT-нырки.
+    """
+    if verdict is not None and verdict != direction:
+        return int(prev_streak or 0) + 1
+    return 0
+
 
 def evaluate_exit(sig: dict, price: Optional[float], verdict: Optional[str],
-                  regime: Optional[str]) -> Optional[dict]:
+                  regime: Optional[str], flip_streak: int = FLIP_CONFIRM_RUNS,
+                  k: int = FLIP_CONFIRM_RUNS) -> Optional[dict]:
     """Решение о выходе для одной позиции. None = держим (или нет данных).
+
+    flip_streak — сколько прогонов подряд (включая текущий) вердикт стоит
+    не на стороне позиции. verdict_flip срабатывает только при
+    flip_streak >= k, кроме разворота (см. is_reversal) — тот немедленно.
+    По умолчанию flip_streak=k, чтобы старые вызовы без гистерезиса
+    сохраняли прежнее поведение.
 
     Чистая функция — вся политика здесь, тестируется без сети."""
     direction = sig.get("direction")
@@ -59,9 +107,13 @@ def evaluate_exit(sig: dict, price: Optional[float], verdict: Optional[str],
         reason = "tp_hit"
     elif direction == "LONG" and price >= tp:
         reason = "tp_hit"
-    elif verdict is not None and verdict != direction:
+    elif (verdict is not None and verdict != direction
+          and (is_reversal(verdict, direction) or int(flip_streak or 0) >= k)):
+        # разворот — сразу; нейтраль (WAIT) — только после k подтверждений
         reason = "verdict_flip"
     elif regime is not None and regime == _OPPOSES[direction]:
+        # важно: сюда попадаем и при «висящем» flip'е — режимный разворот
+        # это независимая причина и гистерезисом не гасится
         reason = "regime_flip"
 
     if reason is None:
@@ -229,9 +281,22 @@ def run() -> int:
             continue
         price = _current_price(coin)
         verdict = st.get("last_verdict")
-        ex = evaluate_exit(sig, price, verdict, regime)
+
+        # гистерезис: счётчик подряд идущих «вердикт не на стороне» прогонов
+        streaks = guard.setdefault("flip_streak", {})
+        streak = next_flip_streak(streaks.get(coin, 0), verdict, direction)
+        if streak:
+            streaks[coin] = streak
+        else:
+            streaks.pop(coin, None)
+
+        ex = evaluate_exit(sig, price, verdict, regime, flip_streak=streak)
         if not ex:
+            if streak and not is_reversal(verdict, direction):
+                # нырок ещё не подтверждён — молча копим, без алерта
+                print(f"[guard] {coin} flip pending {streak}/{FLIP_CONFIRM_RUNS}")
             continue
+        streaks.pop(coin, None)  # выход состоялся — счётчик больше не нужен
         real_side = _real_position_side(coin)
         if exit_alert_needed(real_side):
             alerts.append(format_exit_alert(coin, ex, real_side))
@@ -242,7 +307,8 @@ def run() -> int:
                "pnl_r": ex["pnl_r"], "entry": ex["entry"], "sl": ex["sl"],
                "tp": ex["tp"], "closed_direction": direction,
                "regime": regime, "emitted": True, "suppressed_by": None,
-               "notified": exit_alert_needed(real_side)}
+               "notified": exit_alert_needed(real_side),
+               "policy_version": POLICY_VERSION}
         with TACTICAL_JOURNAL.open("a") as f:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
         st["last_action_verdict"] = None
