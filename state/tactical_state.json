@@ -6,10 +6,10 @@
   "last_change_ts": "2026-08-02T17:29:50.315910+00:00"
  },
  "ETH": {
-  "last_verdict": "WAIT",
-  "last_action_verdict": "WAIT",
-  "last_alert_ts": "2026-06-29T11:29:08.411514+00:00",
-  "last_change_ts": "2026-07-05T17:32:27.303079+00:00"
+  "last_verdict": "SHORT",
+  "last_action_verdict": "SHORT",
+  "last_alert_ts": "2026-08-03T07:53:52.941490+00:00",
+  "last_change_ts": "2026-08-03T07:53:52.941490+00:00"
  },
  "ZEC": {
   "last_verdict": "WAIT",
@@ -42,7 +42,7 @@
   "last_change_ts": "2026-08-01T17:15:52.017844+00:00"
  },
  "TAO": {
-  "last_verdict": "SHORT",
+  "last_verdict": "WAIT",
   "last_action_verdict": "SHORT",
   "last_alert_ts": "2026-08-02T04:01:46.515793+00:00",
   "last_change_ts": "2026-08-02T04:01:46.515793+00:00"
