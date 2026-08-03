@@ -43,7 +43,7 @@ def test_long_with_wait_verdict_is_neutral():
 
 
 def test_wait_final_but_opposite_raw_is_against_raw():
-    """Ровно случай BTC/ETH: сырой SHORT погашен иерархией в WAIT."""
+    """Ровно случай BTC/ETH: SHORT по графику погашен иерархией в WAIT."""
     assert position_stance("LONG", "WAIT", "SHORT") is Stance.AGAINST_RAW
 
 
@@ -125,7 +125,7 @@ def test_position_against_suppressed_raw_is_marked():
         coin_verdicts={"BTC": "WAIT"},
         raw_verdicts={"BTC": "SHORT"},
     )
-    assert "ПРОТИВ СЫРОГО" in out
+    assert "ГРАФИК ПРОТИВ" in out
     assert "SHORT" in out
 
 

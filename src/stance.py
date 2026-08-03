@@ -26,7 +26,7 @@ class Stance(Enum):
     ALIGNED = "aligned"            # вердикт за позицию
     NEUTRAL = "neutral"            # вердикт молчит и сырой не против
     AGAINST = "against"            # финальный вердикт против позиции
-    AGAINST_RAW = "against_raw"    # финал молчит, но сырой сигнал против
+    AGAINST_RAW = "against_raw"    # финал молчит, но график против
 
 
 def _norm(v: Optional[str]) -> Optional[str]:
@@ -41,7 +41,7 @@ def position_stance(side: Optional[str], final: Optional[str],
     """Как вердикт относится к открытой позиции.
 
     Финальный вердикт главнее: если он прямо против — это AGAINST. Если он
-    молчит, но сырой сигнал направлен против позиции, это AGAINST_RAW —
+    молчит, но сигнал по графику направлен против позиции, это AGAINST_RAW —
     самый важный случай, потому что раньше он выглядел как нейтральное
     молчание.
     """
@@ -62,7 +62,13 @@ def position_stance(side: Optional[str], final: Optional[str],
 
 
 def format_verdict_pair(final: Optional[str], raw: Optional[str] = None) -> str:
-    """«⚪ WAIT ← 🔴 SHORT» когда слои расходятся, иначе просто вердикт."""
+    """«⚪ WAIT ← 🔴 SHORT по графику» когда слои разошлись.
+
+    «По графику» вместо «сырой»: последнее — термин из кода (вердикт до
+    наложения режима), в интерфейсе он ничего не объясняет. Первое прямо
+    называет источник сигнала: EMA и перекупленность самой монеты, без
+    стратегического контекста.
+    """
     final_n = _norm(final)
     raw_n = _norm(raw)
     if final_n is None:
@@ -70,4 +76,4 @@ def format_verdict_pair(final: Optional[str], raw: Optional[str] = None) -> str:
     head = f"{_EMOJI[final_n]} {final_n}"
     if raw_n is None or raw_n == final_n:
         return head
-    return f"{head} ← {_EMOJI[raw_n]} {raw_n} сыр."
+    return f"{head} ← {_EMOJI[raw_n]} {raw_n} по графику"

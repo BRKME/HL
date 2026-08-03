@@ -514,7 +514,8 @@ def _render_orphan(
             bits.append("⚠️ <b>ПРОТИВ СИСТЕМЫ</b>")
         elif stance is Stance.AGAINST_RAW:
             raw_v = (raw_verdicts or {}).get(pos.coin)
-            bits.append(f"⚠️ <b>ПРОТИВ СЫРОГО</b> {_e(str(raw_v))}")
+            bits.append(f"⚠️ <b>ГРАФИК ПРОТИВ</b> ({_e(str(raw_v))}, "
+                        f"режим отменил)")
 
         lines.append(f"{prefix}" + " • ".join(bits))
 
