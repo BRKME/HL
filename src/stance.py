@@ -61,19 +61,28 @@ def position_stance(side: Optional[str], final: Optional[str],
     return Stance.NEUTRAL
 
 
-def format_verdict_pair(final: Optional[str], raw: Optional[str] = None) -> str:
-    """«⚪ WAIT ← 🔴 SHORT по графику» когда слои разошлись.
+def format_position_verdict(side: Optional[str], final: Optional[str],
+                            raw: Optional[str] = None) -> str:
+    """Вердикт для строки позиции: статус, и только при конфликте — против чего.
 
-    «По графику» вместо «сырой»: последнее — термин из кода (вердикт до
-    наложения режима), в интерфейсе он ничего не объясняет. Первое прямо
-    называет источник сигнала: EMA и перекупленность самой монеты, без
-    стратегического контекста.
+    Первая версия печатала расхождение слоёв всегда и отдельным маркером в
+    придачу — «⚪ WAIT ← 🔴 SHORT по графику • ⚠️ ГРАФИК ПРОТИВ (SHORT,
+    режим отменил)». Это одно и то же сказано дважды, и читать в потоке
+    невозможно.
+
+    Правило: показываем текущий статус. Второй элемент добавляем ТОЛЬКО
+    если какой-то слой направлен против открытой позиции — расхождение
+    слоёв само по себе оператору ничего не должно стоить внимания.
     """
     final_n = _norm(final)
-    raw_n = _norm(raw)
     if final_n is None:
         return ""
     head = f"{_EMOJI[final_n]} {final_n}"
-    if raw_n is None or raw_n == final_n:
-        return head
-    return f"{head} ← {_EMOJI[raw_n]} {raw_n} по графику"
+
+    stance = position_stance(side, final, raw)
+    if stance is Stance.AGAINST:
+        return f"{head} против позиции"
+    if stance is Stance.AGAINST_RAW:
+        raw_n = _norm(raw)
+        return f"{head}, но график {_EMOJI[raw_n]} {raw_n} против"
+    return head

@@ -21,7 +21,7 @@ from src.matcher import MatchResult
 from src.monitor_rules import Alert, SEV_INFO, SEV_WARN, SEV_CRITICAL
 from src.portfolio import SpotPosition
 from src.portfolio_performance import MAX_PLAUSIBLE_ROI, roi_is_reliable
-from src.stance import Stance, format_verdict_pair, position_stance
+from src.stance import format_position_verdict
 
 
 _MOSCOW = timezone(timedelta(hours=3))
@@ -506,16 +506,9 @@ def _render_orphan(
                 # Сырой сигнал показывается, когда его погасил стратегический
                 # слой (03.08): ⚪ WAIT без пояснения читался как «мнения нет»,
                 # хотя мнение было и его заглушила иерархия.
-                bits.append(f"{format_verdict_pair(verdict, raw_v)}{mismatch_mark}")
-
-        stance = position_stance(side, coin_verdicts.get(pos.coin),
-                                 (raw_verdicts or {}).get(pos.coin))
-        if stance is Stance.AGAINST:
-            bits.append("⚠️ <b>ПРОТИВ СИСТЕМЫ</b>")
-        elif stance is Stance.AGAINST_RAW:
-            raw_v = (raw_verdicts or {}).get(pos.coin)
-            bits.append(f"⚠️ <b>ГРАФИК ПРОТИВ</b> ({_e(str(raw_v))}, "
-                        f"режим отменил)")
+                bits.append(
+                    f"{format_position_verdict(side, verdict, raw_v)}"
+                    f"{mismatch_mark}")
 
         lines.append(f"{prefix}" + " • ".join(bits))
 

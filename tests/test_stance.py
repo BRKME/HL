@@ -21,7 +21,7 @@
 """
 import pytest
 
-from src.stance import Stance, position_stance, format_verdict_pair
+from src.stance import Stance, position_stance, format_position_verdict
 
 
 # ------------------------------------------------------------ position_stance
@@ -65,28 +65,33 @@ def test_side_is_case_insensitive():
     assert position_stance("long", "SHORT", "SHORT") is Stance.AGAINST
 
 
-# ------------------------------------------------------- format_verdict_pair
+# --------------------------------------------------- format_position_verdict
 
-def test_agreeing_pair_renders_once():
-    out = format_verdict_pair("LONG", "LONG")
-    assert out == "🟢 LONG"
-
-
-def test_suppressed_raw_is_shown():
-    out = format_verdict_pair("WAIT", "SHORT")
-    assert "WAIT" in out
-    assert "SHORT" in out
-    assert "🔴" in out
+def test_no_conflict_renders_status_only():
+    assert format_position_verdict("LONG", "LONG", "LONG") == "🟢 LONG"
 
 
-def test_raw_none_renders_final_only():
-    assert format_verdict_pair("WAIT", None) == "⚪ WAIT"
+def test_layer_divergence_alone_is_not_shown():
+    """Слои разошлись, но против позиции никто — лишнего не печатаем."""
+    assert format_position_verdict("LONG", "LONG", "WAIT") == "🟢 LONG"
 
 
-def test_regime_created_long_is_shown_too():
-    """Обратный случай: сырой WAIT, финал LONG — режим создал сигнал."""
-    out = format_verdict_pair("LONG", "WAIT")
-    assert "LONG" in out and "WAIT" in out
+def test_silent_verdict_renders_status_only():
+    assert format_position_verdict("LONG", "WAIT", "LONG") == "⚪ WAIT"
+
+
+def test_verdict_against_position_says_so():
+    out = format_position_verdict("LONG", "SHORT", "SHORT")
+    assert out == "🔴 SHORT против позиции"
+
+
+def test_chart_against_position_is_named_separately():
+    out = format_position_verdict("LONG", "WAIT", "SHORT")
+    assert "WAIT" in out and "график" in out and "SHORT" in out
+
+
+def test_empty_verdict_renders_nothing():
+    assert format_position_verdict("LONG", None, None) == ""
 
 
 # ------------------------------------------------------------ в отчёте
@@ -106,7 +111,7 @@ def test_position_against_system_is_marked_in_report():
         {"NEAR": 1.7489},
         coin_verdicts={"NEAR": "SHORT"},
     )
-    assert "ПРОТИВ СИСТЕМЫ" in out
+    assert "против позиции" in out
 
 
 def test_position_against_suppressed_raw_is_marked():
@@ -125,7 +130,7 @@ def test_position_against_suppressed_raw_is_marked():
         coin_verdicts={"BTC": "WAIT"},
         raw_verdicts={"BTC": "SHORT"},
     )
-    assert "ГРАФИК ПРОТИВ" in out
+    assert "график" in out
     assert "SHORT" in out
 
 
@@ -144,4 +149,4 @@ def test_aligned_position_gets_no_marker():
         {"NEAR": 1.7489},
         coin_verdicts={"NEAR": "LONG"},
     )
-    assert "ПРОТИВ" not in out
+    assert "против" not in out
