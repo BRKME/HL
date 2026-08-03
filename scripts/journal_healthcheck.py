@@ -162,21 +162,26 @@ def main() -> int:
     # --- Health summary ---
     print("=" * 60)
     print("HEALTH SUMMARY")
-    issues = []
-    if raw_recorded == 0:
-        issues.append("verdict_raw never recorded (9 June fix not working)")
-    if rs_30_count == 0:
-        issues.append("RS never recorded (16 June fix not working)")
+    # Проверки вынесены в src/journal_health.py — до 03.08 они жили здесь и
+    # были построены на «поле не писалось НИКОГДА». При 594 исторических
+    # записях такой тест не срабатывает уже никогда, и месяц простоя
+    # whitelist_focus прошёл с вердиктом «OK». Теперь всё по свежести.
+    sys.path.insert(0, str(repo_root))
+    from src.journal_health import run_checks
+    from src.whitelist_focus import FOCUS_COINS
+
+    issues = list(run_checks(entries, datetime.now(timezone.utc), FOCUS_COINS))
     if len(phase_counts) == 1:
-        issues.append("Only one phase observed — can't compare regime impact")
-    if ts_list and (datetime.now(timezone.utc) - max(ts_list)).days > 2:
-        issues.append(f"Last entry is {(datetime.now(timezone.utc) - max(ts_list)).days} days old — bot may have stopped writing")
+        from src.journal_health import HealthIssue
+        issues.append(HealthIssue(
+            "warn", "наблюдалась лишь одна фаза — вклад режима не сравнить"))
 
     if not issues:
         print("OK — no critical issues detected")
     else:
         for i in issues:
-            print(f"  ⚠️  {i}")
+            mark = "🔴" if i.severity == "critical" else "⚠️"
+            print(f"  {mark}  {i.message}")
     print()
     return 0 if not issues else 2
 

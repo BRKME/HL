@@ -12,6 +12,8 @@ from pathlib import Path
 
 import pytest
 
+from src.whitelist_focus import FOCUS_COINS
+
 
 SCRIPT = Path(__file__).resolve().parent.parent / "scripts" / "journal_healthcheck.py"
 
@@ -32,6 +34,10 @@ def _run(repo: Path) -> tuple[int, str]:
     scripts_dir.mkdir(parents=True, exist_ok=True)
     target = scripts_dir / "journal_healthcheck.py"
     target.write_text(SCRIPT.read_text(encoding="utf-8"), encoding="utf-8")
+    # Скрипт с 03.08 импортирует src.journal_health — песочнице нужен src/
+    src_link = repo / "src"
+    if not src_link.exists():
+        src_link.symlink_to(SCRIPT.resolve().parent.parent / "src")
     result = subprocess.run(
         [sys.executable, str(target)],
         capture_output=True, text=True, timeout=30,
@@ -78,7 +84,7 @@ def test_healthy_journal_exits_with_status_0(tmp_path):
     for i in range(7):
         ts = now - timedelta(days=i)
         phase = "MID_BULL" if i % 2 else "LATE_BEAR"  # variance
-        for coin in ("ETH", "BTC"):
+        for coin in FOCUS_COINS:
             entries.append(_entry(
                 ts=ts, coin=coin, regime="BULL", phase=phase,
                 verdict_raw="LONG", rs_30d=12.5, rs_90d=-5.0,
@@ -98,7 +104,7 @@ def test_no_raw_verdict_triggers_warning(tmp_path):
     _write_journal(tmp_path, entries)
     code, out = _run(tmp_path)
     assert code == 2
-    assert "verdict_raw never recorded" in out
+    assert "поле verdict_raw не пишется вообще" in out
 
 
 def test_no_rs_triggers_warning(tmp_path):
@@ -110,7 +116,7 @@ def test_no_rs_triggers_warning(tmp_path):
     _write_journal(tmp_path, entries)
     code, out = _run(tmp_path)
     assert code == 2
-    assert "RS never recorded" in out
+    assert "поле rs_30d не пишется вообще" in out
 
 
 def test_single_phase_triggers_warning(tmp_path):
@@ -122,18 +128,18 @@ def test_single_phase_triggers_warning(tmp_path):
     _write_journal(tmp_path, entries)
     code, out = _run(tmp_path)
     assert code == 2
-    assert "Only one phase observed" in out
+    assert "лишь одна фаза" in out
 
 
 def test_stale_journal_triggers_warning(tmp_path):
-    """Last entry > 2 days old → bot may have stopped writing."""
+    """Журнал не пополняется — теперь ловится по каждому источнику."""
     old = datetime.now(timezone.utc) - timedelta(days=5)
     entries = [_entry(ts=old, verdict_raw="LONG", rs_30d=5.0,
                        phase="MID_BULL")]
     _write_journal(tmp_path, entries)
     code, out = _run(tmp_path)
     assert code == 2
-    assert "days old" in out
+    assert "источник whitelist_focus молчит" in out
 
 
 def test_disagreement_count_reported(tmp_path):

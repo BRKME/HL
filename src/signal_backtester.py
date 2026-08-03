@@ -233,10 +233,45 @@ def measure_outcome(
 
 # ----------------------------------------------------- grouping & aggregation
 
-def group_signals(signals: list[Signal]) -> dict[tuple[str, str, str], list[Signal]]:
-    """Group by (coin, rule, direction). Signals without a direction skipped."""
-    groups: dict[tuple[str, str, str], list[Signal]] = {}
+def dedupe_signals(signals: list[Signal]) -> list[Signal]:
+    """Collapse repeat sightings of the same whale position to one event.
+
+    The monitor re-reports standing positions on every run, so a single
+    whale decision can appear dozens of times. Every copy resolves against
+    the same candles at nearly the same price, so they win or lose together
+    — counting them separately inflates n_events without adding a single
+    independent observation, and n_events is half of is_actionable().
+
+    Measured 03.08: ETH shorts were 104 signals from 6 whales over 5 days,
+    two of whom produced 94 of them. One observation is one whale, one
+    coin, one direction, one day; the earliest sighting is kept because its
+    forward return is the one that was actually available to act on.
+
+    Signals with no whale id are left alone — unknown provenance must not
+    be merged into a single event.
+    """
+    best: dict[tuple, Signal] = {}
+    out: list[Signal] = []
     for s in signals:
+        whale = (s.details or {}).get("whale")
+        if not whale:
+            out.append(s)
+            continue
+        key = (whale, s.coin, extract_direction(s), s.ts.date())
+        prev = best.get(key)
+        if prev is None or s.ts < prev.ts:
+            best[key] = s
+    out.extend(best.values())
+    return sorted(out, key=lambda x: x.ts)
+
+
+def group_signals(signals: list[Signal]) -> dict[tuple[str, str, str], list[Signal]]:
+    """Group by (coin, rule, direction). Signals without a direction skipped.
+
+    Deduplicated first (03.08) — see dedupe_signals.
+    """
+    groups: dict[tuple[str, str, str], list[Signal]] = {}
+    for s in dedupe_signals(signals):
         direction = extract_direction(s)
         if direction is None:
             continue

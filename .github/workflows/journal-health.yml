@@ -1,0 +1,43 @@
+name: journal-health
+
+# Детектор тихого отказа. Появился 03.08 после того, как whitelist_focus
+# перестал писать 06.07 и это заметили только через четыре недели: канал
+# продолжал говорить каждые 2 часа, поэтому heartbeat молчал, а healthcheck
+# никто не запускал. Здесь он запускается сам и кричит в Telegram.
+
+on:
+  schedule:
+    - cron: "0 16 * * *"   # 19:00 MSK, после дневных прогонов
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hl-journal-health
+  cancel-in-progress: false
+
+jobs:
+  journal-health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install deps
+        run: pip install -r requirements.txt
+
+      - name: Run healthcheck and alert
+        run: python scripts/journal_health_alert.py

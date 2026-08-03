@@ -1,4 +1,4 @@
-# hl_weekly_planner
+# HL — недельный советник по Hyperliquid
 
 Еженедельная (суббота 10:00 MSK) рекомендация по покупке токенов на Hyperliquid:
 читает регим/фазу из OracAI, скорит whitelist по ТА, выдаёт план с SL в Telegram.
@@ -9,7 +9,7 @@
 OracAI (BRKME/OracAI)
   └→ state/last_output.json  (commits 2x/day)
         ↓
-hl_weekly_planner
+HL
   ├─ читает snapshot         → регим/фаза/риск/Top%/Bottom%/RSI
   ├─ derive_signal_strength  → STRONG / MODERATE / SKIP / EXIT + leverage
   ├─ HL info API             → mark, funding APR, OI, OHLC 220d

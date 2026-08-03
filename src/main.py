@@ -271,7 +271,7 @@ def main() -> int:
         print(tb, file=sys.stderr)
         try:
             telegram_sender.alert_owner(
-                f"❌ hl_weekly_planner упал:\n<pre>{tb[-2500:]}</pre>"
+                f"❌ HL упал:\n<pre>{tb[-2500:]}</pre>"
             )
         except Exception:
             pass
