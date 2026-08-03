@@ -80,14 +80,27 @@ def test_silent_verdict_renders_status_only():
     assert format_position_verdict("LONG", "WAIT", "LONG") == "⚪ WAIT"
 
 
-def test_verdict_against_position_says_so():
+def test_verdict_against_position_recommends_closing():
     out = format_position_verdict("LONG", "SHORT", "SHORT")
-    assert out == "🔴 SHORT против позиции"
+    assert out == "🔴 SHORT | Система рекомендует закрыть LONG"
 
 
-def test_chart_against_position_is_named_separately():
+def test_short_position_against_long_verdict():
+    out = format_position_verdict("SHORT", "LONG", "LONG")
+    assert out == "🟢 LONG | Система рекомендует закрыть SHORT"
+
+
+def test_suppressed_chart_signal_recommends_tightening_stop():
+    """Сигнал был погашен режимом — рекомендация из самого инварианта."""
     out = format_position_verdict("LONG", "WAIT", "SHORT")
-    assert "WAIT" in out and "график" in out and "SHORT" in out
+    assert out.startswith("⚪ WAIT | Система рекомендует подтянуть стоп")
+    assert "вниз" in out
+
+
+def test_suppressed_chart_signal_for_short_position():
+    out = format_position_verdict("SHORT", "WAIT", "LONG")
+    assert "подтянуть стоп" in out
+    assert "вверх" in out
 
 
 def test_empty_verdict_renders_nothing():
@@ -111,7 +124,7 @@ def test_position_against_system_is_marked_in_report():
         {"NEAR": 1.7489},
         coin_verdicts={"NEAR": "SHORT"},
     )
-    assert "против позиции" in out
+    assert "Система рекомендует закрыть" in out
 
 
 def test_position_against_suppressed_raw_is_marked():
@@ -130,8 +143,8 @@ def test_position_against_suppressed_raw_is_marked():
         coin_verdicts={"BTC": "WAIT"},
         raw_verdicts={"BTC": "SHORT"},
     )
-    assert "график" in out
-    assert "SHORT" in out
+    assert "Система рекомендует подтянуть стоп" in out
+    assert "вниз" in out
 
 
 def test_aligned_position_gets_no_marker():
@@ -149,4 +162,4 @@ def test_aligned_position_gets_no_marker():
         {"NEAR": 1.7489},
         coin_verdicts={"NEAR": "LONG"},
     )
-    assert "против" not in out
+    assert "Система рекомендует" not in out
