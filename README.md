@@ -47,3 +47,9 @@ HL
 Снапшот читается из `https://raw.githubusercontent.com/BRKME/OracAI/main/state/last_output.json`.
 Требуется наличие поля `cycle` (commit OracAI 2d9dfe5+, май 2026).
 Если поле отсутствует — бот падает явно с понятной ошибкой.
+
+## Политика
+
+- [docs/OPERATING_POLICY.md](docs/OPERATING_POLICY.md) — операционная политика: заморозка, чекпойнты, доктрина тихого отказа, язык интерфейса, журнал изменений
+- [docs/HIERARCHY_POLICY.md](docs/HIERARCHY_POLICY.md) — иерархия стратегия → тактика
+- [docs/KPI_SYSTEM.md](docs/KPI_SYSTEM.md) — KPI
