@@ -421,6 +421,7 @@ def _render_orphan(
     pending_exit: Optional[dict] = None,
     tactical_verdicts: Optional[dict[str, str]] = None,
     now=None,
+    holds: Optional[dict] = None,
 ) -> Optional[str]:
     """One-line per orphan (UI simplification round 3 + verdicts):
 
@@ -512,9 +513,20 @@ def _render_orphan(
             when = _fmt_msk(pend.get("ts", ""))
             reason = pend.get("exit_reason", "exit")
             age = _fmt_age(pend.get("ts", ""), now)
-            lines.append(
-                f"   🔴 <b>ЗАКРОЙ ПО ПОЛИТИКЕ</b> — exit ({_e(str(reason))}) "
-                f"{when} МСК{age}, позиция не закрыта")
+            hold = (holds or {}).get(pos.coin)
+            if hold is not None:
+                # Осознанное отклонение от политики (03.08): требование
+                # остаётся названным, но это решение оператора, а не
+                # пропущенное уведомление. Учитывается в статистике отдельно.
+                held_since = _fmt_msk(hold.since.isoformat())
+                note = f" — {_e(hold.note)}" if hold.note else ""
+                lines.append(
+                    f"   ⚠️ <b>ДЕРЖУ ПРОТИВ СИСТЕМЫ</b> с {held_since} МСК"
+                    f"{note} · стоит exit ({_e(str(reason))}) {when}{age}")
+            else:
+                lines.append(
+                    f"   🔴 <b>ЗАКРОЙ ПО ПОЛИТИКЕ</b> — exit ({_e(str(reason))}) "
+                    f"{when} МСК{age}, позиция не закрыта")
     return "\n".join(lines)
 
 
@@ -707,6 +719,13 @@ def render_daily_report(
     except Exception:
         pend = {}
 
+    try:
+        from pathlib import Path as _P
+        from src.manual_hold import load_holds as _lh
+        holds = _lh(_P("state"))
+    except Exception:
+        holds = {}
+
     parts: list[str] = [_render_header(
         now, total_account_value, wallet_count,
         matches=matches, marks=marks, performance=performance,
@@ -737,7 +756,8 @@ def render_daily_report(
     held = {getattr(m, "coin", None)
             or getattr(getattr(m, "position", None), "coin", None)
             for m in matches}
-    pend_held = {c: v for c, v in pend.items() if c in held}
+    pend_held = {c: v for c, v in pend.items()
+                 if c in held and c not in (holds or {})}
 
     if alerts_block:
         parts.append(alerts_block)
@@ -773,6 +793,7 @@ def render_daily_report(
         pending_exit=pend,
         tactical_verdicts=tact_verdicts,
         now=now,
+        holds=holds,
     )
     if orphan_block:
         parts.append(orphan_block)

@@ -1,0 +1,63 @@
+name: manual-hold
+
+# Пометить, что позиция держится ПРОТИВ стоящего требования закрыть.
+# Запускается вручную (Actions → manual-hold → Run workflow), в том числе
+# с телефона из приложения GitHub. Состояние коммитится в state/.
+
+on:
+  workflow_dispatch:
+    inputs:
+      coin:
+        description: "Монета (NEAR, ZEC, BTC…)"
+        required: true
+        type: string
+      action:
+        description: "Поставить или снять флаг"
+        required: true
+        default: "set"
+        type: choice
+        options: ["set", "clear"]
+      note:
+        description: "Причина — попадёт в отчёт и в разбор"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: hl-manual-hold
+  cancel-in-progress: false
+
+jobs:
+  manual-hold:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Apply hold
+        env:
+          COIN: ${{ inputs.coin }}
+          ACTION: ${{ inputs.action }}
+          NOTE: ${{ inputs.note }}
+        run: python scripts/manual_hold_cli.py
+
+      - name: Commit state
+        run: |
+          git config user.name "Claude"
+          git config user.email "claude@anthropic.com"
+          git add state/manual_holds.json || true
+          git diff --cached --quiet && echo "нет изменений" && exit 0
+          git commit -m "state: manual hold ${{ inputs.action }} ${{ inputs.coin }} [skip ci]"
+          git push

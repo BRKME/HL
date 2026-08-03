@@ -370,7 +370,11 @@ def run_daily_monitor(
     # user gets one consolidated morning ping instead of two.
     morning_digest: Optional[str] = None
     digest_verdicts: list = []  # for journal (only populated on morning run)
-    if now.hour == 7:  # 07:00 UTC == 10:00 MSK first daily-monitor tick
+    # NB: was `now.hour == 7`. GitHub Actions delivered that cron at 08–10
+    # UTC and the branch never fired — four weeks of verdict_raw/RS lost
+    # silently (see src/morning_gate.py). Now: first tick of the day.
+    from src.morning_gate import should_run_digest, mark_digest_done
+    if should_run_digest(now, _state_dir):
         try:
             from src.whitelist_focus import (
                 render_whitelist_verdicts, compute_all_verdicts, FOCUS_COINS,
@@ -396,6 +400,7 @@ def run_daily_monitor(
                 now=now, coin_data=digest_coin_data,
                 regime_snapshot=today_snapshot, state_dir=_state_dir,
             )
+            mark_digest_done(now, _state_dir)
         except Exception as e:
             logger.warning("Morning digest failed: %s", e)
 

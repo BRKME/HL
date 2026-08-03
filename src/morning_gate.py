@@ -1,0 +1,68 @@
+"""First-run-of-day gate for the morning whitelist digest.
+
+Why this module exists (03.08.2026 post-mortem):
+
+The standalone whitelist-focus workflow used to run on its own cron
+("5 6 * * *") and wrote the daily verdicts — including verdict_raw and
+rs_30d/rs_90d — into state/verdict_journal.jsonl. On 06.07 its cron was
+disabled and the digest was folded into daily-monitor to avoid a second
+Telegram ping. The folded-in branch was gated on `now.hour == 7`.
+
+GitHub Actions does not deliver scheduled runs on time. Measured over two
+weeks, the 07:00 UTC tick of daily-monitor landed at 08–10 UTC, never
+inside hour 7. So the branch never ran, and four weeks of raw-verdict and
+relative-strength observations were lost without a single error in the log.
+
+The lesson is that a wall-clock equality is not a schedule. What we
+actually mean is «the first run of the day, once it's late enough to be
+morning» — which is what this gate implements, with the day marked done in
+state so later ticks stay silent.
+"""
+from __future__ import annotations
+
+import json
+import logging
+from datetime import datetime
+from pathlib import Path
+
+logger = logging.getLogger(__name__)
+
+STATE_FILE = "morning_digest.json"
+
+# Earliest UTC hour that counts as «morning». 07:00 UTC = 10:00 MSK, which
+# is the slot the digest was designed around. Runs before this (manual
+# dispatch, backfills) must not consume the day's digest.
+EARLIEST_UTC_HOUR = 7
+
+
+def _path(state_dir: Path) -> Path:
+    return Path(state_dir) / STATE_FILE
+
+
+def _last_date(state_dir: Path) -> str | None:
+    try:
+        raw = json.loads(_path(state_dir).read_text())
+        value = raw.get("last_date")
+        return value if isinstance(value, str) else None
+    except (OSError, ValueError, AttributeError):
+        # Missing or corrupt state must not block the digest — running it
+        # twice is a cosmetic annoyance, never running it cost us a month.
+        return None
+
+
+def should_run_digest(now: datetime, state_dir: Path) -> bool:
+    """True on the first daily-monitor tick at/after 07:00 UTC each day."""
+    if now.hour < EARLIEST_UTC_HOUR:
+        return False
+    return _last_date(state_dir) != now.date().isoformat()
+
+
+def mark_digest_done(now: datetime, state_dir: Path) -> None:
+    """Record that today's digest has been produced."""
+    p = _path(state_dir)
+    try:
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(json.dumps({"last_date": now.date().isoformat()},
+                                ensure_ascii=False, indent=1))
+    except OSError as e:
+        logger.warning("Could not persist morning digest marker: %s", e)
