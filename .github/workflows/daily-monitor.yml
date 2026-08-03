@@ -69,6 +69,12 @@ jobs:
           if [ -f "state/verdict_journal.jsonl" ]; then
             git add state/verdict_journal.jsonl || true
           fi
+          # Маркер «дайджест за сегодня уже отправлен». Без коммита он
+          # теряется между прогонами, и утренний дайджест улетал бы каждые
+          # 2 часа вместо одного раза в день.
+          if [ -f "state/morning_digest.json" ]; then
+            git add state/morning_digest.json || true
+          fi
           if git diff --cached --quiet; then
             echo "no verdict journal changes to commit"
             exit 0
