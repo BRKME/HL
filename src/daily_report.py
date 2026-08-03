@@ -467,14 +467,19 @@ def _render_orphan(
         # mark-to-market PnL from entry — funding included by HL.
         pnl_str = f"[{_fmt_money_signed(pos.total_pnl)}]"
 
+        # Отсутствие стопа помечается подписью в конце строки, а не голым
+        # 🔴 в начале (03.08): значок без подписи не читается, и 🔴 в одном
+        # сообщении означал сразу три разные вещи — нет стопа, вердикт SHORT
+        # и «закрой по политике». Направление остаётся за цветом, риск — за
+        # словами.
         sl = find_sl_for_position(pos, sl_orders)
+        no_sl = True
+        sl_str = ""
         if sl is not None and mark > 0:
             max_loss = abs(mark - sl.trigger_px) * abs(pos.net_size)
             sl_str = f"SL: -${_fmt_money(max_loss)}"
-            prefix = ""
-        else:
-            sl_str = ""
-            prefix = "🔴 "
+            no_sl = False
+        prefix = ""
 
         bits = [f"<code>{_e(pos.coin)}</code> {side}", value_str, pnl_str]
         if sl_str:
@@ -509,6 +514,9 @@ def _render_orphan(
                 bits.append(
                     f"{format_position_verdict(side, verdict, raw_v)}"
                     f"{mismatch_mark}")
+
+        if no_sl:
+            bits.append("⛔ <b>без стопа</b>")
 
         lines.append(f"{prefix}" + " • ".join(bits))
 

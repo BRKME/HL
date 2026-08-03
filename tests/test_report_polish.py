@@ -200,7 +200,9 @@ def test_orphan_shows_max_loss_in_row():
 
 
 def test_orphan_no_sl_gets_red_marker():
-    """Round 3: 🔴 prefix instead of '⚠️ нет SL'."""
+    """03.08: подпись «без стопа» вместо голого 🔴 в начале строки.
+
+    Голый значок не читается и конфликтовал с 🔴 вердикта SHORT."""
     eth = _pos("ETH", 0.7238, 2173.0, liq_dist=89.4)
     msgs = render_daily_report(
         [_orphan(eth)], [], {"ETH": 2181.0}, None, 2336, NOW,
@@ -210,4 +212,5 @@ def test_orphan_no_sl_gets_red_marker():
     # Red marker on the row
     eth_lines = [l for l in text.split("\n") if "<code>ETH</code>" in l and "LONG" in l]
     assert len(eth_lines) == 1
-    assert "🔴" in eth_lines[0]
+    assert "без стопа" in eth_lines[0]
+    assert not eth_lines[0].startswith("🔴")
