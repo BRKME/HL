@@ -98,20 +98,33 @@ def _render_header(
     """Single-line executive header (UI simplification round 3).
 
     Format:
-      📊 HL Portfolio — 17 мая 2026, 16:46 MSK • $2 347
+      📊 HL Portfolio — 17 мая 2026, 16:46 MSK • $2 347 · поз. $4 700 (2.0×)
 
     Removed (UX feedback round 3):
     - wallet count ('3 кошелька') — not informational
     - Day PnL — moved into Доходность block
-    - Exposure leverage badge — user always runs at 2×
     - Top concentration — replaced by full Веса line below
+
+    Leverage badge restored 03.08: it was dropped on the assumption «user
+    always runs at 2×», but the report was showing $62 equity above $307 of
+    positions with nothing to reconcile the two. Shown only when there are
+    positions and equity is known.
     """
     msk = now.astimezone(_MOSCOW)
     total_txt = (f"${_fmt_money(total_value)}" if total_value is not None
                  else "n/a ⚠️ HL API недоступен")
+
+    exposure_txt = ""
+    if total_value and total_value > 0 and matches:
+        notional = sum(e["value"] for e in _compute_exposures(matches, marks or {}))
+        if notional > 0:
+            lev = notional / total_value
+            exposure_txt = (f" · поз. ${_fmt_money(notional)} "
+                            f"({lev:.1f}×)")
+
     return (
         f"📊 <b>HL Portfolio</b> — {_ru_date(msk)}, {msk.strftime('%H:%M')} MSK "
-        f"• {total_txt}"
+        f"• {total_txt}{exposure_txt}"
     )
 
 
@@ -368,6 +381,24 @@ def pending_exits(journal_rows: list[dict]) -> dict:
     return {c: r for c, r in last.items() if r.get("direction") == "EXIT"}
 
 
+def _fmt_age(ts_iso: str, now) -> str:
+    """'21.07 22:52' + now → ' (13 дн назад)' / ' (4 ч назад)' / ''."""
+    from datetime import datetime
+    if now is None:
+        return ""
+    try:
+        dt = datetime.fromisoformat(ts_iso)
+    except (ValueError, TypeError):
+        return ""
+    delta = now - dt
+    hours = delta.total_seconds() / 3600
+    if hours < 0:
+        return ""
+    if hours < 24:
+        return f" ({hours:.0f} ч назад)"
+    return f" ({delta.days} дн назад)"
+
+
 def _fmt_msk(ts_iso: str) -> str:
     """'2026-07-15T17:40:00+00:00' → '15.07 20:40' (МСК)."""
     from datetime import datetime, timedelta, timezone
@@ -389,6 +420,7 @@ def _render_orphan(
     coin_verdicts: Optional[dict[str, str]] = None,
     pending_exit: Optional[dict] = None,
     tactical_verdicts: Optional[dict[str, str]] = None,
+    now=None,
 ) -> Optional[str]:
     """One-line per orphan (UI simplification round 3 + verdicts):
 
@@ -479,9 +511,10 @@ def _render_orphan(
         if pend and str(pend.get("closed_direction", "")).upper() == side:
             when = _fmt_msk(pend.get("ts", ""))
             reason = pend.get("exit_reason", "exit")
+            age = _fmt_age(pend.get("ts", ""), now)
             lines.append(
                 f"   🔴 <b>ЗАКРОЙ ПО ПОЛИТИКЕ</b> — exit ({_e(str(reason))}) "
-                f"{when} МСК, позиция не закрыта")
+                f"{when} МСК{age}, позиция не закрыта")
     return "\n".join(lines)
 
 
@@ -739,6 +772,7 @@ def render_daily_report(
         coin_verdicts=coin_verdicts,
         pending_exit=pend,
         tactical_verdicts=tact_verdicts,
+        now=now,
     )
     if orphan_block:
         parts.append(orphan_block)
