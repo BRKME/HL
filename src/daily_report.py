@@ -20,6 +20,7 @@ from typing import Optional
 from src.matcher import MatchResult
 from src.monitor_rules import Alert, SEV_INFO, SEV_WARN, SEV_CRITICAL
 from src.portfolio import SpotPosition
+from src.portfolio_performance import MAX_PLAUSIBLE_ROI, roi_is_reliable
 
 
 _MOSCOW = timezone(timedelta(hours=3))
@@ -552,18 +553,21 @@ def _render_performance(perf, day_already_shown: bool = False) -> Optional[str]:
 
     for label, ps in rows:
         money = _fmt_money_signed(ps.pnl)
-        # primary: HL-provided ROI from start_value
-        if ps.start_value > 0:
+        # ROI only when the period's start_value is genuinely the capital
+        # that earned the PnL. Deposits/withdrawals inside the window break
+        # the base — showing «-703.2%» is worse than showing nothing (03.08).
+        if roi_is_reliable(ps):
             roi = f"({_fmt_pct(ps.roi_pct)})"
-        else:
-            # fallback: derive ROI from pnl and end_value when HL didn't
-            # return start_value. Implied start = end_value - pnl.
+        elif ps.start_value <= 0:
+            # HL didn't return a start point at all: fall back to the start
+            # implied by end-pnl. No flow information here, so clamp hard.
             implied_start = ps.end_value - ps.pnl
-            if implied_start > 0:
-                roi_calc = ps.pnl / implied_start * 100
-                roi = f"({_fmt_pct(roi_calc)})"
-            else:
-                roi = ""
+            roi_calc = (ps.pnl / implied_start * 100) if implied_start > 0 else None
+            roi = (f"({_fmt_pct(roi_calc)})"
+                   if roi_calc is not None and abs(roi_calc) <= MAX_PLAUSIBLE_ROI
+                   else "")
+        else:
+            roi = ""
         lines.append(f"  {label}: <code>{money}</code> {roi}".rstrip())
     if perf.failed_wallets:
         lines.append(f"  <i>⚠️ не удалось получить данные по "
@@ -657,6 +661,19 @@ def render_daily_report(
     the first run of the day, 10:00 MSK, to roll the daily whitelist
     summary into the portfolio message instead of sending two pings).
     """
+    # Неисполненные exit из тактического журнала — читаем ДО блока алертов:
+    # «✅ Без алертов» не должно печататься в одном сообщении с «🔴 ЗАКРОЙ».
+    pend = {}
+    try:
+        import json as _json
+        from pathlib import Path as _Path
+        _jp = _Path("state/tactical_journal.jsonl")
+        if _jp.exists():
+            rows = [_json.loads(l) for l in _jp.read_text().splitlines() if l.strip()]
+            pend = pending_exits(rows)
+    except Exception:
+        pend = {}
+
     parts: list[str] = [_render_header(
         now, total_account_value, wallet_count,
         matches=matches, marks=marks, performance=performance,
@@ -679,9 +696,19 @@ def render_daily_report(
 
     # Action required first (UX feedback round 2): alerts before PnL
     alerts_block = _render_alerts(alerts)
+
+    # «Всё спокойно» не должно печататься, когда ниже висит «🔴 ЗАКРОЙ ПО
+    # ПОЛИТИКЕ» (03.08). Считаем только exit'ы по реально открытым монетам:
+    # незакрытый сигнал по монете вне портфеля строку ЗАКРОЙ не рисует и
+    # молчание про алерты не опровергает.
+    held = {getattr(m, "coin", None)
+            or getattr(getattr(m, "position", None), "coin", None)
+            for m in matches}
+    pend_held = {c: v for c, v in pend.items() if c in held}
+
     if alerts_block:
         parts.append(alerts_block)
-    elif matches or (spot and any(spot)):
+    elif not pend_held and (matches or (spot and any(spot))):
         parts.append("\n✅ Без алертов, всё спокойно")
 
     # UI round 3: Day now lives in perf block, not header
@@ -692,19 +719,6 @@ def render_daily_report(
     tracked_block = _render_tracked(matches, marks, prev_day_marks)
     if tracked_block:
         parts.append(tracked_block)
-
-    # Неисполненные exit из тактического журнала (16.07) — подсветка
-    # «ЗАКРОЙ» в строке позиции, якорь на журнал, не на мигающий вердикт.
-    pend = {}
-    try:
-        import json as _json
-        from pathlib import Path as _Path
-        _jp = _Path("state/tactical_journal.jsonl")
-        if _jp.exists():
-            rows = [_json.loads(l) for l in _jp.read_text().splitlines() if l.strip()]
-            pend = pending_exits(rows)
-    except Exception:
-        pend = {}
 
     tact_verdicts = {}
     try:

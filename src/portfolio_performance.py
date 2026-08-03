@@ -143,6 +143,32 @@ def parse_portfolio_response(response: list, address: str) -> PerformanceSnapsho
     )
 
 
+# ------------------------------------------------------------ roi sanity
+
+# A period's ROI is pnl/start_value. That only means anything if start_value
+# really is the capital that earned the pnl — i.e. no deposits or withdrawals
+# inside the window. Net flow is what the account value moved by *beyond* what
+# trading explains: (end - start) - pnl.
+FLOW_TOLERANCE = 0.15      # net flow up to 15% of the base is ignored
+MAX_PLAUSIBLE_ROI = 200.0  # percent, per period — above this it's a bug
+
+
+def net_flow(ps: PeriodStats) -> float:
+    """Deposits (positive) / withdrawals (negative) implied for the period."""
+    return (ps.end_value - ps.start_value) - ps.pnl
+
+
+def roi_is_reliable(ps: PeriodStats) -> bool:
+    """True when roi_pct can be shown to a human without misleading them."""
+    if ps.start_value <= 0:
+        return False
+    if abs(net_flow(ps)) > FLOW_TOLERANCE * ps.start_value:
+        return False
+    if abs(ps.roi_pct) > MAX_PLAUSIBLE_ROI:
+        return False
+    return True
+
+
 # ----------------------------------------------------------------- aggregation
 
 def _sum_period(period_name: str, snaps: list[PerformanceSnapshot]) -> PeriodStats:
