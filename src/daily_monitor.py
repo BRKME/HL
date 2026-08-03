@@ -339,7 +339,8 @@ def run_daily_monitor(
     # (fetched candles for ATR are reused — refetching D1 closes here
     # would just duplicate; instead fetch 220d candles per coin once).
     coin_verdicts: dict[str, str] = {}
-    from src.whitelist_focus import evaluate_coin
+    raw_verdicts: dict[str, str] = {}
+    from src.whitelist_focus import evaluate_coin_pair
     from pathlib import Path as _Path
     _repo_root = _Path(__file__).resolve().parent.parent
     _state_dir = _repo_root / "state"
@@ -353,7 +354,7 @@ def run_daily_monitor(
                 # (we don't have it here in the same form, skip — verdict will
                 # work with TA + regime alone for the position-side display)
                 pass
-            v, _ = evaluate_coin(
+            (raw_v, _), (v, _) = evaluate_coin_pair(
                 coin=coin, mark=marks.get(coin, 0.0),
                 candles_closes=closes if closes else None,
                 funding_apr_pct=funding,
@@ -362,6 +363,10 @@ def run_daily_monitor(
             )
             if v in ("LONG", "SHORT", "WAIT"):
                 coin_verdicts[coin] = v
+            # Сырой вердикт нужен отчёту, чтобы показать сигнал, погашенный
+            # иерархией, вместо нейтрального молчания (03.08).
+            if raw_v in ("LONG", "SHORT", "WAIT"):
+                raw_verdicts[coin] = raw_v
         except Exception as e:
             logger.warning("Verdict computation failed for %s: %s", coin, e)
 
@@ -474,6 +479,7 @@ def run_daily_monitor(
         coin_atrs=coin_atrs,
         wallet_values=portfolio.wallet_values,
         coin_verdicts=coin_verdicts,
+        raw_verdicts=raw_verdicts,
         morning_digest=morning_digest,
     )
     send_messages(messages)

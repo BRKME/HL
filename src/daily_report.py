@@ -21,6 +21,7 @@ from src.matcher import MatchResult
 from src.monitor_rules import Alert, SEV_INFO, SEV_WARN, SEV_CRITICAL
 from src.portfolio import SpotPosition
 from src.portfolio_performance import MAX_PLAUSIBLE_ROI, roi_is_reliable
+from src.stance import Stance, format_verdict_pair, position_stance
 
 
 _MOSCOW = timezone(timedelta(hours=3))
@@ -422,6 +423,7 @@ def _render_orphan(
     tactical_verdicts: Optional[dict[str, str]] = None,
     now=None,
     holds: Optional[dict] = None,
+    raw_verdicts: Optional[dict[str, str]] = None,
 ) -> Optional[str]:
     """One-line per orphan (UI simplification round 3 + verdicts):
 
@@ -496,11 +498,23 @@ def _render_orphan(
             # сообщении с молчащим гвардом сбивал с толку. При расхождении
             # показываем оба с подписями; унификация источников — план 20.07.
             tact = tactical_verdicts.get(pos.coin)
+            raw_v = (raw_verdicts or {}).get(pos.coin)
             if tact in ("LONG", "SHORT", "WAIT") and tact != verdict:
                 bits.append(f"{v_emoji} {verdict} дн. · "
                             f"{_EMO[tact]} {tact} такт.{mismatch_mark}")
             else:
-                bits.append(f"{v_emoji} {verdict}{mismatch_mark}")
+                # Сырой сигнал показывается, когда его погасил стратегический
+                # слой (03.08): ⚪ WAIT без пояснения читался как «мнения нет»,
+                # хотя мнение было и его заглушила иерархия.
+                bits.append(f"{format_verdict_pair(verdict, raw_v)}{mismatch_mark}")
+
+        stance = position_stance(side, coin_verdicts.get(pos.coin),
+                                 (raw_verdicts or {}).get(pos.coin))
+        if stance is Stance.AGAINST:
+            bits.append("⚠️ <b>ПРОТИВ СИСТЕМЫ</b>")
+        elif stance is Stance.AGAINST_RAW:
+            raw_v = (raw_verdicts or {}).get(pos.coin)
+            bits.append(f"⚠️ <b>ПРОТИВ СЫРОГО</b> {_e(str(raw_v))}")
 
         lines.append(f"{prefix}" + " • ".join(bits))
 
@@ -698,6 +712,7 @@ def render_daily_report(
     coin_atrs: Optional[dict[str, float]] = None,
     wallet_values: Optional[dict[str, float]] = None,
     coin_verdicts: Optional[dict[str, str]] = None,
+    raw_verdicts: Optional[dict[str, str]] = None,
     morning_digest: Optional[str] = None,
 ) -> list[str]:
     """Build the Telegram report. Returns a list of message-sized chunks.
@@ -794,6 +809,7 @@ def render_daily_report(
         tactical_verdicts=tact_verdicts,
         now=now,
         holds=holds,
+        raw_verdicts=raw_verdicts,
     )
     if orphan_block:
         parts.append(orphan_block)
