@@ -273,16 +273,17 @@ def test_position_max_loss_negative_format():
     assert "-$7" in btc_line or "-$6" in btc_line or "-$8" in btc_line
 
 
-# ---------- 6. Red marker for no-SL position ----------
+# ---------- 6. Marker for no-SL position ----------
 
 def test_position_without_sl_has_red_marker():
+    """03.08: подпись «без стопа» вместо голого 🔴 — см. daily_report."""
     eth = _pos("ETH", 0.7238, 2173.0)
     msgs = render_daily_report(
         [_orphan(eth)], [], {"ETH": 2192.0}, None, 2347, NOW, sl_orders=[],
     )
     text = "\n".join(msgs)
     eth_line = next(l for l in text.split("\n") if "ETH" in l and "LONG" in l)
-    assert "🔴" in eth_line
+    assert "без стопа" in eth_line
 
 
 def test_position_with_sl_no_red_marker():
