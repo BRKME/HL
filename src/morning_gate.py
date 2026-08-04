@@ -34,6 +34,13 @@ STATE_FILE = "morning_digest.json"
 # dispatch, backfills) must not consume the day's digest.
 EARLIEST_UTC_HOUR = 7
 
+# Позже этого часа дайджест за день уже не отправляется. 03.08 гейт уехал в
+# прод днём, первым же тиком после деплоя оказался 20:26 UTC — и утренняя
+# сводка пришла в 23:26 МСК. Пропущенный день лучше ночного дайджеста:
+# сводка «что покупать сегодня» в полночь бессмысленна, а привычка к
+# ночным пингам стоит дороже одной пропущенной записи в журнал.
+LATEST_UTC_HOUR = 14
+
 
 def _path(state_dir: Path) -> Path:
     return Path(state_dir) / STATE_FILE
@@ -51,8 +58,8 @@ def _last_date(state_dir: Path) -> str | None:
 
 
 def should_run_digest(now: datetime, state_dir: Path) -> bool:
-    """True on the first daily-monitor tick at/after 07:00 UTC each day."""
-    if now.hour < EARLIEST_UTC_HOUR:
+    """True на первом тике дня внутри окна 07:00–14:00 UTC."""
+    if not (EARLIEST_UTC_HOUR <= now.hour <= LATEST_UTC_HOUR):
         return False
     return _last_date(state_dir) != now.date().isoformat()
 

@@ -404,6 +404,7 @@ def run_daily_monitor(
             morning_digest = render_whitelist_verdicts(
                 now=now, coin_data=digest_coin_data,
                 regime_snapshot=today_snapshot, state_dir=_state_dir,
+                include_regime_line=False,
             )
             mark_digest_done(now, _state_dir)
         except Exception as e:

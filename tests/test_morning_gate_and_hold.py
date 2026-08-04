@@ -119,3 +119,21 @@ def test_held_position_shows_hold_line_not_close_line():
     assert "ДЕРЖУ ПРОТИВ СИСТЕМЫ" in out
     assert "жду отскок" in out
     assert "verdict_flip" in out   # the standing requirement is still named
+
+
+def test_digest_not_sent_at_night(tmp_path):
+    """03.08: гейт уехал днём, первый тик после деплоя — 20:26 UTC,
+    и сводка «что покупать сегодня» пришла в 23:26 МСК."""
+    assert should_run_digest(_t(3, 20), tmp_path) is False
+
+
+def test_digest_window_upper_bound(tmp_path):
+    from src.morning_gate import LATEST_UTC_HOUR
+    assert should_run_digest(_t(3, LATEST_UTC_HOUR), tmp_path) is True
+    assert should_run_digest(_t(3, LATEST_UTC_HOUR + 1), tmp_path) is False
+
+
+def test_missed_window_skips_the_day_entirely(tmp_path):
+    """Пропущенный день лучше ночного пинга — отметку не ставим."""
+    assert should_run_digest(_t(3, 22), tmp_path) is False
+    assert should_run_digest(_t(4, 9), tmp_path) is True

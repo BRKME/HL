@@ -225,6 +225,7 @@ def render_whitelist_verdicts(
     regime_snapshot: Optional[dict],
     state_dir: Path,
     show_whale_stance: bool = True,
+    include_regime_line: bool = True,
 ) -> str:
     """One-message report.
 
@@ -233,6 +234,10 @@ def render_whitelist_verdicts(
 
     show_whale_stance: if True, prepend a '🐋 Киты 7d: ...' line built
     from whale_fills.jsonl. Skipped silently if no fills accumulated yet.
+
+    include_regime_line: подпись «regime X · phase Y». Выключается, когда
+    дайджест встраивается в дневной отчёт — тот печатает режим в подвале, и
+    в сообщении от 03.08 строка встречалась трижды.
     """
     msk = now.astimezone(_MOSCOW)
     header = (f"🎯 <b>Whitelist daily</b> — {_ru_date(msk)}, "
@@ -245,7 +250,7 @@ def render_whitelist_verdicts(
     phase = (((regime_snapshot or {}).get("cycle") or {}).get("phase")
              if regime_snapshot else None)
     regime_line = ""
-    if regime and phase:
+    if regime and phase and include_regime_line:
         regime_line = f"\n<i>regime {_e(regime)} · phase {_e(phase)}</i>"
 
     lines = [header + regime_line]
@@ -256,6 +261,10 @@ def render_whitelist_verdicts(
             from src.whale_stance import compute_stance, format_stance_line
             stances = compute_stance(state_dir, coins=FOCUS_COINS, now=now)
             stance_line = format_stance_line(stances, FOCUS_COINS)
+            # Монеты без данных из строки убираются (03.08): «BTC — • NEAR —
+            # • HYPE —» несёт нули информации при полной строке текста.
+            from src.digest_compact import compact_stance_line
+            stance_line = compact_stance_line(stance_line)
             if stance_line:
                 lines.append(stance_line)
         except Exception:
@@ -265,6 +274,13 @@ def render_whitelist_verdicts(
     lines.append("")  # blank separator before verdicts
 
     verdicts = compute_all_verdicts(now, coin_data, regime_snapshot, state_dir)
+
+    # Сплошной WAIT схлопывается в одну строку (03.08): восемь одинаковых
+    # «НЕ ВХОДИТЬ» занимали 46% сообщения. Появится вход — список
+    # развернётся обратно сам.
+    from src.digest_compact import collapse_wait_verdicts
+    verdicts, wait_summary = collapse_wait_verdicts(verdicts)
+
     for coin, mark, verdict, rationale, _raw_v, _raw_r in verdicts:
         if verdict == "NODATA":
             lines.append(f"⚫ <code>{_e(coin)}</code> — нет данных")
@@ -282,5 +298,8 @@ def render_whitelist_verdicts(
             f"{emoji} <code>{_e(coin)}</code> ${_fmt_price(mark)} — "
             f"<b>{label}</b>  <i>({short_rat})</i>"
         )
+
+    if wait_summary:
+        lines.append(wait_summary)
 
     return "\n".join(lines)
