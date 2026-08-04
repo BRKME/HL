@@ -987,3 +987,4 @@
 {"ts": "2026-08-04T13:02:25.888471+00:00", "source": "daily_monitor", "coin": "NEAR", "mark": 1.7353, "verdict": "WAIT", "rationale": "(position)", "regime": "BEAR", "phase": "EARLY_BEAR"}
 {"ts": "2026-08-04T16:50:24.228840+00:00", "source": "daily_monitor", "coin": "NEAR", "mark": 1.7259, "verdict": "WAIT", "rationale": "(position)", "regime": "BEAR", "phase": "EARLY_BEAR"}
 {"ts": "2026-08-04T18:26:52.741006+00:00", "source": "daily_monitor", "coin": "NEAR", "mark": 1.7456, "verdict": "WAIT", "rationale": "(position)", "regime": "BEAR", "phase": "EARLY_BEAR"}
+{"ts": "2026-08-04T20:24:32.129400+00:00", "source": "daily_monitor", "coin": "NEAR", "mark": 1.7375, "verdict": "WAIT", "rationale": "(position)", "regime": "BEAR", "phase": "EARLY_BEAR"}
