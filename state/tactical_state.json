@@ -1,9 +1,9 @@
 {
  "BTC": {
   "last_verdict": "WAIT",
-  "last_action_verdict": "SHORT",
+  "last_action_verdict": null,
   "last_alert_ts": "2026-08-03T15:22:39.678361+00:00",
-  "last_change_ts": "2026-08-03T15:22:39.678361+00:00"
+  "last_change_ts": "2026-08-05T23:18:10.145082+00:00"
  },
  "ETH": {
   "last_verdict": "WAIT",
