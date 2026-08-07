@@ -1039,3 +1039,4 @@
 {"ts": "2026-08-06T09:39:26.923729+00:00", "source": "whitelist_focus", "coin": "TAO", "mark": 194.81, "verdict": "WAIT", "rationale": "тренд вниз Но broad regime BULL — против тренда не входить.", "regime": "BULL", "phase": "EARLY_BEAR", "verdict_raw": "SHORT", "rationale_raw": "тренд вниз.", "rs_30d": -9.841329564555418, "rs_90d": -19.17312339974711}
 {"ts": "2026-08-06T12:56:06.457135+00:00", "source": "daily_monitor", "coin": "ZEC", "mark": 491.62, "verdict": "LONG", "rationale": "(position)", "regime": "BULL", "phase": "EARLY_BEAR"}
 {"ts": "2026-08-06T15:15:05.747072+00:00", "source": "daily_monitor", "coin": "ZEC", "mark": 497.77, "verdict": "LONG", "rationale": "(position)", "regime": "BULL", "phase": "EARLY_BEAR"}
+{"ts": "2026-08-07T00:40:03.026271+00:00", "source": "daily_monitor", "coin": "ZEC", "mark": 503.52, "verdict": "LONG", "rationale": "(position)", "regime": "BULL", "phase": "EARLY_BEAR"}
