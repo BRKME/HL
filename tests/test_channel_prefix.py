@@ -102,3 +102,51 @@ def test_owner_alerts_are_also_marked(monkeypatch):
     monkeypatch.setenv("TELEGRAM_CHAT_ID", "c")
     ts.alert_owner("❌ упал")
     assert captured["text"].startswith(HL_PREFIX)
+
+
+# ------------------------------------------------ защита от обхода в будущем
+
+def test_no_module_talks_to_telegram_directly():
+    """Метка живёт в _send(). Прямой вызов API в обход неё её потеряет.
+
+    Тест сторожит именно это: не текст префикса, а то, что точка входа
+    остаётся единственной."""
+    import pathlib
+
+    root = pathlib.Path(__file__).resolve().parents[1]
+    allowed = {"telegram_sender.py"}
+    offenders = []
+    for path in list((root / "src").rglob("*.py")) + list((root / "scripts").rglob("*.py")):
+        if path.name in allowed:
+            continue
+        text = path.read_text(encoding="utf-8")
+        if "api.telegram.org" in text or "/sendMessage" in text:
+            offenders.append(str(path.relative_to(root)))
+    assert not offenders, f"обход telegram_sender: {offenders}"
+
+
+def test_every_sender_module_goes_through_the_choke_point(monkeypatch):
+    """Реально прогоняем отправку и смотрим, что ушло в сеть."""
+    sent = []
+
+    def fake_post(url, json=None, timeout=None):
+        sent.append(json["text"])
+
+        class R:
+            status_code = 200
+
+            def raise_for_status(self):
+                pass
+        return R()
+
+    import src.telegram_sender as ts
+    monkeypatch.setattr(ts.requests, "post", fake_post)
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "t")
+    monkeypatch.setenv("TELEGRAM_CHAT_ID", "c")
+    monkeypatch.setattr(ts, "_mark_sent", lambda: None)
+
+    ts.send_messages(["отчёт", "второе сообщение"])
+    ts.alert_owner("авария")
+
+    assert len(sent) == 3
+    assert all(t.startswith(HL_PREFIX) for t in sent)
