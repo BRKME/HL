@@ -30,7 +30,7 @@
   "last_change_ts": "2026-07-21T17:46:30.947112+00:00"
  },
  "ASTER": {
-  "last_verdict": "SHORT",
+  "last_verdict": "WAIT",
   "last_action_verdict": "SHORT",
   "last_alert_ts": "2026-08-08T14:55:13.013686+00:00",
   "last_change_ts": "2026-08-08T14:55:13.013686+00:00"
@@ -46,5 +46,10 @@
   "last_action_verdict": "SHORT",
   "last_alert_ts": "2026-08-08T02:26:11.570475+00:00",
   "last_change_ts": "2026-08-08T02:26:11.570475+00:00"
+ },
+ "ONDO": {
+  "last_verdict": "WAIT",
+  "last_action_verdict": null,
+  "last_change_ts": "2026-08-08T22:53:15.662978+00:00"
  }
 }
