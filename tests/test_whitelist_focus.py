@@ -10,10 +10,14 @@ from src.whitelist_focus import (
 NOW = datetime(2026, 6, 2, 6, 5, tzinfo=timezone.utc)  # 09:05 MSK
 
 
-def test_focus_coins_are_the_eight():
-    """Вселенная 05.07.2026 (запрос оператора): 8 монет."""
+def test_focus_coins_are_pinned():
+    """Вселенная: 8 монет с 05.07.2026, ONDO добавлен 08.08.2026.
+
+    Порядок значим — он же порядок строк в дайджесте. Тест намеренно
+    сравнивает список целиком: расширение вселенной должно быть осознанным
+    решением оператора, а не побочным эффектом чужой правки."""
     assert FOCUS_COINS == ["BTC", "ETH", "ZEC", "NEAR", "HYPE",
-                           "ASTER", "MORPHO", "TAO"]
+                           "ASTER", "MORPHO", "TAO", "ONDO"]
 
 
 def test_evaluate_coin_returns_wait_when_no_mark(tmp_path):

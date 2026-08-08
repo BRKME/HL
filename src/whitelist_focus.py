@@ -1,5 +1,6 @@
 """Whitelist daily verdicts — one Telegram message with a per-coin
-LONG/SHORT/WAIT verdict for the focus coins (BTC, ETH, ZEC, NEAR, HYPE, ASTER, MORPHO, TAO).
+LONG/SHORT/WAIT verdict for the focus coins
+(BTC, ETH, ZEC, NEAR, HYPE, ASTER, MORPHO, TAO, ONDO).
 
 Uses compute_verdict_pair from eth_focus so the journal can record both
 raw and final verdicts for backtest comparison.
@@ -19,7 +20,8 @@ from src.ta import compute_indicators
 logger = logging.getLogger("whitelist_focus")
 
 # The 6 coins to evaluate. Order = display order in the message.
-FOCUS_COINS = ["BTC", "ETH", "ZEC", "NEAR", "HYPE", "ASTER", "MORPHO", "TAO"]
+FOCUS_COINS = ["BTC", "ETH", "ZEC", "NEAR", "HYPE", "ASTER", "MORPHO", "TAO",
+               "ONDO"]  # ONDO добавлен 08.08.2026 решением оператора
 
 _MOSCOW = timezone(timedelta(hours=3))
 

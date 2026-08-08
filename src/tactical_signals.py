@@ -40,7 +40,8 @@ def _append_tactical_journal(row: dict) -> None:
 # Монеты тактического слоя. Сознательно узко: качество сигнала важнее охвата;
 # киты трекаются в основном на мейджорах.
 TACTICAL_COINS = [c.strip() for c in
-                  os.environ.get("TACTICAL_COINS", "BTC,ETH,ZEC,NEAR,HYPE,ASTER,MORPHO,TAO").split(",") if c.strip()]
+                  os.environ.get("TACTICAL_COINS",
+                                 "BTC,ETH,ZEC,NEAR,HYPE,ASTER,MORPHO,TAO,ONDO").split(",") if c.strip()]
 
 COOLDOWN_HOURS = 12          # не чаще одного алерта на монету за этот срок
 WHALE_LOOKBACK_HOURS = 48    # окно свежести whale-сигналов
