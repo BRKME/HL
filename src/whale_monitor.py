@@ -257,9 +257,12 @@ def run_whale_monitor(
     save_ranks_state(ranks_state, ranks_path)
 
     if rank_signals:
-        # park in pending — they're digest-class (info), not instant
-        _append_rank_signals_pending(rank_signals, pending_path, run_ts=now)
-        logger.info("emitted %d rank signals (NEW_ENTRANT/DROP_OFF)", len(rank_signals))
+        # Ротация лидерборда НЕ кладётся в буфер дайджеста (08.08): показывать
+        # её решено ещё 12.06, и до сих пор она молча копилась — 145 записей
+        # из 146 на момент отправки, — раздувая счётчик в заголовке и мешая
+        # буферу чиститься. Считаем и логируем, но в показ не кладём.
+        logger.info("skipped %d rank signals (NEW_ENTRANT/DROP_OFF, not digest material)",
+                    len(rank_signals))
 
     if not candidates:
         _write_run_meta(meta_path, now, candidate_count=0, status="no_candidates")
@@ -355,9 +358,13 @@ def run_whale_monitor(
             except Exception as e:
                 logger.warning("instant telegram send failed: %s", e)
 
-    # Info: park in pending (digest flush already ran at top of function)
-    if info:
-        _append_pending(info, pending_path, run_ts=now)
+    # Info: park in pending (digest flush already ran at top of function).
+    # Отфильтровано тем же правилом, что и показ, — буфер и заголовок обязаны
+    # говорить об одном и том же множестве.
+    from src.whale_report import digest_visible
+    info_for_digest = digest_visible(info)
+    if info_for_digest:
+        _append_pending(info_for_digest, pending_path, run_ts=now)
 
     logger.info("emitted %d signals (instant=%d, info=%d)",
                 len(signals), len(instant), len(info))

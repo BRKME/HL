@@ -163,3 +163,27 @@ def test_aligned_position_gets_no_marker():
         coin_verdicts={"NEAR": "LONG"},
     )
     assert "Система рекомендует" not in out
+
+
+def test_calm_line_survives_pending_exit_of_other_side():
+    """08.08: висящий exit по BTC SHORT не должен глушить отчёт при лонге.
+
+    «ЗАКРОЙ» рисуется только при совпадении closed_direction со стороной
+    позиции — условие гашения обязано совпадать с условием печати."""
+    import src.daily_report as dr
+    from datetime import datetime, timezone
+    from src.matcher import MatchResult
+    from src.portfolio import AggregatedPerpPosition
+
+    pos = AggregatedPerpPosition(
+        coin="BTC", net_size=0.01, weighted_entry=80000.0, total_pnl=5.0,
+        contributors=[("main", 0.01)], avg_leverage=3.0,
+        max_liquidation_distance_pct=30.0,
+    )
+    text = "\n".join(dr.render_daily_report(
+        [MatchResult(position=pos, decision=None, status="orphan")],
+        [], {"BTC": 81000.0}, None, 1000.0,
+        now=datetime(2026, 8, 8, 9, 0, tzinfo=timezone.utc),
+    ))
+    assert "ЗАКРОЙ" not in text
+    assert "Без алертов" in text

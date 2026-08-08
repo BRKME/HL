@@ -770,11 +770,24 @@ def render_daily_report(
     # ПОЛИТИКЕ» (03.08). Считаем только exit'ы по реально открытым монетам:
     # незакрытый сигнал по монете вне портфеля строку ЗАКРОЙ не рисует и
     # молчание про алерты не опровергает.
-    held = {getattr(m, "coin", None)
-            or getattr(getattr(m, "position", None), "coin", None)
-            for m in matches}
-    pend_held = {c: v for c, v in pend.items()
-                 if c in held and c not in (holds or {})}
+    # Сторона важна так же, как монета: «ЗАКРОЙ» рисуется только когда
+    # closed_direction совпадает со стороной открытой позиции. Гасить
+    # «спокойно» по одному совпадению тикера — глушить сообщение из-за
+    # требования, которое даже не будет напечатано (поймано тестом 08.08,
+    # когда в state появился висящий exit по BTC SHORT при лонге).
+    held_sides = {}
+    for m in matches:
+        p_ = getattr(m, "position", None)
+        coin = getattr(m, "coin", None) or getattr(p_, "coin", None)
+        size = getattr(p_, "net_size", 0) or 0
+        if coin:
+            held_sides[coin] = "LONG" if size >= 0 else "SHORT"
+    pend_held = {
+        c: v for c, v in pend.items()
+        if c in held_sides
+        and str(v.get("closed_direction", "")).upper() == held_sides[c]
+        and c not in (holds or {})
+    }
 
     if alerts_block:
         parts.append(alerts_block)

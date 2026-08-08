@@ -213,8 +213,21 @@ def _digest_rank_section(signals: list[Signal]) -> Optional[str]:
     return "\n".join(lines)
 
 
+# Правила, сознательно не показываемые в дайджесте: ротация лидерборда не
+# несёт торгового решения (UX-фидбек 12.06). До 08.08 они всё равно копились
+# в буфере и попадали в счётчик заголовка — сообщение обещало 146 событий и
+# показывало одно. То, что решено не показывать, в буфер показа не кладётся.
+DIGEST_HIDDEN_RULES = ("WHALE_NEW_ENTRANT", "WHALE_DROP_OFF")
+
+
+def digest_visible(signals: list[Signal]) -> list[Signal]:
+    """Только те сигналы, которые дайджест действительно покажет."""
+    return [s for s in signals if s.rule not in DIGEST_HIDDEN_RULES]
+
+
 def render_digest(signals: list[Signal], now: datetime) -> Optional[str]:
     """Build the daily digest for info-level signals."""
+    signals = digest_visible(signals)
     if not signals:
         return None
 
@@ -235,9 +248,7 @@ def render_digest(signals: list[Signal], now: datetime) -> Optional[str]:
     # other info-level rules — generic fallback
     # rank-churn (NEW_ENTRANT/DROP_OFF) намеренно исключён из канала —
     # ротация лидерборда не несёт торгового решения (UX-фидбек 12.06).
-    other = [s for s in signals if s.rule not in (
-        SIG_OVERLAP, SIG_NEW_OPEN, "WHALE_NEW_ENTRANT", "WHALE_DROP_OFF",
-    )]
+    other = [s for s in signals if s.rule not in (SIG_OVERLAP, SIG_NEW_OPEN)]
     if other:
         parts.append("\n<b>Прочее</b>")
         for s in other[:_MAX_LINES_PER_SECTION]:
