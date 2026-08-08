@@ -42,13 +42,13 @@ EARLIEST_UTC_HOUR = 7
 LATEST_UTC_HOUR = 14
 
 
-def _path(state_dir: Path) -> Path:
-    return Path(state_dir) / STATE_FILE
+def _path(state_dir: Path, name: str = STATE_FILE) -> Path:
+    return Path(state_dir) / name
 
 
-def _last_date(state_dir: Path) -> str | None:
+def _last_date(state_dir: Path, name: str = STATE_FILE) -> str | None:
     try:
-        raw = json.loads(_path(state_dir).read_text())
+        raw = json.loads(_path(state_dir, name).read_text())
         value = raw.get("last_date")
         return value if isinstance(value, str) else None
     except (OSError, ValueError, AttributeError):
@@ -57,16 +57,18 @@ def _last_date(state_dir: Path) -> str | None:
         return None
 
 
-def should_run_digest(now: datetime, state_dir: Path) -> bool:
+def should_run_digest(now: datetime, state_dir: Path,
+                      name: str = STATE_FILE) -> bool:
     """True на первом тике дня внутри окна 07:00–14:00 UTC."""
     if not (EARLIEST_UTC_HOUR <= now.hour <= LATEST_UTC_HOUR):
         return False
-    return _last_date(state_dir) != now.date().isoformat()
+    return _last_date(state_dir, name) != now.date().isoformat()
 
 
-def mark_digest_done(now: datetime, state_dir: Path) -> None:
+def mark_digest_done(now: datetime, state_dir: Path,
+                     name: str = STATE_FILE) -> None:
     """Record that today's digest has been produced."""
-    p = _path(state_dir)
+    p = _path(state_dir, name)
     try:
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(json.dumps({"last_date": now.date().isoformat()},

@@ -171,6 +171,14 @@ def _safe_oracai_yesterday(now: datetime) -> Optional[dict]:
         return None
 
 
+VERDICT_COLLECTION_MARKER = "verdict_collection.json"
+
+# Путь к state вынесен на уровень модуля, чтобы тесты подменяли его
+# monkeypatch'ем, а не писали маркеры в боевой каталог: прогон тестов в
+# любой день ставил бы сегодняшнюю дату и подавлял настоящий сбор вердиктов.
+STATE_DIR = Path(__file__).resolve().parent.parent / "state"
+
+
 def _journal_verdicts_silently(now: datetime, accounts: list[dict]) -> None:
     """Morning whitelist digest path when user has no positions.
 
@@ -252,6 +260,27 @@ def _journal_verdicts_silently(now: datetime, accounts: list[dict]) -> None:
     # (оператор 13.06). Журнал вердиктов продолжает копиться для KPI/бэктеста.
 
 
+def _journal_verdicts_once_a_day(now: datetime, accounts: list[dict],
+                                 state_dir=None) -> None:
+    """Тихое журналирование не чаще раза в сутки.
+
+    До 08.08 срабатывало на каждом тике: 40 записей вместо 8 за день, пять
+    наблюдений одного и того же суточного вердикта по каждой монете. Тот же
+    дефект, что был у китовых сигналов, — n растёт, независимой информации
+    не прибавляется, и к разбору 23.08 выборка окажется раздутой в разы.
+
+    Маркер отдельный от дайджеста: пустой портфель утром не должен лишать
+    оператора whitelist-блока в отчёте, если позиции откроются днём.
+    """
+    from src.morning_gate import mark_digest_done, should_run_digest
+
+    state_dir = state_dir or STATE_DIR
+    if not should_run_digest(now, state_dir, name=VERDICT_COLLECTION_MARKER):
+        return
+    _journal_verdicts_silently(now, accounts)
+    mark_digest_done(now, state_dir, name=VERDICT_COLLECTION_MARKER)
+
+
 def run_daily_monitor(
     whitelist_path: Path = DEFAULT_WHITELIST,
     decisions_path: Path = DEFAULT_DECISIONS,
@@ -265,6 +294,8 @@ def run_daily_monitor(
 
     client = HLClient()
     portfolio = _build_portfolio(client, accounts)
+
+    _state_dir = STATE_DIR
 
     has_perp = bool(portfolio.perp)
     has_spot = bool(portfolio.spot) and any(s.total > 0 for s in portfolio.spot)
@@ -280,9 +311,12 @@ def run_daily_monitor(
             logger.info("All wallet fetches failed — skipping (untrustworthy).")
         else:
             logger.info("No open positions — skipping report.")
-            # датасет вердиктов всё равно копим (тихо, без Telegram)
+            # Дайджест без позиций не шлём — решение оператора 13.06.
+            # Но вердикты собираем РАЗ В СУТКИ, а не на каждом тике: пять
+            # наблюдений одного суточного вердикта не добавляют информации,
+            # только раздувают n к разбору (политика §5, дедуп китов).
             try:
-                _journal_verdicts_silently(now, accounts)
+                _journal_verdicts_once_a_day(now, accounts, _state_dir)
             except Exception as e:
                 logger.warning("Silent journaling failed: %s", e)
         return
@@ -341,9 +375,6 @@ def run_daily_monitor(
     coin_verdicts: dict[str, str] = {}
     raw_verdicts: dict[str, str] = {}
     from src.whitelist_focus import evaluate_coin_pair
-    from pathlib import Path as _Path
-    _repo_root = _Path(__file__).resolve().parent.parent
-    _state_dir = _repo_root / "state"
     for coin in orphan_coins:
         try:
             candles = fetch_candles(coin, interval="1d", lookback_days=220)

@@ -188,6 +188,11 @@ def test_run_daily_monitor_no_positions_journals_silently(
 
     morning = datetime(2026, 6, 9, 7, 0, tzinfo=timezone.utc)  # 10:00 MSK
 
+    # Маркер суточного сбора — в tmp, иначе прогон тестов пишет в боевой
+    # state и подавляет настоящий сбор вердиктов в этот день.
+    import src.daily_monitor as dm_mod
+    monkeypatch.setattr(dm_mod, "STATE_DIR", tmp_path)
+
     # Redirect verdict_journal to tmp_path so this test doesn't touch
     # real state/ — done by patching the Path resolution in _run_digest_only
     journal_writes: list[list] = []
