@@ -17,6 +17,31 @@ import time
 import requests
 
 
+# ---------------------------------------------------------------- метка канала
+
+# Сообщения HL живут в общем канале с Polymarket (08.08.2026). Без метки два
+# потока сливаются: и там и там таблички, доллары и эмодзи направления, а
+# решения они требуют разных. Менять метку — здесь, одной строкой.
+HL_PREFIX = "🟦 <b>HL</b> · "
+
+TG_HARD_LIMIT = 4096   # жёсткий предел Telegram на одно сообщение
+
+
+def with_prefix(text: str) -> str:
+    """Пометить исходящее сообщение как HL.
+
+    Идемпотентно: повторный вызов метку не удваивает. Если тело вместе с
+    меткой не влезает в лимит Telegram, обрезается тело, а не метка —
+    сообщение без метки в общем канале хуже, чем сообщение без хвоста.
+    """
+    if not text or not text.strip():
+        return ""
+    if text.startswith(HL_PREFIX):
+        return text
+    room = TG_HARD_LIMIT - len(HL_PREFIX)
+    return HL_PREFIX + text[:room]
+
+
 class TelegramConfigError(RuntimeError):
     """Raised when send is attempted but env vars aren't configured."""
 
@@ -38,6 +63,9 @@ def _api_url(bot_token: str) -> str:
 
 
 def _send(bot_token: str, chat_id: str, text: str, parse_mode: str = "HTML") -> None:
+    # Метка ставится здесь — единственной точке, через которую проходит всё
+    # исходящее. В билдерах её однажды забудут на новом типе сообщения.
+    text = with_prefix(text)
     r = requests.post(
         f"{_api_url(bot_token)}/sendMessage",
         json={
