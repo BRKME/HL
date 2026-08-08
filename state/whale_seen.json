@@ -5,6 +5,12 @@
       "whale": "0xd260b2216b735277da6771564a01c04856e78321",
       "coin": "HYPE",
       "ts": 1786151949
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xda744273f80b22412417f7cfe0503f3d721f987d",
+      "coin": "BTC",
+      "ts": 1786164796
     }
   ]
 }
