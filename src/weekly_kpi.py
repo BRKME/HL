@@ -198,6 +198,29 @@ def format_portfolio_line(pnl: float, roi: float, account_value: float) -> str:
             f"счёт ${account_value:,.0f}")
 
 
+def _live_account_value(accounts: list) -> float:
+    """Живое значение счёта — тем же путём, что и дневной отчёт.
+
+    KPI брал последнюю точку суточного ряда истории портфеля; она
+    сэмплируется и отстаёт. 09.08 это дало $143 в KPI против $130 в отчёте
+    шестью минутами позже — два числа для одного и того же в одном канале.
+    """
+    from src.daily_monitor import _build_portfolio
+    from src.hl_client import HLClient
+
+    return float(_build_portfolio(HLClient(), accounts).total_account_value)
+
+
+def _account_value_or_fallback(accounts: list, fallback: float) -> float:
+    """Живое значение, а при недоступности — история, но не молчание."""
+    try:
+        value = _live_account_value(accounts)
+    except Exception as e:  # noqa: BLE001
+        print(f"[kpi] live account value unavailable, using history: {e}")
+        return fallback
+    return value if value > 0 else fallback
+
+
 def _portfolio_kpi_line() -> Optional[str]:
     try:
         import yaml
@@ -208,8 +231,9 @@ def _portfolio_kpi_line() -> Optional[str]:
             return None
         perf = fetch_combined_performance([a["address"] for a in accounts])
         wk = perf.week
-        return format_portfolio_line(wk.pnl, wk.roi_pct,
-                                     perf.current_account_value)
+        account_value = _account_value_or_fallback(
+            accounts, fallback=perf.current_account_value)
+        return format_portfolio_line(wk.pnl, wk.roi_pct, account_value)
     except Exception as e:  # noqa: BLE001
         print(f"[kpi] portfolio: {e}")
         return None

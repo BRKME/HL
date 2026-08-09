@@ -395,9 +395,13 @@ def _fmt_age(ts_iso: str, now) -> str:
     hours = delta.total_seconds() / 3600
     if hours < 0:
         return ""
-    if hours < 24:
+    # До двух суток — в часах: «42 ч назад» точнее и честнее, чем «1 дн
+    # назад», которое выдавало округление вниз через delta.days (09.08).
+    # Дальше — округление к ближайшему, а не вниз: занижать застой опаснее,
+    # чем завышать, ведь ради его видимости строка и существует.
+    if hours < 48:
         return f" ({hours:.0f} ч назад)"
-    return f" ({delta.days} дн назад)"
+    return f" ({round(hours / 24)} дн назад)"
 
 
 def _fmt_msk(ts_iso: str) -> str:
