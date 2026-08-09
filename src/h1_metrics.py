@@ -8,6 +8,7 @@
 """
 from __future__ import annotations
 
+import random
 import statistics
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -117,3 +118,92 @@ def verdict_h1(res: H1Result) -> str:
             f"возвратов {res.reentry_rate:.0%}, медиана R "
             f"{res.regime_flip_median_r:+.3f} — ставить подтверждение смены "
             f"режима (K=2 суточных снимка)")
+
+
+# ---------------------------------------------------------------- гипотеза H2
+
+MIN_SAMPLE_H2 = 40           # закрытых сделок с оценкой R
+SIDE_GAP_THRESHOLD = 0.20    # насколько одна сторона должна отставать
+MIN_PER_SIDE = 15
+
+
+@dataclass(frozen=True)
+class H2Result:
+    n_closed: int
+    avg_r: Optional[float]
+    median_r: Optional[float]
+    long_avg_r: Optional[float]
+    short_avg_r: Optional[float]
+    n_long: int
+    n_short: int
+    ci_low: Optional[float]
+    ci_high: Optional[float]
+
+
+def _bootstrap_ci(values: Sequence[float], iterations: int = 2000,
+                  seed: int = 20260809) -> tuple[Optional[float], Optional[float]]:
+    """95% доверительный интервал среднего. Сид фиксирован: отчёт,
+    меняющийся от прогона к прогону, не годится для решения."""
+    if len(values) < 2:
+        return None, None
+    rng = random.Random(seed)
+    n = len(values)
+    means = []
+    for _ in range(iterations):
+        sample = [values[rng.randrange(n)] for _ in range(n)]
+        means.append(sum(sample) / n)
+    means.sort()
+    lo = means[int(0.025 * len(means))]
+    hi = means[int(0.975 * len(means)) - 1]
+    return lo, hi
+
+
+def compute_h2(rows: Sequence[dict]) -> H2Result:
+    closed = [r for r in rows
+              if r.get("exit_reason") and r.get("pnl_r") is not None]
+    if not closed:
+        return H2Result(0, None, None, None, None, 0, 0, None, None)
+
+    rs = [float(r["pnl_r"]) for r in closed]
+    longs = [float(r["pnl_r"]) for r in closed
+             if str(r.get("closed_direction", "")).upper() == "LONG"]
+    shorts = [float(r["pnl_r"]) for r in closed
+              if str(r.get("closed_direction", "")).upper() == "SHORT"]
+    lo, hi = _bootstrap_ci(rs)
+
+    return H2Result(
+        n_closed=len(closed),
+        avg_r=statistics.mean(rs),
+        median_r=statistics.median(rs),
+        long_avg_r=statistics.mean(longs) if longs else None,
+        short_avg_r=statistics.mean(shorts) if shorts else None,
+        n_long=len(longs), n_short=len(shorts),
+        ci_low=lo, ci_high=hi,
+    )
+
+
+def verdict_h2(res: H2Result) -> str:
+    """Правила в порядке, зафиксированном 09.08 до сбора данных."""
+    if res.n_closed < MIN_SAMPLE_H2:
+        return (f"НЕДОСТАТОЧНО ДАННЫХ: {res.n_closed}/{MIN_SAMPLE_H2} "
+                f"закрытых с оценкой R")
+
+    if (res.n_long >= MIN_PER_SIDE and res.n_short >= MIN_PER_SIDE
+            and res.long_avg_r is not None and res.short_avg_r is not None
+            and res.long_avg_r - res.short_avg_r >= SIDE_GAP_THRESHOLD):
+        return (f"СТОРОНА: SHORT хуже LONG на "
+                f"{res.long_avg_r - res.short_avg_r:+.2f}R — сузить тактику "
+                f"до LONG, SHORT в наблюдение")
+
+    if res.ci_high is not None and res.ci_high < 0 and (res.median_r or 0) < 0:
+        return (f"СЛОЙ ТЕРЯЕТ: медиана {res.median_r:+.3f}, верхняя граница "
+                f"интервала {res.ci_high:+.3f} < 0 — отключить эмиссию "
+                f"тактических входов, выходы по политике оставить")
+
+    if res.ci_low is not None and res.ci_low <= 0 <= (res.ci_high or 0):
+        return (f"НЕ ДОКАЗАНО: интервал [{res.ci_low:+.3f}, "
+                f"{res.ci_high:+.3f}] накрывает ноль — оставляем, "
+                f"возвращаемся при n≥80")
+
+    return (f"СЛОЙ ОКУПАЕТСЯ: avg R {res.avg_r:+.3f}, интервал "
+            f"[{res.ci_low:+.3f}, {res.ci_high:+.3f}]")

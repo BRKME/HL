@@ -115,3 +115,62 @@ def test_compute_h1_on_empty():
     res = compute_h1([], now=NOW, regime_changes_30d=0)
     assert res.n_exits == 0
     assert verdict_h1(res).startswith("НЕДОСТАТОЧНО")
+
+
+# ------------------------------------------------------------- гипотеза H2
+
+from src.h1_metrics import H2Result, compute_h2, verdict_h2  # noqa: E402
+
+
+def _closed(direction, r, n=1):
+    return [{"ts": NOW.isoformat(), "coin": "X", "exit_reason": "verdict_flip",
+             "pnl_r": r, "closed_direction": direction} for _ in range(n)]
+
+
+def test_h2_small_sample_defers():
+    res = compute_h2(_closed("LONG", -0.1, 5))
+    assert verdict_h2(res).startswith("НЕДОСТАТОЧНО")
+
+
+def test_h2_counts_sides_separately():
+    res = compute_h2(_closed("LONG", 0.2, 10) + _closed("SHORT", -0.3, 6))
+    assert res.n_long == 10 and res.n_short == 6
+
+
+def test_h2_ignores_unevaluated_trades():
+    rows = _closed("LONG", 0.1, 3) + [{"ts": NOW.isoformat(), "coin": "X",
+                                       "exit_reason": "verdict_flip"}]
+    assert compute_h2(rows).n_closed == 3
+
+
+def test_h2_empty():
+    res = compute_h2([])
+    assert res.n_closed == 0
+    assert verdict_h2(res).startswith("НЕДОСТАТОЧНО")
+
+
+def test_h2_side_gap_is_checked_before_overall_loss():
+    """Асимметрия сторон — более узкое действие, чем отключение слоя."""
+    res = compute_h2(_closed("LONG", 0.05, 25) + _closed("SHORT", -0.40, 20))
+    assert "СТОРОНА" in verdict_h2(res)
+
+
+def test_h2_side_gap_needs_both_sides_populated():
+    res = compute_h2(_closed("LONG", 0.05, 45) + _closed("SHORT", -0.40, 3))
+    assert "СТОРОНА" not in verdict_h2(res)
+
+
+def test_h2_consistent_loss_disables_entries():
+    res = compute_h2(_closed("LONG", -0.30, 45))
+    assert "СЛОЙ ТЕРЯЕТ" in verdict_h2(res)
+
+
+def test_h2_interval_spanning_zero_is_undecided():
+    rows = _closed("LONG", 0.5, 20) + _closed("LONG", -0.5, 20) + _closed("LONG", 0.0, 5)
+    assert "НЕ ДОКАЗАНО" in verdict_h2(compute_h2(rows))
+
+
+def test_h2_bootstrap_is_deterministic():
+    """Отчёт, меняющийся от прогона к прогону, не годится для решения."""
+    rows = _closed("LONG", 0.2, 30) + _closed("SHORT", -0.1, 20)
+    assert compute_h2(rows).ci_low == compute_h2(rows).ci_low
