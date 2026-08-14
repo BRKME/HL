@@ -1214,3 +1214,4 @@
 {"ts": "2026-08-14T08:15:11.861436+00:00", "source": "whitelist_focus", "coin": "ONDO", "mark": 0.33062, "verdict": "WAIT", "rationale": "коррекция в восходящем тренде — слабый сигнал.", "regime": "BEAR", "phase": "EARLY_BEAR", "verdict_raw": "WAIT", "rationale_raw": "коррекция в восходящем тренде — слабый сигнал.", "rs_30d": -6.698985460217034, "rs_90d": 15.491198540805}
 {"ts": "2026-08-14T10:01:34.317733+00:00", "source": "daily_monitor", "coin": "ETH", "mark": 1872.72, "verdict": "WAIT", "rationale": "(position)", "regime": "BEAR", "phase": "EARLY_BEAR"}
 {"ts": "2026-08-14T11:42:44.200628+00:00", "source": "daily_monitor", "coin": "ETH", "mark": 1878.0, "verdict": "WAIT", "rationale": "(position)", "regime": "BEAR", "phase": "EARLY_BEAR"}
+{"ts": "2026-08-14T14:15:06.947838+00:00", "source": "daily_monitor", "coin": "ETH", "mark": 1866.8, "verdict": "WAIT", "rationale": "(position)", "regime": "BEAR", "phase": "EARLY_BEAR"}
