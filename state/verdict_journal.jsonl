@@ -1233,3 +1233,4 @@
 {"ts": "2026-08-15T13:30:00.098881+00:00", "source": "daily_monitor", "coin": "ETH", "mark": 1882.2, "verdict": "WAIT", "rationale": "(position)", "regime": "BEAR", "phase": "EARLY_BEAR"}
 {"ts": "2026-08-15T15:20:03.373205+00:00", "source": "daily_monitor", "coin": "ETH", "mark": 1884.2, "verdict": "WAIT", "rationale": "(position)", "regime": "BEAR", "phase": "EARLY_BEAR"}
 {"ts": "2026-08-15T17:19:47.413256+00:00", "source": "daily_monitor", "coin": "ETH", "mark": 1884.8, "verdict": "WAIT", "rationale": "(position)", "regime": "BEAR", "phase": "EARLY_BEAR"}
+{"ts": "2026-08-15T19:20:57.681822+00:00", "source": "daily_monitor", "coin": "ETH", "mark": 1882.9, "verdict": "WAIT", "rationale": "(position)", "regime": "BEAR", "phase": "EARLY_BEAR"}
