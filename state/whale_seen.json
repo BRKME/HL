@@ -2,9 +2,9 @@
   "entries": [
     {
       "rule": "WHALE_NEW_OPEN",
-      "whale": "0x27c9fa86c91b84ddfa15de58c482ff662498d65d",
-      "coin": "ETH",
-      "ts": 1786380655
+      "whale": "0x66f889094739dbb7d20aa60f645acd88feba75a9",
+      "coin": "BTC",
+      "ts": 1787070416
     }
   ]
 }
