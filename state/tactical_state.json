@@ -7,9 +7,9 @@
  },
  "ETH": {
   "last_verdict": "WAIT",
-  "last_action_verdict": "LONG",
+  "last_action_verdict": null,
   "last_alert_ts": "2026-08-19T13:22:09.988874+00:00",
-  "last_change_ts": "2026-08-19T13:22:09.988874+00:00"
+  "last_change_ts": "2026-08-19T16:47:17.349119+00:00"
  },
  "ZEC": {
   "last_verdict": "LONG",
