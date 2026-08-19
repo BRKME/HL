@@ -19,9 +19,9 @@
  },
  "NEAR": {
   "last_verdict": "SHORT",
-  "last_action_verdict": "SHORT",
+  "last_action_verdict": null,
   "last_alert_ts": "2026-08-18T22:46:20.104021+00:00",
-  "last_change_ts": "2026-08-18T22:46:20.104021+00:00"
+  "last_change_ts": "2026-08-19T01:53:39.493503+00:00"
  },
  "HYPE": {
   "last_verdict": "WAIT",
@@ -43,9 +43,9 @@
  },
  "TAO": {
   "last_verdict": "SHORT",
-  "last_action_verdict": "SHORT",
+  "last_action_verdict": null,
   "last_alert_ts": "2026-08-09T22:56:05.710793+00:00",
-  "last_change_ts": "2026-08-09T22:56:05.710793+00:00"
+  "last_change_ts": "2026-08-19T01:53:39.493503+00:00"
  },
  "ONDO": {
   "last_verdict": "WAIT",
