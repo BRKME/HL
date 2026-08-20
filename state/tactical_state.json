@@ -42,7 +42,7 @@
   "last_change_ts": "2026-08-19T01:57:28.697258+00:00"
  },
  "TAO": {
-  "last_verdict": "SHORT",
+  "last_verdict": "WAIT",
   "last_action_verdict": "SHORT",
   "last_alert_ts": "2026-08-20T03:14:49.367521+00:00",
   "last_change_ts": "2026-08-20T03:14:49.367521+00:00"
