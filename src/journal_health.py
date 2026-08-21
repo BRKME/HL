@@ -31,6 +31,14 @@ TRACKED_FIELDS = ("verdict_raw", "rs_30d")
 # out in .github/workflows/eth-focus.yml and kept only for manual runs.
 RETIRED_SOURCES = ("eth_focus",)
 
+# Источники, чьё молчание может быть законным. daily_monitor пишет вердикты
+# только по ОТКРЫТЫМ позициям: вне рынка ему нечего журналить, и тишина —
+# правда о портфеле, а не отказ. 21.08 детектор поднял по нему ложную
+# тревогу; ложная тревога обесценивает детектор быстрее пропущенной.
+# Если замолчали ВСЕ источники — оправдание снимается, тишина уже не
+# объясняется отсутствием позиций.
+CONDITIONAL_SOURCES = ("daily_monitor",)
+
 _SEVERITY_RANK = {"warn": 1, "critical": 2}
 
 
@@ -76,11 +84,20 @@ def check_source_staleness(entries: Sequence[dict], now: datetime,
     issues: list[HealthIssue] = []
     sources = {e.get("source") for e in entries if e.get("source")}
     sources -= set(RETIRED_SOURCES)
+
+    ages = {}
     for src in sorted(s for s in sources if s):
         last = _latest(entries, lambda e, s=src: e.get("source") == s)
-        if last is None:
+        if last is not None:
+            ages[src] = (last, _age_hours(last, now))
+
+    unconditional_alive = any(
+        age <= stale_hours for src, (_, age) in ages.items()
+        if src not in CONDITIONAL_SOURCES)
+
+    for src, (last, age) in ages.items():
+        if (src in CONDITIONAL_SOURCES and unconditional_alive):
             continue
-        age = _age_hours(last, now)
         if age > stale_hours:
             issues.append(HealthIssue(
                 "warn",

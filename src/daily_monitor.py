@@ -256,8 +256,46 @@ def _journal_verdicts_silently(now: datetime, accounts: list[dict]) -> None:
         logger.info("Journaled %d verdicts (no-position path, silent)", len(entries))
     except Exception as e:
         logger.warning("Journal append failed: %s", e)
-    # NB: больше НЕ шлём digest в Telegram — без позиций сообщение бесполезно
-    # (оператор 13.06). Журнал вердиктов продолжает копиться для KPI/бэктеста.
+    return digest
+
+
+def _render_flat_digest(now: datetime, accounts: list[dict]):
+    """Дайджест для случая «вне рынка». Журналирует и возвращает текст."""
+    return _journal_verdicts_silently(now, accounts)
+
+
+def _flat_digest_once_a_day(now: datetime, accounts: list[dict],
+                            state_dir=None) -> bool:
+    """Раз в сутки вне рынка: собрать вердикты И отправить дайджест.
+
+    Отмена решения 13.06 «без позиций сообщение бесполезно» — по жалобе
+    оператора 21.08. Три дня вне рынка, рост +15…+29% по всем девяти
+    монетам, ни одного предложения о входе. Именно вне рынка сводка «что
+    покупать» нужнее всего: при открытых позициях она идёт подвалом
+    отчёта, а без позиций отчёта нет вовсе, и оператор остаётся слепым.
+
+    Отметка ставится только после успешной отправки: упавший Telegram не
+    должен сжигать день.
+    """
+    from src.morning_gate import mark_digest_done, should_run_digest
+
+    state_dir = state_dir or STATE_DIR
+    if not should_run_digest(now, state_dir, name=VERDICT_COLLECTION_MARKER):
+        return False
+    try:
+        digest = _render_flat_digest(now, accounts)
+    except Exception as e:  # noqa: BLE001
+        logger.warning("Flat digest render failed: %s", e)
+        return False
+    if not digest:
+        return False
+    try:
+        send_messages([digest])
+    except Exception as e:  # noqa: BLE001
+        logger.warning("Flat digest send failed: %s", e)
+        return False
+    mark_digest_done(now, state_dir, name=VERDICT_COLLECTION_MARKER)
+    return True
 
 
 def _journal_verdicts_once_a_day(now: datetime, accounts: list[dict],
@@ -311,14 +349,13 @@ def run_daily_monitor(
             logger.info("All wallet fetches failed — skipping (untrustworthy).")
         else:
             logger.info("No open positions — skipping report.")
-            # Дайджест без позиций не шлём — решение оператора 13.06.
-            # Но вердикты собираем РАЗ В СУТКИ, а не на каждом тике: пять
-            # наблюдений одного суточного вердикта не добавляют информации,
-            # только раздувают n к разбору (политика §5, дедуп китов).
+            # Вне рынка дайджест НУЖЕН (21.08, отмена решения 13.06):
+            # отчёта без позиций нет, и без сводки оператор слеп. Раз в
+            # сутки — он же и журналит вердикты.
             try:
-                _journal_verdicts_once_a_day(now, accounts, _state_dir)
+                _flat_digest_once_a_day(now, accounts, _state_dir)
             except Exception as e:
-                logger.warning("Silent journaling failed: %s", e)
+                logger.warning("Flat digest failed: %s", e)
         return
 
     decisions = load_decisions(decisions_path, lookback_days=DECISION_LOOKBACK_DAYS, now=now)

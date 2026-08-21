@@ -218,8 +218,10 @@ def test_run_daily_monitor_no_positions_journals_silently(
             decisions_path=temp_repo / "decisions.jsonl",
             now=morning,
         )
-    # Без позиций ничего не шлём — но вердикты журналируются
-    assert len(sent) == 0
+    # Вне рынка дайджест НУЖЕН (21.08, отмена решения 13.06): отчёта без
+    # позиций нет, и без сводки оператор слеп — три дня без предложений при
+    # росте +15…+29% это показали. Вердикты журналируются как и раньше.
+    assert len(sent) == 1
     assert len(journal_writes) >= 1
 
 
