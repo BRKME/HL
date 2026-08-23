@@ -174,3 +174,16 @@ def test_h2_bootstrap_is_deterministic():
     """Отчёт, меняющийся от прогона к прогону, не годится для решения."""
     rows = _closed("LONG", 0.2, 30) + _closed("SHORT", -0.1, 20)
     assert compute_h2(rows).ci_low == compute_h2(rows).ci_low
+
+
+def test_kpi_label_distinguishes_methodology():
+    """23.08: «avg R» в KPI и в чекпойнте мерили разное и разошлись в знаке.
+
+    KPI симулирует удержание сигнала до его SL/TP; чекпойнт берёт
+    фактический R на выходе по политике. Подпись обязана их различать."""
+    from src.tactical_eval import aggregate
+
+    rows = [{"status": "win", "r_multiple": 2.0, "direction": "LONG"},
+            {"status": "loss", "r_multiple": -1.0, "direction": "SHORT"}] * 10
+    line = aggregate(rows)["line"]
+    assert "до SL/TP" in line

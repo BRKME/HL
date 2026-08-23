@@ -89,7 +89,11 @@ def aggregate(rows: List[Dict]) -> Dict:
     dir_bits = " · ".join(
         f"{d}: avgR {sum(v)/len(v):+.2f} (n={len(v)})"
         for d, v in sorted(by_dir.items()))
-    line = (f"Тактика: n={n_dec} закрытых · WR {wr:.0f}% · "
+    # «avg R» звучал одинаково здесь и в чекпойнте, а мерил разное: тут —
+    # симуляция «держим сигнал до своего SL/TP» (горизонт 7д, цель +2R),
+    # там — фактический R на выходе по политике. 23.08 они разошлись в
+    # знаке (-0.15 против +0.03), и без подписи это неразрешимо.
+    line = (f"Тактика (сигнал до SL/TP): n={n_dec} закрытых · WR {wr:.0f}% · "
             f"avg R {avg_r:+.2f} (по {len(scored)} оценённым)")
     if dir_bits:
         line += f"\n     {dir_bits}"
