@@ -193,8 +193,12 @@ def _journal_verdicts_silently(now: datetime, accounts: list[dict]) -> None:
     )
     from src.verdict_journal import VerdictEntry, append_verdicts
 
-    repo_root = _Path(__file__).resolve().parent.parent
-    state_dir = repo_root / "state"
+    # Через STATE_DIR, а не жёстким путём: иначе тест не может подменить
+    # каталог и пишет в БОЕВОЙ журнал вердиктов. 23.08 так и оказалось —
+    # test_run_daily_monitor_survives_one_wallet_failure дописывал четыре
+    # строки в state/verdict_journal.jsonl на каждом прогоне, засоряя
+    # данные, по которым считаются чекпойнты.
+    state_dir = STATE_DIR
 
     today_snapshot = _safe_oracai_current()
     marks, _ = _safe_fetch_marks()

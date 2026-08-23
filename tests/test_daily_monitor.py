@@ -255,8 +255,12 @@ def test_run_daily_monitor_survives_oracai_failure(temp_repo):
     assert "BTC" in body  # core report still produced
 
 
-def test_run_daily_monitor_survives_one_wallet_failure(temp_repo):
+def test_run_daily_monitor_survives_one_wallet_failure(temp_repo, monkeypatch):
     """If HL API fails for one wallet, continue with the others."""
+    # Журнал — во временный каталог: без этого тест дописывал строки в
+    # боевой state/verdict_journal.jsonl (поймано стражем 23.08).
+    import src.daily_monitor as dm_mod
+    monkeypatch.setattr(dm_mod, "STATE_DIR", temp_repo / "state")
     flaky = MagicMock()
     call_count = {"perp": 0}
     def flaky_perp(addr):
@@ -290,6 +294,7 @@ def test_run_daily_monitor_survives_one_wallet_failure(temp_repo):
          patch("src.daily_monitor.fetch_sl_orders_for_wallets", return_value=[]), \
          patch("src.daily_monitor.fetch_oracai_snapshot", return_value=None), \
          patch("src.daily_monitor.fetch_snapshot_days_ago", return_value=None), \
+         patch("src.daily_monitor.fetch_candles", return_value=[]), \
          patch("src.daily_monitor.send_messages", side_effect=lambda m: sent.append(m)):
         run_daily_monitor(
             whitelist_path=temp_repo / "whitelist.yaml",

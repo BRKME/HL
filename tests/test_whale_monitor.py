@@ -239,7 +239,11 @@ def test_run_whale_monitor_smoke(temp_repo):
         kwargs["address"]
     )
 
+    # send_messages патчится обязательно: без этого тест реально стучится в
+    # api.telegram.org, а broad except в whale_monitor глотает результат —
+    # с боевыми токенами в окружении прогон писал бы оператору в канал.
     with patch("src.whale_monitor.HLClient", return_value=fake_client), \
+         patch("src.whale_monitor.send_messages", return_value=None), \
          patch("src.whale_monitor.fetch_leaderboard",
                return_value=[
                    p for p in _candidates_response()["leaderboardRows"]

@@ -92,6 +92,24 @@ class VerdictEntry:
         return d
 
 
+def _recent_keys(journal_path: Path, tail: int = 200) -> set:
+    """(coin, ts) последних записей — окно для отсева дублей."""
+    try:
+        lines = journal_path.read_text(encoding="utf-8").splitlines()[-tail:]
+    except OSError:
+        return set()
+    out = set()
+    for line in lines:
+        if not line.strip():
+            continue
+        try:
+            r = json.loads(line)
+        except ValueError:
+            continue
+        out.add((r.get("coin"), r.get("ts")))
+    return out
+
+
 def append_verdicts(journal_path: Path, entries: list[VerdictEntry]) -> int:
     """Append verdict entries to JSONL. Creates file/dir if missing.
 
@@ -102,6 +120,25 @@ def append_verdicts(journal_path: Path, entries: list[VerdictEntry]) -> int:
         return 0
     journal_path = Path(journal_path)
     journal_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Одна монета — одна запись на момент времени (23.08). Монета, которую
+    # оператор держит, журналилась ДВАЖДЫ за один прогон: путём позиции и
+    # путём дайджеста, с одинаковым ts. 14 таких пар в истории — та же
+    # передискретизация, что была у китов: n растёт, информации нет.
+    seen = _recent_keys(journal_path)
+    deduped = []
+    for e in entries:
+        key = (getattr(e, "coin", None), getattr(e, "ts", None))
+        key = (key[0], key[1].isoformat() if hasattr(key[1], "isoformat") else key[1])
+        if key in seen:
+            logger.debug("skip duplicate verdict %s", key)
+            continue
+        seen.add(key)
+        deduped.append(e)
+    entries = deduped
+    if not entries:
+        return 0
+
     written = 0
     try:
         with journal_path.open("a", encoding="utf-8") as fh:
