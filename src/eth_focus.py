@@ -494,7 +494,7 @@ def _compute_verdict(
     )[1]  # return (verdict, rationale) — final, regime-applied
 
 
-def direction_permission(raw_verdict, regime, phase):
+def direction_permission(raw_verdict, regime, phase, trend_score=None):
     """Приоритет слоёв (пре-регистрация 06.07.2026): РЕЖИМ (трендовый слой)
     управляет разрешением направления; ФАЗА (MVRV-слой) решает только при
     неопределённом режиме (TRANSITION/None).
@@ -507,16 +507,27 @@ def direction_permission(raw_verdict, regime, phase):
     bear_phases = ("EARLY_BEAR", "MID_BEAR")
     bull_phases = ("EARLY_BULL", "MID_BULL", "MARKUP")
     r = (regime or "").upper()
+
+    # H3 (23.08.2026): при НЕОПРЕДЕЛЁННОМ режиме фаза больше не отменяет
+    # полноценный тренд. Фаза считается по MVRV и по построению медленная:
+    # 18→21.08 она простояла на EARLY_BEAR, пока рынок рос на +15…+29%, и
+    # погасила 19 валидных лонгов — неделя без единой идеи в канале.
+    # Слабый сигнал (|trend_score| == 1: отскок в нисходящем тренде,
+    # коррекция в восходящем) фаза ветует по-прежнему — там тренда нет, и
+    # цикловой слой добавляет настоящую информацию.
+    # Вето РЕЖИМА не тронуто: BEAR запрещает лонг, BULL запрещает шорт.
+    strong_trend = trend_score is not None and abs(trend_score) >= 2
+
     if raw_verdict == "LONG":
         if r == "BEAR":
             return False, "broad regime BEAR — против тренда не входить."
-        if r != "BULL" and phase in bear_phases:
+        if r != "BULL" and phase in bear_phases and not strong_trend:
             return False, (f"фаза {phase} при неопределённом режиме — "
                            "лонг не входить.")
     elif raw_verdict == "SHORT":
         if r == "BULL":
             return False, "broad regime BULL — против тренда не входить."
-        if r != "BEAR" and phase in bull_phases:
+        if r != "BEAR" and phase in bull_phases and not strong_trend:
             return False, (f"фаза {phase} при неопределённом режиме — "
                            "шорт не входить.")
     return True, None
@@ -744,7 +755,8 @@ def _apply_regime(
     if raw_verdict in ("LONG", "SHORT") and not (
             (raw_verdict == "LONG" and is_bottom) or
             (raw_verdict == "SHORT" and is_top)):
-        allowed, block_note = direction_permission(raw_verdict, regime, phase)
+        allowed, block_note = direction_permission(
+            raw_verdict, regime, phase, trend_score)
         if not allowed:
             return ("WAIT", f"{raw_rationale.rstrip('.')} Но {block_note}")
 
