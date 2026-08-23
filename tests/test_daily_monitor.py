@@ -145,8 +145,11 @@ def test_run_daily_monitor_smoke(temp_repo):
 
 
 def test_run_daily_monitor_no_positions_sends_nothing(temp_repo):
-    """All wallets empty in NON-morning slot — silent. Morning slot
-    (07:00 UTC = 10:00 MSK) is a separate path tested below."""
+    """Пустой портфель ВНЕ утреннего окна — тишина.
+
+    23.08 окно расширено вниз до 06:00 UTC (cron сдвинут на 05:00, Actions
+    доставляет с задержкой), поэтому прежние 06:00 в тест больше не годятся
+    — берём 04:00. Дайджест внутри окна проверяется отдельно ниже."""
     empty_client = MagicMock()
     empty_client.get_clearinghouse_state.return_value = {
         "marginSummary": {"accountValue": "0.0"}, "assetPositions": [],
@@ -162,12 +165,13 @@ def test_run_daily_monitor_no_positions_sends_nothing(temp_repo):
          patch("src.daily_monitor.fetch_sl_orders_for_wallets", return_value=[]), \
          patch("src.daily_monitor.fetch_oracai_snapshot", return_value=None), \
          patch("src.daily_monitor.fetch_snapshot_days_ago", return_value=None), \
+         patch("src.daily_monitor.fetch_candles", return_value=[]), \
          patch("src.daily_monitor.send_messages", side_effect=lambda m: sent.append(m)):
-        # NOW is 06:00 UTC = 09:00 MSK, NOT the 10:00 MSK morning slot
+        # 04:00 UTC = 07:00 MSK — раньше нижней границы окна (06:00 UTC)
         run_daily_monitor(
             whitelist_path=temp_repo / "whitelist.yaml",
             decisions_path=temp_repo / "decisions.jsonl",
-            now=NOW,
+            now=NOW.replace(hour=4),
         )
     assert sent == []  # no messages sent at all
 

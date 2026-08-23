@@ -29,10 +29,13 @@ logger = logging.getLogger(__name__)
 
 STATE_FILE = "morning_digest.json"
 
-# Earliest UTC hour that counts as «morning». 07:00 UTC = 10:00 MSK, which
-# is the slot the digest was designed around. Runs before this (manual
-# dispatch, backfills) must not consume the day's digest.
-EARLIEST_UTC_HOUR = 7
+# Нижняя граница «утра». Сводка задумывалась на 10:00 МСК, но Actions
+# доставляет cron с задержкой 1–3 часа: при старте в 07:00 UTC первый тик
+# дня падал в 09–10 UTC и сводка приходила в 12–13 МСК. Cron сдвинут на
+# 05:00 UTC, граница — на 06:00 UTC (09:00 МСК), чтобы ранняя доставка не
+# пролетала мимо окна. Прогоны до этого часа (ручной запуск, бэкфилл) день
+# по-прежнему не сжигают.
+EARLIEST_UTC_HOUR = 6
 
 # Позже этого часа дайджест за день уже не отправляется. 03.08 гейт уехал в
 # прод днём, первым же тиком после деплоя оказался 20:26 UTC — и утренняя

@@ -184,16 +184,28 @@ def _advisor_kpi_line() -> Optional[str]:
 MIN_ACCOUNT_USD = 50.0   # ниже — проценты P&L не показательны (центы от копеек)
 
 
-def format_portfolio_line(pnl: float, roi: float, account_value: float) -> str:
+def format_portfolio_line(pnl: float, roi: float, account_value: float,
+                          period=None) -> str:
     """Портфельная строка KPI.
 
     На малом счёте (< MIN_ACCOUNT_USD) проценты P&L — шум (1.7% от $7 = центы),
     поэтому не выпячиваем их: помечаем режим паузы и показываем абсолют. Это
     защита от ложного прочтения малой базы, в духе «рано судить» у тактики.
+
+    period: PeriodStats недели. Если передан — процент печатается только
+    когда база достоверна (см. roi_is_reliable): счёт не двигали вводами или
+    выводами внутри окна. Тот же страж стоит в дневном отчёте с 03.08; здесь
+    его не было, и одно пополнение дало бы KPI процент, который отчёт в тот
+    же день скрыл бы (политика §6, «одно число — один источник»).
     """
     if account_value < MIN_ACCOUNT_USD:
         return (f"Портфель: малый счёт ${account_value:,.0f} (пауза) — "
                 f"проценты не показательны, неделя {pnl:+,.0f}$")
+    if period is not None:
+        from src.portfolio_performance import roi_is_reliable
+        if not roi_is_reliable(period):
+            return (f"Портфель: неделя {pnl:+,.0f}$ · "
+                    f"счёт ${account_value:,.0f}")
     return (f"Портфель: неделя {pnl:+,.0f}$ ({roi:+.1f}%) · "
             f"счёт ${account_value:,.0f}")
 
@@ -233,7 +245,8 @@ def _portfolio_kpi_line() -> Optional[str]:
         wk = perf.week
         account_value = _account_value_or_fallback(
             accounts, fallback=perf.current_account_value)
-        return format_portfolio_line(wk.pnl, wk.roi_pct, account_value)
+        return format_portfolio_line(wk.pnl, wk.roi_pct, account_value,
+                                     period=wk)
     except Exception as e:  # noqa: BLE001
         print(f"[kpi] portfolio: {e}")
         return None
