@@ -18,10 +18,10 @@
   "last_change_ts": "2026-08-20T07:07:01.915868+00:00"
  },
  "NEAR": {
-  "last_verdict": "WAIT",
-  "last_action_verdict": null,
-  "last_alert_ts": "2026-08-18T22:46:20.104021+00:00",
-  "last_change_ts": "2026-08-19T01:53:39.493503+00:00"
+  "last_verdict": "LONG",
+  "last_action_verdict": "LONG",
+  "last_alert_ts": "2026-08-23T20:44:40.128612+00:00",
+  "last_change_ts": "2026-08-23T20:44:40.128612+00:00"
  },
  "HYPE": {
   "last_verdict": "WAIT",
@@ -48,8 +48,9 @@
   "last_change_ts": "2026-08-20T10:48:24.612705+00:00"
  },
  "ONDO": {
-  "last_verdict": "WAIT",
-  "last_action_verdict": null,
-  "last_change_ts": "2026-08-08T22:53:15.662978+00:00"
+  "last_verdict": "LONG",
+  "last_action_verdict": "LONG",
+  "last_alert_ts": "2026-08-23T20:44:40.128612+00:00",
+  "last_change_ts": "2026-08-23T20:44:40.128612+00:00"
  }
 }
