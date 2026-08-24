@@ -30,10 +30,10 @@
   "last_change_ts": "2026-08-19T20:46:23.062294+00:00"
  },
  "ASTER": {
-  "last_verdict": "WAIT",
-  "last_action_verdict": null,
-  "last_alert_ts": "2026-08-18T07:12:16.829594+00:00",
-  "last_change_ts": "2026-08-18T16:49:18.457500+00:00"
+  "last_verdict": "LONG",
+  "last_action_verdict": "LONG",
+  "last_alert_ts": "2026-08-24T02:03:20.214433+00:00",
+  "last_change_ts": "2026-08-24T02:03:20.214433+00:00"
  },
  "MORPHO": {
   "last_verdict": "WAIT",
@@ -42,10 +42,10 @@
   "last_change_ts": "2026-08-20T07:07:01.915868+00:00"
  },
  "TAO": {
-  "last_verdict": "WAIT",
-  "last_action_verdict": null,
-  "last_alert_ts": "2026-08-20T03:14:49.367521+00:00",
-  "last_change_ts": "2026-08-20T10:48:24.612705+00:00"
+  "last_verdict": "LONG",
+  "last_action_verdict": "LONG",
+  "last_alert_ts": "2026-08-24T02:03:20.214433+00:00",
+  "last_change_ts": "2026-08-24T02:03:20.214433+00:00"
  },
  "ONDO": {
   "last_verdict": "LONG",
