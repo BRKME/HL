@@ -304,4 +304,10 @@ def render_whitelist_verdicts(
     if wait_summary:
         lines.append(wait_summary)
 
+    from src.digest_compact import beta_warning
+    warn = beta_warning(verdicts)
+    if warn:
+        lines.append("")
+        lines.append(warn)
+
     return "\n".join(lines)
