@@ -152,6 +152,14 @@ def _tactical_kpi_line() -> Optional[str]:
 
 
 def _advisor_kpi_line() -> Optional[str]:
+    # Планнер в тени с 24.08 (решение оператора). Строку альфы в сводку не
+    # выводим: она меряет не качество выбора, а степень инвестированности —
+    # за две недели знак перевернулся с +20.3пп на −20.5пп при НЕИЗМЕННОЙ
+    # доходности планнера (+6.1%), изменился только рынок. Выходим до
+    # похода за свечами: незачем грузить API ради выброшенного результата.
+    # Вернуть строку — снять этот возврат.
+    return None
+
     from src import hl_api
     rows = _load_jsonl(DECISIONS)
     cutoff = datetime.now(timezone.utc) - timedelta(weeks=ADVISOR_LOOKBACK_WEEKS)
