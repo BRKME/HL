@@ -2,15 +2,15 @@
   "entries": [
     {
       "rule": "WHALE_NEW_OPEN",
-      "whale": "0x90dbb196cacf24bd212b377a0dd62eaad5e8151b",
-      "coin": "HYPE",
-      "ts": 1787343692
+      "whale": "0xa906355beaf1d69a5fe73ce55899c49c6e67916c",
+      "coin": "PUMP",
+      "ts": 1787603151
     },
     {
       "rule": "WHALE_NEW_OPEN",
-      "whale": "0x757df2c060ec6c7ba898fa6570aa98c1f46294ba",
-      "coin": "ZEC",
-      "ts": 1787372924
+      "whale": "0xa906355beaf1d69a5fe73ce55899c49c6e67916c",
+      "coin": "HYPE",
+      "ts": 1787603151
     }
   ]
 }
