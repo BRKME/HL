@@ -100,3 +100,34 @@ def test_trend_score_defaults_to_old_behaviour():
 def test_wait_verdict_is_never_blocked():
     assert direction_permission("WAIT", "TRANSITION", "EARLY_BEAR",
                                 STRONG)[0] is True
+
+
+# --------------------------------------- измеримость критериев отката H3
+
+from src.eth_focus import h3_unblocked  # noqa: E402
+
+
+def test_flag_marks_signal_that_old_rule_would_block():
+    """Ровно 24.08: ASTER/TAO, TRANSITION + EARLY_BEAR, тренд вверх."""
+    assert h3_unblocked("LONG", "LONG", "TRANSITION", "EARLY_BEAR") is True
+
+
+def test_flag_false_when_old_rule_also_allowed():
+    assert h3_unblocked("LONG", "LONG", "BULL", "MID_BULL") is False
+
+
+def test_flag_false_when_signal_was_still_blocked():
+    """Слабый тренд гасится и новым правилом — H3 тут ни при чём."""
+    assert h3_unblocked("LONG", "WAIT", "TRANSITION", "EARLY_BEAR") is False
+
+
+def test_flag_false_for_wait_verdicts():
+    assert h3_unblocked("WAIT", "WAIT", "TRANSITION", "EARLY_BEAR") is False
+
+
+def test_flag_works_for_short_side():
+    assert h3_unblocked("SHORT", "SHORT", "TRANSITION", "MID_BULL") is True
+
+
+def test_flag_survives_missing_fields():
+    assert h3_unblocked(None, None, None, None) is False

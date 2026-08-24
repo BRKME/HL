@@ -23,6 +23,7 @@ from src.hl_api import fetch_meta_and_ctxs, fetch_candles, resolve_symbol
 from src.oracai import fetch_snapshot as fetch_oracai_snapshot
 from src.telegram_sender import send_messages, alert_owner
 from src.verdict_journal import VerdictEntry, append_verdicts
+from src.eth_focus import h3_unblocked as _h3
 from src.whitelist_focus import (
     FOCUS_COINS, compute_all_verdicts, render_whitelist_verdicts,
 )
@@ -109,6 +110,7 @@ def run() -> None:
             regime=regime, phase=phase,
             verdict_raw=raw_v, rationale_raw=raw_r,
             rs_30d=rs_30, rs_90d=rs_90,
+            h3_unblocked=_h3(raw_v, verdict, regime, phase) or None,
         ))
     journal_path = state_dir / "verdict_journal.jsonl"
     try:

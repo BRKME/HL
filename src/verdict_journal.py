@@ -56,6 +56,11 @@ class VerdictEntry:
     # RS goes in. If no → leave it as a diagnostic-only field.
     rs_30d: Optional[float] = None  # coin_return_30d - btc_return_30d, pp
     rs_90d: Optional[float] = None  # coin_return_90d - btc_return_90d, pp
+    # H3 (23.08): сигнал прошёл только потому, что фаза перестала ветовать
+    # сильный тренд при неопределённом режиме. Без этой пометки критерии
+    # отката H3 неизмеримы — они говорят «avg R по сигналам, прошедшим
+    # благодаря правке», а отличить их было не по чему (найдено 24.08).
+    h3_unblocked: Optional[bool] = None
 
     def to_dict(self) -> dict:
         d = {
@@ -77,6 +82,8 @@ class VerdictEntry:
             d["rs_30d"] = float(self.rs_30d)
         if self.rs_90d is not None:
             d["rs_90d"] = float(self.rs_90d)
+        if self.h3_unblocked is not None:
+            d["h3_unblocked"] = bool(self.h3_unblocked)
         # Пре-регистрация 02.07.2026 (разбор журнала за июнь): raw LONG,
         # заблокированный bear-режимом в WAIT, — это ралли внутри медвежьего
         # рынка. Эмпирика месяца: fwd72 после таких WAIT −5.98%, 57% случаев
@@ -198,6 +205,7 @@ def load_verdicts(journal_path: Path,
                         rationale_raw=row.get("rationale_raw"),
                         rs_30d=row.get("rs_30d"),
                         rs_90d=row.get("rs_90d"),
+                        h3_unblocked=row.get("h3_unblocked"),
                     ))
                 except (TypeError, ValueError):
                     continue

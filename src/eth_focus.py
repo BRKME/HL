@@ -494,6 +494,24 @@ def _compute_verdict(
     )[1]  # return (verdict, rationale) — final, regime-applied
 
 
+def h3_unblocked(raw_verdict, final_verdict, regime, phase) -> bool:
+    """Прошёл ли сигнал ТОЛЬКО благодаря правке H3 (23.08).
+
+    Критерии отката H3 сформулированы как «avg R по сигналам, прошедшим
+    благодаря правке». 24.08 выяснилось, что пометки для таких сигналов нет:
+    критерий был записан, но неизмерим — а неизмеримый критерий это не
+    критерий, а намерение.
+
+    Определение точное и не требует trend_score: сигнал прошёл благодаря
+    H3, если финальный вердикт совпал с сырым, а СТАРОЕ правило его бы
+    заблокировало. Старое правило = то же самое без trend_score.
+    """
+    if raw_verdict not in ("LONG", "SHORT") or final_verdict != raw_verdict:
+        return False
+    old_ok, _ = direction_permission(raw_verdict, regime, phase, None)
+    return not old_ok
+
+
 def direction_permission(raw_verdict, regime, phase, trend_score=None):
     """Приоритет слоёв (пре-регистрация 06.07.2026): РЕЖИМ (трендовый слой)
     управляет разрешением направления; ФАЗА (MVRV-слой) решает только при

@@ -38,6 +38,7 @@ from src.portfolio_performance import fetch_combined_performance
 from src.sl_visibility import fetch_sl_orders_for_wallets
 from src.ta import atr
 from src.telegram_sender import send_messages, alert_owner
+from src.eth_focus import h3_unblocked as _h3
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -254,6 +255,7 @@ def _journal_verdicts_silently(now: datetime, accounts: list[dict]) -> None:
             regime=regime, phase=phase,
             verdict_raw=raw_v, rationale_raw=raw_r,
             rs_30d=rs_30, rs_90d=rs_90,
+            h3_unblocked=_h3(raw_v, verdict, regime, phase) or None,
         ))
     try:
         append_verdicts(state_dir / "verdict_journal.jsonl", entries)
