@@ -1402,3 +1402,6 @@
 {"ts": "2026-08-24T19:24:34.978248+00:00", "source": "daily_monitor", "coin": "TAO", "mark": 238.74, "verdict": "WAIT", "rationale": "(position)", "regime": "TRANSITION", "phase": "EARLY_BEAR"}
 {"ts": "2026-08-24T19:24:34.978248+00:00", "source": "daily_monitor", "coin": "ONDO", "mark": 0.38038, "verdict": "LONG", "rationale": "(position)", "regime": "TRANSITION", "phase": "EARLY_BEAR"}
 {"ts": "2026-08-24T19:24:34.978248+00:00", "source": "daily_monitor", "coin": "NEAR", "mark": 1.9446, "verdict": "LONG", "rationale": "(position)", "regime": "TRANSITION", "phase": "EARLY_BEAR"}
+{"ts": "2026-08-25T05:26:50.430849+00:00", "source": "daily_monitor", "coin": "TAO", "mark": 245.92, "verdict": "WAIT", "rationale": "(position)", "regime": "TRANSITION", "phase": "EARLY_BEAR"}
+{"ts": "2026-08-25T05:26:50.430849+00:00", "source": "daily_monitor", "coin": "ONDO", "mark": 0.3956, "verdict": "LONG", "rationale": "(position)", "regime": "TRANSITION", "phase": "EARLY_BEAR"}
+{"ts": "2026-08-25T05:26:50.430849+00:00", "source": "daily_monitor", "coin": "NEAR", "mark": 2.0045, "verdict": "LONG", "rationale": "(position)", "regime": "TRANSITION", "phase": "EARLY_BEAR"}
