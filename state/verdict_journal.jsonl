@@ -1416,3 +1416,5 @@
 {"ts": "2026-08-25T07:39:08.224163+00:00", "source": "whitelist_focus", "coin": "MORPHO", "mark": 2.6913, "verdict": "LONG", "rationale": "тренд вверх.", "regime": "TRANSITION", "phase": "EARLY_BEAR", "verdict_raw": "LONG", "rationale_raw": "тренд вверх.", "rs_30d": 14.474772433139812, "rs_90d": 18.2463048198419}
 {"ts": "2026-08-25T09:29:43.140182+00:00", "source": "daily_monitor", "coin": "TAO", "mark": 237.82, "verdict": "LONG", "rationale": "(position)", "regime": "TRANSITION", "phase": "EARLY_BEAR"}
 {"ts": "2026-08-25T09:29:43.140182+00:00", "source": "daily_monitor", "coin": "ONDO", "mark": 0.38537, "verdict": "LONG", "rationale": "(position)", "regime": "TRANSITION", "phase": "EARLY_BEAR"}
+{"ts": "2026-08-25T11:21:50.970636+00:00", "source": "daily_monitor", "coin": "ONDO", "mark": 0.38035, "verdict": "LONG", "rationale": "(position)", "regime": "TRANSITION", "phase": "EARLY_BEAR"}
+{"ts": "2026-08-25T11:21:50.970636+00:00", "source": "daily_monitor", "coin": "TAO", "mark": 237.44, "verdict": "LONG", "rationale": "(position)", "regime": "TRANSITION", "phase": "EARLY_BEAR"}
