@@ -1418,3 +1418,4 @@
 {"ts": "2026-08-25T09:29:43.140182+00:00", "source": "daily_monitor", "coin": "ONDO", "mark": 0.38537, "verdict": "LONG", "rationale": "(position)", "regime": "TRANSITION", "phase": "EARLY_BEAR"}
 {"ts": "2026-08-25T11:21:50.970636+00:00", "source": "daily_monitor", "coin": "ONDO", "mark": 0.38035, "verdict": "LONG", "rationale": "(position)", "regime": "TRANSITION", "phase": "EARLY_BEAR"}
 {"ts": "2026-08-25T11:21:50.970636+00:00", "source": "daily_monitor", "coin": "TAO", "mark": 237.44, "verdict": "LONG", "rationale": "(position)", "regime": "TRANSITION", "phase": "EARLY_BEAR"}
+{"ts": "2026-08-25T13:43:54.918791+00:00", "source": "daily_monitor", "coin": "TAO", "mark": 235.698, "verdict": "LONG", "rationale": "(position)", "regime": "TRANSITION", "phase": "EARLY_BEAR"}
