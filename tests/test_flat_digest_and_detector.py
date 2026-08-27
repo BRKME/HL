@@ -112,7 +112,8 @@ def test_flat_digest_silent_outside_window(monkeypatch, tmp_path):
 
 def test_send_failure_does_not_burn_the_day(monkeypatch, tmp_path):
     import src.daily_monitor as dm
-    from src.morning_gate import should_run_digest
+    from src.daily_monitor import DIGEST_SENT_MARKER
+    from src.morning_gate import ran_today
 
     def boom(_):
         raise RuntimeError("telegram down")
@@ -123,6 +124,5 @@ def test_send_failure_does_not_burn_the_day(monkeypatch, tmp_path):
 
     dm._flat_digest_once_a_day(
         datetime(2026, 8, 21, 9, 0, tzinfo=timezone.utc), [], tmp_path)
-    assert should_run_digest(
-        datetime(2026, 8, 21, 11, 0, tzinfo=timezone.utc),
-        tmp_path, name=dm.VERDICT_COLLECTION_MARKER) is True
+    assert ran_today(datetime(2026, 8, 21, 11, 0, tzinfo=timezone.utc),
+                     tmp_path, name=DIGEST_SENT_MARKER) is False

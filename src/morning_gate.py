@@ -60,6 +60,22 @@ def _last_date(state_dir: Path, name: str = STATE_FILE) -> str | None:
         return None
 
 
+def in_digest_window(now: datetime) -> bool:
+    """Пора ли БЕСПОКОИТЬ оператора сводкой.
+
+    Отделено от «пора ли собирать данные» (27.08): окно нужно ради
+    оператора, журналу оно ни к чему, а привязка сбора к окну стоила
+    целого дня наблюдений.
+    """
+    return EARLIEST_UTC_HOUR <= now.hour <= LATEST_UTC_HOUR
+
+
+def ran_today(now: datetime, state_dir: Path,
+              name: str = STATE_FILE) -> bool:
+    """Отработал ли уже сегодня — независимо от часа."""
+    return _last_date(state_dir, name) == now.date().isoformat()
+
+
 def should_run_digest(now: datetime, state_dir: Path,
                       name: str = STATE_FILE) -> bool:
     """True на первом тике дня внутри окна 07:00–14:00 UTC."""

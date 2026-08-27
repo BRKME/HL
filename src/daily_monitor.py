@@ -173,6 +173,10 @@ def _safe_oracai_yesterday(now: datetime) -> Optional[dict]:
 
 
 VERDICT_COLLECTION_MARKER = "verdict_collection.json"
+# Отдельная пометка для СООБЩЕНИЯ (27.08). Сбор и отправка живут по разным
+# правилам: собранные данные повторять не нужно, а не ушедшее сообщение
+# стоит попробовать снова на следующем прогоне внутри окна.
+DIGEST_SENT_MARKER = "digest_sent.json"
 
 # Путь к state вынесен на уровень модуля, чтобы тесты подменяли его
 # monkeypatch'ем, а не писали маркеры в боевой каталог: прогон тестов в
@@ -283,11 +287,20 @@ def _flat_digest_once_a_day(now: datetime, accounts: list[dict],
     Отметка ставится только после успешной отправки: упавший Telegram не
     должен сжигать день.
     """
-    from src.morning_gate import mark_digest_done, should_run_digest
+    from src.morning_gate import (
+        in_digest_window, mark_digest_done, ran_today,
+    )
 
     state_dir = state_dir or STATE_DIR
-    if not should_run_digest(now, state_dir, name=VERDICT_COLLECTION_MARKER):
+    collected = ran_today(now, state_dir, name=VERDICT_COLLECTION_MARKER)
+    sent_today = ran_today(now, state_dir, name=DIGEST_SENT_MARKER)
+    if collected and (sent_today or not in_digest_window(now)):
         return False
+
+    # СБОР ДАННЫХ — на любом прогоне дня. 27.08 единственный сработавший
+    # прогон пришёлся на 16:02, вне окна отправки, и день наблюдений
+    # пропал целиком. Окно существует ради оператора (сводка «что покупать»
+    # бессмысленна ночью); у журнала такого ограничения нет.
     try:
         digest = _render_flat_digest(now, accounts)
     except Exception as e:  # noqa: BLE001
@@ -295,12 +308,24 @@ def _flat_digest_once_a_day(now: datetime, accounts: list[dict],
         return False
     if not digest:
         return False
+
+    if not collected:
+        mark_digest_done(now, state_dir, name=VERDICT_COLLECTION_MARKER)
+
+    # ОТПРАВКА — только в окне и по своей пометке: упавший Telegram не
+    # должен лишать оператора сводки на весь день, следующий прогон внутри
+    # окна попробует снова.
+    if not in_digest_window(now):
+        logger.info("Digest collected outside window — data kept, no message")
+        return False
+    if ran_today(now, state_dir, name=DIGEST_SENT_MARKER):
+        return False
     try:
         send_messages([digest])
     except Exception as e:  # noqa: BLE001
         logger.warning("Flat digest send failed: %s", e)
         return False
-    mark_digest_done(now, state_dir, name=VERDICT_COLLECTION_MARKER)
+    mark_digest_done(now, state_dir, name=DIGEST_SENT_MARKER)
     return True
 
 

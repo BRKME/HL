@@ -144,8 +144,11 @@ def test_run_daily_monitor_smoke(temp_repo):
     assert "BULL" in body and "BEAR" in body
 
 
-def test_run_daily_monitor_no_positions_sends_nothing(temp_repo):
-    """Пустой портфель ВНЕ утреннего окна — тишина.
+def test_run_daily_monitor_no_positions_sends_nothing(temp_repo, monkeypatch):
+    """Пустой портфель ВНЕ утреннего окна — тишина в канале.
+
+    С 27.08 данные при этом собираются, поэтому журнал пишется во временный
+    каталог, а не в боевой.
 
     23.08 окно расширено вниз до 06:00 UTC (cron сдвинут на 05:00, Actions
     доставляет с задержкой), поэтому прежние 06:00 в тест больше не годятся
@@ -167,6 +170,8 @@ def test_run_daily_monitor_no_positions_sends_nothing(temp_repo):
          patch("src.daily_monitor.fetch_snapshot_days_ago", return_value=None), \
          patch("src.daily_monitor.fetch_candles", return_value=[]), \
          patch("src.daily_monitor.send_messages", side_effect=lambda m: sent.append(m)):
+        import src.daily_monitor as dm_mod
+        monkeypatch.setattr(dm_mod, "STATE_DIR", temp_repo / "state")
         # 04:00 UTC = 07:00 MSK — раньше нижней границы окна (06:00 UTC)
         run_daily_monitor(
             whitelist_path=temp_repo / "whitelist.yaml",
