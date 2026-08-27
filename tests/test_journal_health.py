@@ -52,12 +52,15 @@ def test_dead_source_is_flagged_even_with_long_history():
 
 
 def test_source_just_inside_threshold_is_quiet():
-    entries = [_e(STALE_HOURS - 1, "whitelist_focus")]
+    """27.08: у whitelist_focus теперь свой, более тесный порог — он
+    суточный, и общие 36 часов не ловили пропуск дня. Проверяем на
+    источнике с порогом по умолчанию."""
+    entries = [_e(STALE_HOURS - 1, "some_other_source")]
     assert check_source_staleness(entries, NOW) == []
 
 
 def test_source_just_outside_threshold_warns():
-    entries = [_e(STALE_HOURS + 1, "whitelist_focus")]
+    entries = [_e(STALE_HOURS + 1, "some_other_source")]
     assert len(check_source_staleness(entries, NOW)) == 1
 
 

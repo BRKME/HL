@@ -22,6 +22,20 @@ from typing import Iterable, Optional, Sequence
 # two in a row.
 STALE_HOURS = 36
 
+# Порог свой на источник, потому что частота записи у них разная (27.08).
+# Единый порог в 36 часов был сделан под источник, пишущий каждые два часа:
+# он терпит один пропущенный прогон. Но дайджест СУТОЧНЫЙ, и пропуск ровно
+# одного дня даёт 24–30 часов — всегда меньше 36. 27.08 daily-monitor не
+# писал 32 часа, детектор промолчал, и день прошёл без единой сводки.
+# 30 часов = сутки + 6 на задержку доставки Actions.
+SOURCE_STALE_HOURS = {
+    "whitelist_focus": 30,
+}
+
+
+def stale_threshold_for(source: str) -> int:
+    return SOURCE_STALE_HOURS.get(source, STALE_HOURS)
+
 # Fields whose collection the end-of-August analysis depends on. These are
 # exactly the two that died unnoticed on 06.07.
 TRACKED_FIELDS = ("verdict_raw", "rs_30d")
@@ -92,13 +106,14 @@ def check_source_staleness(entries: Sequence[dict], now: datetime,
             ages[src] = (last, _age_hours(last, now))
 
     unconditional_alive = any(
-        age <= stale_hours for src, (_, age) in ages.items()
+        age <= min(stale_hours, stale_threshold_for(src))
+        for src, (_, age) in ages.items()
         if src not in CONDITIONAL_SOURCES)
 
     for src, (last, age) in ages.items():
         if (src in CONDITIONAL_SOURCES and unconditional_alive):
             continue
-        if age > stale_hours:
+        if age > min(stale_hours, stale_threshold_for(src)):
             issues.append(HealthIssue(
                 "warn",
                 f"источник {src} молчит {_fmt_age(age)} "
