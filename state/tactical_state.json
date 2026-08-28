@@ -1,21 +1,21 @@
 {
  "BTC": {
-  "last_verdict": "WAIT",
-  "last_action_verdict": null,
-  "last_alert_ts": "2026-08-18T10:52:00.461612+00:00",
-  "last_change_ts": "2026-08-18T18:57:23.390004+00:00"
+  "last_verdict": "LONG",
+  "last_action_verdict": "LONG",
+  "last_alert_ts": "2026-08-28T18:52:02.213927+00:00",
+  "last_change_ts": "2026-08-28T18:52:02.213927+00:00"
  },
  "ETH": {
-  "last_verdict": "WAIT",
-  "last_action_verdict": null,
-  "last_alert_ts": "2026-08-19T13:22:09.988874+00:00",
-  "last_change_ts": "2026-08-19T16:47:17.349119+00:00"
+  "last_verdict": "LONG",
+  "last_action_verdict": "LONG",
+  "last_alert_ts": "2026-08-28T18:52:02.213927+00:00",
+  "last_change_ts": "2026-08-28T18:52:02.213927+00:00"
  },
  "ZEC": {
-  "last_verdict": "WAIT",
-  "last_action_verdict": null,
-  "last_alert_ts": "2026-08-19T01:57:28.697258+00:00",
-  "last_change_ts": "2026-08-20T07:07:01.915868+00:00"
+  "last_verdict": "LONG",
+  "last_action_verdict": "LONG",
+  "last_alert_ts": "2026-08-28T18:52:02.213927+00:00",
+  "last_change_ts": "2026-08-28T18:52:02.213927+00:00"
  },
  "NEAR": {
   "last_verdict": "LONG",
@@ -24,10 +24,10 @@
   "last_change_ts": "2026-08-23T20:44:40.128612+00:00"
  },
  "HYPE": {
-  "last_verdict": "WAIT",
-  "last_action_verdict": null,
-  "last_alert_ts": "2026-08-19T01:57:28.697258+00:00",
-  "last_change_ts": "2026-08-19T20:46:23.062294+00:00"
+  "last_verdict": "LONG",
+  "last_action_verdict": "LONG",
+  "last_alert_ts": "2026-08-28T18:52:02.213927+00:00",
+  "last_change_ts": "2026-08-28T18:52:02.213927+00:00"
  },
  "ASTER": {
   "last_verdict": "LONG",
@@ -48,7 +48,7 @@
   "last_change_ts": "2026-08-26T23:50:03.911623+00:00"
  },
  "ONDO": {
-  "last_verdict": "LONG",
+  "last_verdict": "WAIT",
   "last_action_verdict": "LONG",
   "last_alert_ts": "2026-08-25T05:00:57.060261+00:00",
   "last_change_ts": "2026-08-25T05:00:57.060261+00:00"
