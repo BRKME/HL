@@ -163,8 +163,20 @@ def run_checks(entries: Sequence[dict], now: datetime,
     if not entries:
         return [HealthIssue("critical", "журнал пуст — бот не пишет")]
 
+    source_issues = check_source_staleness(entries, now, stale_hours)
+
+    # Если источник молчит, поля и монеты, которые он пишет, замолчат
+    # следом — это не отдельные поломки, а одно и то же следствие. Письмо
+    # 28.08 выдало 13 предупреждений на один отказ; детектор, который на
+    # один отказ печатает экран текста, перестают читать (политика §7.6:
+    # перечисляй причину, а не последствия).
+    if source_issues:
+        return source_issues + [HealthIssue(
+            "warn",
+            "пока источник молчит, вердикты и относительная сила "
+            "не собираются — проверки по полям и монетам пропущены")]
+
     issues: list[HealthIssue] = []
-    issues += check_source_staleness(entries, now, stale_hours)
     for field in TRACKED_FIELDS:
         issues += check_field_staleness(entries, now, field, stale_hours)
     issues += check_coin_coverage(entries, expected_coins, now, stale_hours)

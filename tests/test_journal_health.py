@@ -117,15 +117,19 @@ def test_run_checks_on_healthy_journal():
 
 
 def test_run_checks_catches_the_july_regression():
-    """Reproduces 03.08 reality: only daily_monitor alive, no raw, no RS."""
+    """Июльский регресс: жив только daily_monitor, полей нет.
+
+    С 28.08 следствия мёртвого источника не перечисляются по отдельности —
+    называется причина и один итог. Проверяем, что причина названа и что
+    про остановку сбора сказано."""
     entries = [_e(24 * 30 + h, "whitelist_focus", coin="BTC",
                   rs_30d=1.0, verdict_raw="WAIT") for h in range(20)]
     entries += [_e(h, "daily_monitor", coin="BTC") for h in (1, 3, 5)]
     issues = run_checks(entries, NOW, ("BTC",))
     msgs = " ".join(i.message for i in issues)
     assert "whitelist_focus" in msgs
-    assert "rs_30d" in msgs
-    assert "verdict_raw" in msgs
+    assert "не собираются" in msgs
+    assert len(issues) <= 2
 
 
 def test_empty_journal_is_critical():

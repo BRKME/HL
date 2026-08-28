@@ -68,8 +68,16 @@ def check_journal_health() -> tuple[bool, str]:
 
 
 def check_no_secrets() -> tuple[bool, str]:
-    code, out = _run(["git", "grep", "-nE", "github_pat_|ghp_|-----BEGIN", "--",
-                      "*.py", "*.yml", "*.md", "*.sh"])
+    # Шаблон собран из кусков: иначе поиск находит сам себя и preflight
+    # блокирует пуш на собственном исходнике (поймано 28.08).
+    pattern = "|".join(["github" + "_pat_", "gh" + "p_", "-----BEG" + "IN"])
+    # --untracked обязателен: preflight запускается ДО `git add`, а `git
+    # grep` без него смотрит только отслеживаемые файлы. Токен в новом
+    # файле прошёл бы мимо и уехал первым же коммитом (поймано 28.08 на
+    # подложенной пробе).
+    code, out = _run(["git", "grep", "--untracked", "-nE", pattern, "--",
+                      "*.py", "*.yml", "*.md", "*.sh",
+                      ":!scripts/preflight.py"])
     if out.strip():
         return False, "секрет в рабочем дереве: " + out.splitlines()[0][:80]
     return True, "секретов нет"
