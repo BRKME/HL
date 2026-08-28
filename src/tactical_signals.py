@@ -39,6 +39,15 @@ def _append_tactical_journal(row: dict) -> None:
 
 # Монеты тактического слоя. Сознательно узко: качество сигнала важнее охвата;
 # киты трекаются в основном на мейджорах.
+def _h3_flag(verdict, regime, phase) -> bool:
+    """Прошёл ли сигнал благодаря правке H3 (см. src/eth_focus.py)."""
+    try:
+        from src.eth_focus import h3_unblocked
+        return h3_unblocked(verdict, verdict, regime, phase)
+    except Exception:  # noqa: BLE001
+        return False
+
+
 TACTICAL_COINS = [c.strip() for c in
                   os.environ.get("TACTICAL_COINS",
                                  "BTC,ETH,ZEC,NEAR,HYPE,ASTER,MORPHO,TAO,ONDO").split(",") if c.strip()]
@@ -613,6 +622,12 @@ def run() -> list[str]:
                 "leverage": (_lev_s or {}).get("leverage"),
                 "size_pct_equity": (_lev_s or {}).get("size_pct_equity"),
                 "emitted": True, "suppressed_by": None,
+                # Каким правилом сигнал пропущен (28.08). Без этой пометки
+                # связь виртуальной сделки с правилом восстанавливалась
+                # сопоставлением по монете и дате между двумя журналами —
+                # приблизительно и хрупко, а критерии отката H3/H4 меряются
+                # именно по таким сделкам.
+                "h3_unblocked": _h3_flag(verdict, regime, phase) or None,
             })
             state[coin] = {"last_verdict": verdict,
                            "last_action_verdict": verdict,
