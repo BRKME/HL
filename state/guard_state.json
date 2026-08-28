@@ -1,6 +1,7 @@
 {
  "last_regime": "TRANSITION",
  "flip_streak": {
-  "TAO": 1
+  "TAO": 2,
+  "NEAR": 1
  }
 }
