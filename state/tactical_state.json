@@ -1,6 +1,6 @@
 {
  "BTC": {
-  "last_verdict": "LONG",
+  "last_verdict": "WAIT",
   "last_action_verdict": "LONG",
   "last_alert_ts": "2026-08-28T18:52:02.213927+00:00",
   "last_change_ts": "2026-08-28T18:52:02.213927+00:00"
@@ -18,7 +18,7 @@
   "last_change_ts": "2026-08-28T18:52:02.213927+00:00"
  },
  "NEAR": {
-  "last_verdict": "LONG",
+  "last_verdict": "WAIT",
   "last_action_verdict": "LONG",
   "last_alert_ts": "2026-08-23T20:44:40.128612+00:00",
   "last_change_ts": "2026-08-23T20:44:40.128612+00:00"
