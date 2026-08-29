@@ -1,7 +1,8 @@
 {
  "last_regime": "TRANSITION",
  "flip_streak": {
-  "ONDO": 2,
-  "ZEC": 1
+  "ZEC": 2,
+  "BTC": 1,
+  "NEAR": 1
  }
 }
