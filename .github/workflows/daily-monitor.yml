@@ -90,6 +90,12 @@ jobs:
           if [ -f "state/digest_sent.json" ]; then
             git add state/digest_sent.json || true
           fi
+          # Прошлый состав сводки — для отметки «🆕 / N-й день». Без
+          # коммита теряется между прогонами, и каждый сигнал выглядел бы
+          # новым (30.08).
+          if [ -f "state/digest_prev.json" ]; then
+            git add state/digest_prev.json || true
+          fi
           if git diff --cached --quiet; then
             echo "no verdict journal changes to commit"
             exit 0

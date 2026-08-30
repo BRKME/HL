@@ -37,15 +37,27 @@ def _ru_date(dt: datetime) -> str:
 
 
 def _fmt_price(p: float) -> str:
+    """Значащая точность, а не фиксированная.
+
+    До 30.08 всё в диапазоне 1–1000 округлялось до целого: BTC от этого не
+    страдал, а NEAR за $1.88 показывался как «$2». При стопе в 1.6% ошибка
+    округления больше всего риска сделки — оператор не мог проверить, по
+    той ли цене входит. Четыре монеты из девяти были в этом диапазоне.
+    """
     if p is None or p == 0:
         return "—"
+    p = float(p)
     if p >= 1000:
         return f"{round(p):,}".replace(",", " ")
-    if p >= 1:
-        return f"{round(p)}"
-    if p >= 0.01:
-        return f"{p:.4f}"
-    return f"{p:.8f}".rstrip("0").rstrip(".")
+    if p >= 100:
+        out = f"{p:.1f}"
+    elif p >= 1:
+        out = f"{p:.4g}"
+    elif p >= 0.01:
+        out = f"{p:.4f}"
+    else:
+        out = f"{p:.8f}"
+    return out.rstrip("0").rstrip(".") if "." in out else out
 
 
 def _read_recent_whale_fills(state_dir: Path, coin: str, days: int,
@@ -371,6 +383,17 @@ def render_whitelist_verdicts(
     # выстраиваются по силе. Отбор сигналов при этом не меняется.
     verdicts, waits_line = collapse_waits_when_entries(verdicts)
     verdicts = rank_entries(verdicts)
+
+    # Новизна: «🆕» или «N-й день». Без неё оператору приходилось держать
+    # вчерашнее письмо в голове, чтобы понять, новый это сигнал или тот же.
+    try:
+        from src.digest_history import load_prev, mark_novelty, save_prev
+        _marks, _new_state = mark_novelty(
+            verdicts, load_prev(state_dir), now.date())
+        save_prev(state_dir, _new_state)
+    except Exception:  # noqa: BLE001
+        _marks = {}
+
     _n_entries = sum(1 for v in verdicts if v[2] in ("LONG", "SHORT"))
 
     for coin, mark, verdict, rationale, _raw_v, _raw_r, _rs in verdicts:
@@ -392,10 +415,12 @@ def render_whitelist_verdicts(
                            n_entries=_n_entries)
         rs_note = f" · RS {_rs:+.0f}" if (_rs is not None and
                                           verdict in ("LONG", "SHORT")) else ""
+        novelty = _marks.get(coin)
+        novelty_note = f" · {novelty}" if novelty else ""
 
         lines.append(
             f"{emoji} <code>{_e(coin)}</code> ${_fmt_price(mark)}{rs_note} — "
-            f"<b>{label}</b>  <i>({short_rat})</i>"
+            f"<b>{label}</b>{novelty_note}  <i>({short_rat})</i>"
         )
         if plan:
             lines.append(f"    {plan}")
