@@ -17,12 +17,43 @@
 """
 from __future__ import annotations
 
+import os
 from typing import Optional
 
 TIER1 = {"BTC", "ETH"}
 RISK_PCT = 1.0          # риск на сделку, % депозита
 WIDE_STOP_PCT = 6.0     # порог «широкого» стопа
 SIZE_CAP_PCT = 50.0     # максимум размера позиции, % депозита
+
+# Фактическое плечо, на котором работает оператор (заявлено 30.08.2026).
+# Плечо НЕ меняет, где ставить стоп: тот задаётся графиком. И не меняет
+# размер: он считается от риска 1% депозита и дистанции стопа. Меняет оно
+# расстояние до ликвидации — и именно это надо проверять.
+OPERATOR_LEVERAGE = int(os.environ.get("OPERATOR_LEVERAGE", "5"))
+
+# Доля расстояния до ликвидации, которую разрешено занимать стопу. Запас
+# нужен, потому что биржа считает поддерживающую маржу и комиссии, поэтому
+# фактическая ликвидация ближе номинальной.
+LIQ_SAFETY = 0.8
+
+
+def liquidation_distance_pct(leverage: int) -> float:
+    """Номинальное расстояние до ликвидации, % против позиции."""
+    return 100.0 / leverage if leverage else 0.0
+
+
+def stop_survives_liquidation(stop_dist_pct: float,
+                              leverage: int = OPERATOR_LEVERAGE) -> bool:
+    """Успеет ли стоп сработать раньше ликвидации.
+
+    Стоп шире ликвидации не срабатывает никогда: позицию выносит раньше, и
+    убыток будет не запланированным 1% депозита, а всей маржой. При плечах
+    2-3x эта проверка почти не срабатывала бы, при 5x становится
+    существенной.
+    """
+    if not stop_dist_pct or stop_dist_pct <= 0 or not leverage:
+        return False
+    return stop_dist_pct <= liquidation_distance_pct(leverage) * LIQ_SAFETY
 
 _ALIGNED = {("LONG", "BULL"), ("SHORT", "BEAR")}
 _COUNTER = {("LONG", "BEAR"), ("SHORT", "BULL")}

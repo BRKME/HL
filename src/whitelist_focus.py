@@ -279,9 +279,14 @@ def _plan_line(verdict: str, entry: float, sl: float, n_entries: int) -> str:
     if verdict == "SHORT" and sl <= entry:
         return ""
 
-    from src.leverage import suggest as leverage_suggest
+    from src.leverage import stop_survives_liquidation, suggest as leverage_suggest
 
     risk_pct = abs(entry - sl) / entry * 100
+    # Стоп шире ликвидации не сработает никогда — позицию вынесет раньше,
+    # и убыток будет не 1% депозита, а вся маржа. План, который не может
+    # исполниться, печатать опаснее, чем не печатать (30.08, плечо 5x).
+    if not stop_survives_liquidation(risk_pct):
+        return ""
     sizing = leverage_suggest("", verdict, None, entry, sl) or {}
     size = sizing.get("size_pct_equity")
     size_txt = ""
