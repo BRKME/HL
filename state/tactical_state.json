@@ -24,10 +24,10 @@
   "last_change_ts": "2026-08-23T20:44:40.128612+00:00"
  },
  "HYPE": {
-  "last_verdict": "WAIT",
-  "last_action_verdict": null,
-  "last_alert_ts": "2026-08-28T18:52:02.213927+00:00",
-  "last_change_ts": "2026-08-30T08:20:09.175639+00:00"
+  "last_verdict": "LONG",
+  "last_action_verdict": "LONG",
+  "last_alert_ts": "2026-08-30T21:16:30.714827+00:00",
+  "last_change_ts": "2026-08-30T21:16:30.714827+00:00"
  },
  "ASTER": {
   "last_verdict": "LONG",
@@ -42,13 +42,13 @@
   "last_change_ts": "2026-08-24T19:07:46.028608+00:00"
  },
  "TAO": {
-  "last_verdict": "WAIT",
+  "last_verdict": "LONG",
   "last_action_verdict": "LONG",
   "last_alert_ts": "2026-08-26T23:50:03.911623+00:00",
   "last_change_ts": "2026-08-26T23:50:03.911623+00:00"
  },
  "ONDO": {
-  "last_verdict": "LONG",
+  "last_verdict": "WAIT",
   "last_action_verdict": "LONG",
   "last_alert_ts": "2026-08-30T16:51:12.661445+00:00",
   "last_change_ts": "2026-08-30T16:51:12.661445+00:00"
