@@ -165,7 +165,10 @@ def test_aligned_position_gets_no_marker():
     assert "Система рекомендует" not in out
 
 
-def test_calm_line_survives_pending_exit_of_other_side():
+def test_calm_line_survives_pending_exit_of_other_side(monkeypatch, tmp_path):
+    # Журнал — временный: тест не должен зависеть от боевого state.
+    import src.daily_report as _dr
+    monkeypatch.setattr(_dr, "STATE_DIR", tmp_path)
     """08.08: висящий exit по BTC SHORT не должен глушить отчёт при лонге.
 
     «ЗАКРОЙ» рисуется только при совпадении closed_direction со стороной

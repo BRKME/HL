@@ -14,6 +14,7 @@ Layout:
 from __future__ import annotations
 
 import html
+from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
@@ -22,6 +23,13 @@ from src.monitor_rules import Alert, SEV_INFO, SEV_WARN, SEV_CRITICAL
 from src.portfolio import SpotPosition
 from src.portfolio_performance import MAX_PLAUSIBLE_ROI, roi_is_reliable
 from src.stance import format_position_verdict
+
+# Каталог состояния — модульной константой, а не жёстким путём в теле
+# функции (30.08). Тесты не могли его подменить и читали БОЕВОЙ журнал,
+# поэтому их результат зависел от того, что реально висит в проде: пока
+# незакрытых exit не было — зелено, появились — красно. Дефект жил давно и
+# всплыл, когда в журнале появился висящий exit по BTC.
+STATE_DIR = Path(__file__).resolve().parent.parent / "state"
 
 
 _MOSCOW = timezone(timedelta(hours=3))
@@ -733,7 +741,7 @@ def render_daily_report(
     try:
         import json as _json
         from pathlib import Path as _Path
-        _jp = _Path("state/tactical_journal.jsonl")
+        _jp = STATE_DIR / "tactical_journal.jsonl"
         if _jp.exists():
             rows = [_json.loads(l) for l in _jp.read_text().splitlines() if l.strip()]
             pend = pending_exits(rows)
@@ -743,7 +751,7 @@ def render_daily_report(
     try:
         from pathlib import Path as _P
         from src.manual_hold import load_holds as _lh
-        holds = _lh(_P("state"))
+        holds = _lh(STATE_DIR)
     except Exception:
         holds = {}
 

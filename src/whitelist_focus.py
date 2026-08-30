@@ -221,6 +221,83 @@ def compute_all_verdicts(
     return out
 
 
+def _rs_for_digest(coin_data: dict) -> dict:
+    """Относительная сила против BTC по каждой монете, 30 дней."""
+    try:
+        from src.relative_strength import compute_rs
+    except Exception:  # noqa: BLE001
+        return {}
+    btc = (coin_data.get("BTC") or {}).get("candles_closes")
+    if not btc:
+        return {}
+    out = {}
+    for coin, data in coin_data.items():
+        closes = (data or {}).get("candles_closes")
+        if not closes:
+            continue
+        try:
+            out[coin] = compute_rs(closes, btc, 30)
+        except Exception:  # noqa: BLE001
+            continue
+    return out
+
+
+def _plan_line(verdict: str, entry: float, sl: float, n_entries: int) -> str:
+    """Строка «стоп · размер» — или пусто, если план неисполним.
+
+    Две защиты, обе добавлены 30.08 после превью:
+
+    * стоп обязан быть НА СВОЕЙ СТОРОНЕ от входа. Стоп выше входа для лонга
+      — не стоп, а мгновенный убыток; печатать оператору неисполнимый план
+      опаснее, чем не печатать ничего;
+    * размер делится между одновременными входами. Иначе предупреждение
+      «дели тактический размер» противоречит числу, стоящему рядом с ним:
+      четыре входа по 50% депозита — это 200% в одну сторону.
+    """
+    if verdict not in ("LONG", "SHORT"):
+        return ""
+    try:
+        entry, sl = float(entry), float(sl)
+    except (TypeError, ValueError):
+        return ""
+    if entry <= 0 or sl <= 0:
+        return ""
+    if verdict == "LONG" and sl >= entry:
+        return ""
+    if verdict == "SHORT" and sl <= entry:
+        return ""
+
+    from src.leverage import suggest as leverage_suggest
+
+    risk_pct = abs(entry - sl) / entry * 100
+    sizing = leverage_suggest("", verdict, None, entry, sl) or {}
+    size = sizing.get("size_pct_equity")
+    size_txt = ""
+    if size:
+        size_txt = f" · размер ~{size / max(n_entries, 1):.1f}%"
+    return f"↳ стоп {_fmt_price(sl)} ({risk_pct:.1f}%){size_txt}"
+
+
+def _entry_plan(coin: str, verdict: str, mark: float, data: dict,
+                n_entries: int = 1) -> str:
+    """Стоп и размер для входа тем же расчётом, что и тактический сигнал."""
+    if verdict not in ("LONG", "SHORT") or not mark:
+        return ""
+    try:
+        from src.tactical_signals import sl_for
+        from src import ta
+
+        closes = (data or {}).get("candles_closes") or []
+        if len(closes) < 30:
+            return ""
+        cd = [{"o": c, "h": c, "l": c, "c": c} for c in closes]
+        sl = sl_for(verdict, mark, ta.atr(cd, 14),
+                    min(closes[-30:]), max(closes[-30:]))
+        return _plan_line(verdict, mark, sl, n_entries) if sl else ""
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 def render_whitelist_verdicts(
     now: datetime,
     coin_data: dict[str, dict],
@@ -280,10 +357,23 @@ def render_whitelist_verdicts(
     # Сплошной WAIT схлопывается в одну строку (03.08): восемь одинаковых
     # «НЕ ВХОДИТЬ» занимали 46% сообщения. Появится вход — список
     # развернётся обратно сам.
-    from src.digest_compact import collapse_wait_verdicts
+    from src.digest_compact import (
+        collapse_wait_verdicts, collapse_waits_when_entries, rank_entries,
+    )
     verdicts, wait_summary = collapse_wait_verdicts(verdicts)
 
-    for coin, mark, verdict, rationale, _raw_v, _raw_r in verdicts:
+    # Относительная сила по каждой монете — для порядка входов и для того,
+    # чтобы оператор видел, на чём этот порядок основан (30.08).
+    rs_by_coin = _rs_for_digest(coin_data)
+    verdicts = [tuple(v) + (rs_by_coin.get(v[0]),) for v in verdicts]
+
+    # Когда входы есть, «НЕ ВХОДИТЬ» сворачивается в строку-итог, а входы
+    # выстраиваются по силе. Отбор сигналов при этом не меняется.
+    verdicts, waits_line = collapse_waits_when_entries(verdicts)
+    verdicts = rank_entries(verdicts)
+    _n_entries = sum(1 for v in verdicts if v[2] in ("LONG", "SHORT"))
+
+    for coin, mark, verdict, rationale, _raw_v, _raw_r, _rs in verdicts:
         if verdict == "NODATA":
             lines.append(f"⚫ <code>{_e(coin)}</code> — нет данных")
             continue
@@ -296,11 +386,23 @@ def render_whitelist_verdicts(
         if len(short_rat) > 90:
             short_rat = short_rat[:87].rstrip() + "…"
 
+        # По входу сразу даём стоп и размер: без них письмо неисполнимо,
+        # оператору приходилось ждать отдельного тактического сигнала.
+        plan = _entry_plan(coin, verdict, mark, coin_data.get(coin) or {},
+                           n_entries=_n_entries)
+        rs_note = f" · RS {_rs:+.0f}" if (_rs is not None and
+                                          verdict in ("LONG", "SHORT")) else ""
+
         lines.append(
-            f"{emoji} <code>{_e(coin)}</code> ${_fmt_price(mark)} — "
+            f"{emoji} <code>{_e(coin)}</code> ${_fmt_price(mark)}{rs_note} — "
             f"<b>{label}</b>  <i>({short_rat})</i>"
         )
+        if plan:
+            lines.append(f"    {plan}")
 
+    if waits_line:
+        lines.append("")
+        lines.append(waits_line)
     if wait_summary:
         lines.append(wait_summary)
 

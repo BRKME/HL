@@ -111,8 +111,17 @@ def _stub_hl_client():
     return client
 
 
-def test_run_daily_monitor_smoke(temp_repo):
+def test_run_daily_monitor_smoke(temp_repo, monkeypatch):
     """End-to-end: HL+OracAI mocked, telegram_sender mocked, no exceptions, alerts produced."""
+
+    # STATE_DIR — во временный каталог, fetch_candles запатчен. Без этого
+    # тест читал БОЕВОЙ маркер дайджеста, и его поведение зависело от даты
+    # в файле: пока маркер был сегодняшним — дайджест не запускался и тест
+    # был быстрым; на следующий день он шёл в сеть на 55 секунд и правил
+    # боевой state. Поймано preflight 30.08, дефект жил и до правок.
+    import src.daily_monitor as dm_mod
+    monkeypatch.setattr(dm_mod, "STATE_DIR", temp_repo / "state")
+    monkeypatch.setattr(dm_mod, "fetch_candles", lambda *a, **k: [])
     sent_messages: list[list[str]] = []
 
     fake_marks = {"BTC": {"mark": 82000.0}}
@@ -234,8 +243,13 @@ def test_run_daily_monitor_no_positions_journals_silently(
     assert len(journal_writes) >= 1
 
 
-def test_run_daily_monitor_survives_oracai_failure(temp_repo):
+def test_run_daily_monitor_survives_oracai_failure(temp_repo, monkeypatch):
     """OracAI down -> snapshot is None -> bot still runs, just no regime alerts."""
+    # Тот же класс, что и smoke: без подмены STATE_DIR тест читает боевой
+    # маркер и правит боевой state.
+    import src.daily_monitor as dm_mod
+    monkeypatch.setattr(dm_mod, "STATE_DIR", temp_repo / "state")
+    monkeypatch.setattr(dm_mod, "fetch_candles", lambda *a, **k: [])
     from src.oracai_history import OracAIHistoryError
     sent: list[list[str]] = []
 

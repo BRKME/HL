@@ -137,7 +137,10 @@ def test_render_portfolio_wide_alert_appears_above_positions():
     assert "BULL → BEAR" in text or "BULL" in text and "BEAR" in text
 
 
-def test_render_no_alerts_shows_quiet_state():
+def test_render_no_alerts_shows_quiet_state(monkeypatch, tmp_path):
+    # Журнал — временный: тест не должен зависеть от боевого state.
+    import src.daily_report as _dr
+    monkeypatch.setattr(_dr, "STATE_DIR", tmp_path)
     matches = [_tracked()]
     msgs = render_daily_report(matches, [], {"BTC": 82000.0}, None, 1000.0, now=NOW)
     text = "\n".join(msgs)

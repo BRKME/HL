@@ -90,3 +90,64 @@ def beta_warning(verdicts) -> str:
     return (f"⚠️ {len(dirs)} входа в одну сторону ({side}) — это одна "
             f"бета-ставка на рынок: дели тактический размер между ними, "
             f"не удваивай риск.")
+
+
+# --------------------------------- дайджест как руководство к действию (30.08)
+
+_OVERHEAT = ("overbought", "oversold", "перегрев")
+
+
+def collapse_waits_when_entries(verdicts):
+    """Когда входы есть, «НЕ ВХОДИТЬ» сворачивается в одну строку.
+
+    30.08 письмо состояло из пяти строк про то, чего делать НЕ надо, и
+    четырёх про то, что делать. Оператор читает его ради вторых. Причина
+    ожидания сохраняется — но одним словом, а не повтором «RSI 70 — ждать
+    pullback» пять раз (политика §7.7).
+
+    NODATA не прячется никогда: это отказ источника, а не отсутствие
+    сигнала.
+    """
+    if not verdicts:
+        return list(verdicts), ""
+    if not any(v[_VERDICT] in _ENTRY_VERDICTS for v in verdicts):
+        return list(verdicts), ""
+
+    kept, hot, weak = [], [], []
+    for v in verdicts:
+        verdict = v[_VERDICT]
+        if verdict in _ENTRY_VERDICTS or verdict == "NODATA":
+            kept.append(v)
+            continue
+        rationale = str(v[3] or "").lower()
+        (hot if any(w in rationale for w in _OVERHEAT) else weak).append(str(v[_COIN]))
+
+    parts = []
+    if hot:
+        parts.append("перегрев: " + " ".join(f"<code>{c}</code>" for c in hot))
+    if weak:
+        parts.append("слабый сигнал: " + " ".join(f"<code>{c}</code>" for c in weak))
+    return kept, ("⚪ Ждут — " + " • ".join(parts)) if parts else ""
+
+
+def rank_entries(verdicts):
+    """Упорядочить входы по относительной силе, сильные выше.
+
+    ВАЖНО: валидированного способа ранжировать входы у системы нет.
+    Относительная сила — кандидат из гипотезы H4 (фильтр перегрева
+    отсеивает лидеров), которая зарегистрирована, но НЕ проверена. Порядок
+    показывается вместе с числом и пометкой, чтобы оператор видел, на чём
+    он основан.
+
+    Отбор сигналов это не меняет: измеримость H3/H4 не страдает.
+    Монеты без данных о силе уходят вниз, порядок между ними сохраняется.
+    """
+    entries = [v for v in verdicts if v[_VERDICT] in _ENTRY_VERDICTS]
+    if len(entries) < 2:
+        return list(verdicts)
+    rest = [v for v in verdicts if v[_VERDICT] not in _ENTRY_VERDICTS]
+    ranked = sorted(
+        entries,
+        key=lambda v: (v[6] is None, -(v[6] or 0.0)),
+    )
+    return ranked + rest
