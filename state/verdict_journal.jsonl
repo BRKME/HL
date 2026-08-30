@@ -1461,3 +1461,6 @@
 {"ts": "2026-08-30T15:08:20.661154+00:00", "source": "daily_monitor", "coin": "NEAR", "mark": 1.8781, "verdict": "LONG", "rationale": "(position)", "regime": "TRANSITION", "phase": "EARLY_BEAR"}
 {"ts": "2026-08-30T15:08:20.661154+00:00", "source": "daily_monitor", "coin": "MORPHO", "mark": 2.48549, "verdict": "LONG", "rationale": "(position)", "regime": "TRANSITION", "phase": "EARLY_BEAR"}
 {"ts": "2026-08-30T15:08:20.661154+00:00", "source": "daily_monitor", "coin": "TAO", "mark": 237.42, "verdict": "LONG", "rationale": "(position)", "regime": "TRANSITION", "phase": "EARLY_BEAR"}
+{"ts": "2026-08-30T19:35:59.191379+00:00", "source": "daily_monitor", "coin": "MORPHO", "mark": 2.4987, "verdict": "LONG", "rationale": "(position)", "regime": "TRANSITION", "phase": "EARLY_BEAR"}
+{"ts": "2026-08-30T19:35:59.191379+00:00", "source": "daily_monitor", "coin": "TAO", "mark": 239.21, "verdict": "LONG", "rationale": "(position)", "regime": "TRANSITION", "phase": "EARLY_BEAR"}
+{"ts": "2026-08-30T19:35:59.191379+00:00", "source": "daily_monitor", "coin": "NEAR", "mark": 1.9076, "verdict": "LONG", "rationale": "(position)", "regime": "TRANSITION", "phase": "EARLY_BEAR"}
