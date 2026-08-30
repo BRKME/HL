@@ -17,9 +17,11 @@ def test_shows_entry_sl_and_current():
     }
     line = tactical_levels_line(signals)
     assert "BTC" in line and "SHORT" in line
-    assert "64,024" in line or "64024" in line          # исходный вход
-    assert "68,128" in line or "68128" in line          # SL
-    assert "63,000" in line or "63000" in line          # текущая цена
+    # Разделитель тысяч — неразрывный пробел, как во всех остальных
+    # сообщениях: с 30.08 цены форматируются одним общим кодом.
+    assert "64 024" in line                              # исходный вход
+    assert "68 128" in line or "68 128" in line          # SL
+    assert "63 000" in line or "63 000" in line          # текущая цена
 
 
 def test_current_delta_direction():
@@ -39,4 +41,4 @@ def test_missing_current_graceful():
     signals = {"BTC": {"direction": "SHORT", "entry": 64000, "sl": 68000,
                        "current": None, "days": 2}}
     line = tactical_levels_line(signals)
-    assert "BTC" in line and ("64,000" in line or "64000" in line)
+    assert "BTC" in line and "64 000" in line

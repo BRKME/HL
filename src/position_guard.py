@@ -19,6 +19,7 @@ BTC держался против режимного флипа TRANSITION->BULL
 from __future__ import annotations
 
 import json
+from src.money import fmt_price
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -158,8 +159,8 @@ def format_exit_alert(coin: str, ex: dict, real_side=None) -> str:
     удалось. Кейс 04.07: гвард кричал «закрыть позицию» про модельные
     сигналы — оператор не мог отличить трекинг от реальности."""
     head = (f"{_REASON_HUMAN[ex['reason']]}\n"
-            f"<b>{coin} {ex['direction']}</b> · вход ${ex['entry']:,.0f} · "
-            f"сейчас ${ex['exit_price']:,.0f} · {ex['pnl_r']:+.2f}R\n")
+            f"<b>{coin} {ex['direction']}</b> · вход ${fmt_price(ex['entry'])} · "
+            f"сейчас ${fmt_price(ex['exit_price'])} · {ex['pnl_r']:+.2f}R\n")
     if real_side == ex["direction"]:
         tail = (f"<i>Позиция ЕСТЬ в портфеле — закрой её. Политика выхода "
                 f"({ex['reason']}): исполнение правила, зафиксированного на входе.</i>")

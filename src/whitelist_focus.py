@@ -36,30 +36,7 @@ def _ru_date(dt: datetime) -> str:
     return f"{dt.day} {months[dt.month - 1]} {dt.year}"
 
 
-def _fmt_price(p: float) -> str:
-    """Значащая точность, а не фиксированная.
-
-    До 30.08 всё в диапазоне 1–1000 округлялось до целого: BTC от этого не
-    страдал, а NEAR за $1.88 показывался как «$2». При стопе в 1.6% ошибка
-    округления больше всего риска сделки — оператор не мог проверить, по
-    той ли цене входит. Четыре монеты из девяти были в этом диапазоне.
-    """
-    if p is None or p == 0:
-        return "—"
-    p = float(p)
-    if p >= 1000:
-        return f"{round(p):,}".replace(",", " ")
-    if p >= 100:
-        out = f"{p:.1f}"
-    elif p >= 1:
-        out = f"{p:.4g}"
-    elif p >= 0.01:
-        out = f"{p:.4f}"
-    else:
-        out = f"{p:.8f}"
-    return out.rstrip("0").rstrip(".") if "." in out else out
-
-
+from src.money import fmt_price as _fmt_price  # единый формат для всех
 def _read_recent_whale_fills(state_dir: Path, coin: str, days: int,
                               now: datetime) -> list[dict]:
     """Read whale fills from state for ONE coin over last N days."""

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import os
+from src.money import fmt_price
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional
@@ -273,21 +274,21 @@ def tactical_levels_line(signals: dict) -> str:
         emoji = "🔴" if d == "SHORT" else ("🟢" if d == "LONG" else "⚪")
         parts = [f"{emoji} {coin} {d}"]
         if entry:
-            parts.append(f"вход ${entry:,.0f}")
+            parts.append(f"вход ${fmt_price(entry)}")
         if sl:
-            parts.append(f"SL ${sl:,.0f}")
+            parts.append(f"SL ${fmt_price(sl)}")
         tp = s.get("tp")
         if tp:
-            parts.append(f"TP ${tp:,.0f}")
+            parts.append(f"TP ${fmt_price(tp)}")
         if cur:
             # дельта от входа в пользу/против позиции
             if entry:
                 raw = (cur - entry) / entry * 100
                 favor = raw if d == "LONG" else -raw   # для шорта падение = плюс
                 sign = "+" if favor >= 0 else ""
-                parts.append(f"сейчас ${cur:,.0f} ({sign}{favor:.1f}%)")
+                parts.append(f"сейчас ${fmt_price(cur)} ({sign}{favor:.1f}%)")
             else:
-                parts.append(f"сейчас ${cur:,.0f}")
+                parts.append(f"сейчас ${fmt_price(cur)}")
         if days is not None:
             parts.append(f"{days}д")
         rows.append(" · ".join(parts))
