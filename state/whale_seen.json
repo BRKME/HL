@@ -2,15 +2,9 @@
   "entries": [
     {
       "rule": "WHALE_NEW_OPEN",
-      "whale": "0xa906355beaf1d69a5fe73ce55899c49c6e67916c",
-      "coin": "PUMP",
-      "ts": 1787603151
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0xa906355beaf1d69a5fe73ce55899c49c6e67916c",
+      "whale": "0xb6ca5d1ed0ca4bf8444c9dee2d068a9f4c5e2e92",
       "coin": "HYPE",
-      "ts": 1787603151
+      "ts": 1788201798
     }
   ]
 }
