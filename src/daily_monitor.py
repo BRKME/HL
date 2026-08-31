@@ -216,6 +216,9 @@ def _journal_verdicts_silently(now: datetime, accounts: list[dict]) -> None:
             coin_data[c] = {
                 "mark": marks.get(c, 0.0),
                 "candles_closes": closes if closes else None,
+                # Полные свечи для ATR: по закрытиям он занижается втрое
+                # и стоп выходит вдвое уже настоящего (31.08).
+                "candles": candles or None,
                 "funding_apr_pct": None,
             }
         except Exception as e:
@@ -491,6 +494,9 @@ def run_daily_monitor(
                     digest_coin_data[c] = {
                         "mark": marks.get(c, 0.0),
                         "candles_closes": closes_c if closes_c else None,
+                        # Полные свечи нужны для ATR: по закрытиям он
+                        # занижается втрое и стоп выходит вдвое уже (31.08).
+                        "candles": cs or None,
                         "funding_apr_pct": None,
                     }
                 except Exception as e:

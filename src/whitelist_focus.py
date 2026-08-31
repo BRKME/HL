@@ -284,9 +284,23 @@ def _entry_plan(coin: str, verdict: str, mark: float, data: dict,
         closes = (data or {}).get("candles_closes") or []
         if len(closes) < 30:
             return ""
-        cd = [{"o": c, "h": c, "l": c, "c": c} for c in closes]
-        sl = sl_for(verdict, mark, ta.atr(cd, 14),
-                    min(closes[-30:]), max(closes[-30:]))
+
+        # Настоящие свечи, если они есть. Собирать их из одних закрытий
+        # нельзя: при high = low = close истинный диапазон схлопывается,
+        # ATR занижается втрое и стоп выходит вдвое уже настоящего — а
+        # слишком узкий стоп выбивает позицию рыночным шумом (31.08).
+        candles = (data or {}).get("candles")
+        if candles:
+            atr = ta.atr(candles, 14)
+            lows = [float(c["l"]) for c in candles[-30:] if c.get("l")]
+            highs = [float(c["h"]) for c in candles[-30:] if c.get("h")]
+            swing_low = min(lows) if lows else min(closes[-30:])
+            swing_high = max(highs) if highs else max(closes[-30:])
+        else:
+            atr = ta.atr([{"o": c, "h": c, "l": c, "c": c} for c in closes], 14)
+            swing_low, swing_high = min(closes[-30:]), max(closes[-30:])
+
+        sl = sl_for(verdict, mark, atr, swing_low, swing_high)
         return _plan_line(verdict, mark, sl, n_entries) if sl else ""
     except Exception:  # noqa: BLE001
         return ""
