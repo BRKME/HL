@@ -49,8 +49,8 @@
  },
  "ONDO": {
   "last_verdict": "WAIT",
-  "last_action_verdict": "LONG",
+  "last_action_verdict": null,
   "last_alert_ts": "2026-08-30T16:51:12.661445+00:00",
-  "last_change_ts": "2026-08-30T16:51:12.661445+00:00"
+  "last_change_ts": "2026-08-31T13:54:46.478303+00:00"
  }
 }
