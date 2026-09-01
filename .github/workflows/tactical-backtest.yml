@@ -1,0 +1,44 @@
+name: tactical-backtest
+
+# Прогон тактического слоя по истории. Запускается вручную: результат нужен
+# разово для решения, окупается ли слой, а не по расписанию.
+#
+# Смысл: живая выборка растёт по 28 сделок в месяц, до осмысленных 400 —
+# одиннадцать месяцев. История даёт ту же выборку за один прогон.
+
+on:
+  workflow_dispatch:
+    inputs:
+      lookback_days:
+        description: "Глубина истории в днях"
+        required: false
+        default: "700"
+
+permissions:
+  contents: read
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      BACKTEST_LOOKBACK_DAYS: ${{ inputs.lookback_days }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install deps
+        run: pip install -r requirements.txt
+
+      - name: Run backtest
+        run: python scripts/tactical_backtest_run.py
