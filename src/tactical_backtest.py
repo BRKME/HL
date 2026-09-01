@@ -32,6 +32,24 @@ from typing import Optional, Sequence
 MIN_HISTORY = 210
 TARGET_R = 1.5            # та же цель, что в тактическом сигнале
 
+# Варианты выхода, сравниваемые на ОДНИХ И ТЕХ ЖЕ входах (01.09).
+#   baseline — как в проде: стоп, цель 1.5R, выход по смене вердикта;
+#   no_flip  — то же без выхода по смене вердикта: проверяет, режет ли
+#              смена вердикта победителей;
+#   trail    — вместо фиксированной цели трейлинг по ATR, включается
+#              после TRAIL_ACTIVATE_R: «дать победителю уйти дальше цели»;
+#   hybrid   — половина на 1R, остаток трейлингом.
+#
+# Предостережение, которое нельзя забывать: трейлинг УСИЛИВАЕТ имеющееся
+# преимущество, но не создаёт его. Если входы теряют без него, никакое
+# правило выхода их не спасёт. И перебор вариантов на одних данных — это
+# множественное сравнение: результат считается гипотезой, а не выводом.
+EXIT_MODES = ("baseline", "no_flip", "trail", "hybrid")
+
+TRAIL_ACTIVATE_R = 1.0    # трейлинг включается, только заработав право
+TRAIL_ATR_MULT = 2.5      # ширина трейла в ATR — «дать место в середине»
+PARTIAL_AT_R = 1.0        # где фиксируется половина в hybrid
+
 
 @dataclass(frozen=True)
 class Trade:
@@ -79,8 +97,15 @@ def _verdict_at(coin: str, candles: Sequence[dict], i: int) -> Optional[str]:
     return final[0] if isinstance(final, tuple) else final
 
 
-def replay(coin: str, candles: Sequence[dict]) -> list[Trade]:
-    """Прогнать логику по свечам и вернуть виртуальные сделки."""
+def replay(coin: str, candles: Sequence[dict],
+           exit_mode: str = "baseline") -> list[Trade]:
+    """Прогнать логику по свечам и вернуть виртуальные сделки.
+
+    exit_mode меняет ТОЛЬКО правило выхода — входы у всех вариантов
+    одинаковы, иначе сравнение бессмысленно.
+    """
+    if exit_mode not in EXIT_MODES:
+        raise ValueError(f"неизвестный режим выхода: {exit_mode}")
     from src.tactical_signals import sl_for
     from src import ta
 
@@ -99,23 +124,41 @@ def replay(coin: str, candles: Sequence[dict]) -> list[Trade]:
         if open_trade:
             nxt = candles[i + 1]
             hi, lo = float(nxt["h"]), float(nxt["l"])
-            d, sl, tp = open_trade["direction"], open_trade["sl"], open_trade["tp"]
+            d = open_trade["direction"]
+            sl, tp = open_trade["sl"], open_trade["tp"]
+            entry0, risk0 = open_trade["entry"], open_trade["risk"]
+
+            # Трейлинг подтягивается ТОЛЬКО после того, как сделка
+            # заработала право: до этого он был бы тесным стопом и резал
+            # позицию на обычном шуме.
+            if exit_mode in ("trail", "hybrid"):
+                run_r = ((price - entry0) if d == "LONG"
+                         else (entry0 - price)) / risk0
+                if run_r >= TRAIL_ACTIVATE_R:
+                    atr_now = ta.atr(candles[: i + 1], 14) or risk0
+                    trail = (price - TRAIL_ATR_MULT * atr_now if d == "LONG"
+                             else price + TRAIL_ATR_MULT * atr_now)
+                    sl = max(sl, trail) if d == "LONG" else min(sl, trail)
+                    open_trade["sl"] = sl
+
             hit_sl = lo <= sl if d == "LONG" else hi >= sl
-            hit_tp = hi >= tp if d == "LONG" else lo <= tp
+            hit_tp = (hi >= tp if d == "LONG" else lo <= tp) if tp else False
             reason = px = None
             if hit_sl:                       # консервативно: стоп раньше цели
                 reason, px = "sl", sl
             elif hit_tp:
                 reason, px = "tp", tp
-            elif verdict and verdict != d:
+            elif exit_mode == "baseline" and verdict and verdict != d:
                 reason, px = "verdict_flip", price
             if reason:
                 trades.append(Trade(
                     coin=coin, direction=d,
                     entry_idx=open_trade["idx"], exit_idx=i + 1,
-                    entry=open_trade["entry"], sl=sl, tp=tp,
+                    entry=open_trade["entry"], sl=sl, tp=tp or 0.0,
                     exit_px=px, exit_reason=reason,
-                    r=_r_multiple(d, open_trade["entry"], sl, px)))
+                    r=_r_multiple(d, open_trade["entry"],
+                                  open_trade["entry"] - risk0 if d == "LONG"
+                                  else open_trade["entry"] + risk0, px)))
                 open_trade = None
 
         # вход на смене вердикта
@@ -129,9 +172,15 @@ def replay(coin: str, candles: Sequence[dict]) -> list[Trade]:
             if sl and sl > 0 and ((verdict == "LONG" and sl < price)
                                   or (verdict == "SHORT" and sl > price)):
                 risk = abs(price - sl)
-                tp = (price + TARGET_R * risk if verdict == "LONG"
-                      else price - TARGET_R * risk)
-                open_trade = {"direction": verdict, "idx": i,
+                if exit_mode in ("trail",):
+                    tp = None          # цели нет: выход только трейлингом
+                elif exit_mode == "hybrid":
+                    tp = (price + PARTIAL_AT_R * risk if verdict == "LONG"
+                          else price - PARTIAL_AT_R * risk)
+                else:
+                    tp = (price + TARGET_R * risk if verdict == "LONG"
+                          else price - TARGET_R * risk)
+                open_trade = {"direction": verdict, "idx": i, "risk": risk,
                               "entry": price, "sl": sl, "tp": tp}
         prev_verdict = verdict
 
