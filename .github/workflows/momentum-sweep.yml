@@ -1,0 +1,36 @@
+name: momentum-sweep
+
+# Перебор моделей моментума с разделением 70/30. Вручную: нужен ответ на
+# вопрос «есть ли преимущество вообще», а не регулярный отчёт.
+
+on:
+  workflow_dispatch:
+    inputs:
+      coins:
+        description: "Монеты через запятую (пусто = все)"
+        required: false
+        default: ""
+      lookback_days:
+        description: "Глубина истории"
+        required: false
+        default: "900"
+
+permissions:
+  contents: read
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      SWEEP_COINS: ${{ inputs.coins }}
+      SWEEP_LOOKBACK_DAYS: ${{ inputs.lookback_days }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 1 }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -r requirements.txt
+      - run: python scripts/momentum_sweep_run.py
