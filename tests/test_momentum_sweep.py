@@ -127,3 +127,37 @@ def test_short_series_is_safe():
 
     assert buy_and_hold_r([1.0, 2.0]) is None
     assert time_in_market([1.0, 2.0], Params(28, 5, False, True)) is None
+
+
+# --------------- правильный контроль: случайный вход с той же экспозицией
+
+def test_random_entry_matches_market_direction():
+    """На растущем рынке случайный лонг тоже прибылен — потому сравнение
+    с ним и есть проверка УМЕНИЯ ВЫБИРАТЬ, а не направления рынка."""
+    from src.momentum_sweep import random_entry_r
+
+    assert random_entry_r(_trend(), holding=20, exposure=0.5) > 0
+
+
+def test_random_entry_loses_on_a_decline():
+    from src.momentum_sweep import random_entry_r
+
+    down = [100.0 * (0.995 ** i) for i in range(400)]
+    assert random_entry_r(down, holding=20, exposure=0.5) < 0
+
+
+def test_random_entry_is_deterministic():
+    """Отчёт, меняющийся от прогона к прогону, не годится для решения."""
+    from src.momentum_sweep import random_entry_r
+
+    a = random_entry_r(_noise(), holding=10, exposure=0.4)
+    b = random_entry_r(_noise(), holding=10, exposure=0.4)
+    assert a == b
+
+
+def test_random_entry_degenerate_inputs():
+    from src.momentum_sweep import random_entry_r
+
+    assert random_entry_r([1.0, 2.0], holding=5, exposure=0.5) is None
+    assert random_entry_r(_trend(), holding=0, exposure=0.5) is None
+    assert random_entry_r(_trend(), holding=5, exposure=0) is None

@@ -19,7 +19,8 @@ sys.path.insert(0, str(REPO))
 
 from src.hl_api import fetch_candles  # noqa: E402
 from src.momentum_sweep import (  # noqa: E402
-    buy_and_hold_r, default_grid, split, sweep, time_in_market,
+    buy_and_hold_r, default_grid, random_entry_r, split, sweep,
+    time_in_market,
 )
 from src.whitelist_focus import FOCUS_COINS  # noqa: E402
 
@@ -95,16 +96,43 @@ def main() -> int:
     print(f"  медиана avg R по всем конфигурациям на проверке: "
           f"{median_test:+.3f}")
 
-    verdict = ("преимущество переживает проверку"
-               if best_te.avg_r > 0 and median_test > 0
-               else "лучший держится, но остальные нет — вероятна подгонка"
-               if best_te.avg_r > 0
-               else "преимущества нет: лучший на обучении проваливает проверку")
+    # Правильный контроль — случайный вход с ТОЙ ЖЕ долей времени в рынке.
+    # «Купи и держи» обманывает в обе стороны: на росте наказывает за
+    # пребывание вне рынка, на падении награждает за него. Именно так
+    # «альфа» планнера перевернулась с +20 на -20 при смене направления.
+    rnd = [random_entry_r(split(c)[1], best_p.holding, tim_avg or 0.5,
+                          long_only=best_p.long_only)
+           for c in series.values()]
+    rnd = [x for x in rnd if x is not None]
+    rand_avg = _st.mean(rnd) if rnd else None
+
+    if rand_avg is not None:
+        print(f"  случайный вход с той же экспозицией: {rand_avg:+.3f}")
+        print(f"  умение выбирать момент: {best_te.avg_r - rand_avg:+.3f}")
+
+    # Вердикт — по сравнению с КОНТРОЛЕМ, а не по знаку прибыли.
+    if rand_avg is None:
+        verdict = "контроль недоступен — судить нельзя"
+    elif best_te.avg_r <= rand_avg:
+        verdict = (f"умения выбирать момент нет: случайный вход с той же "
+                   f"экспозицией дал {rand_avg:+.3f}")
+    elif median_test <= 0:
+        verdict = "хорош только победитель — вероятна подгонка"
+    else:
+        edge = best_te.avg_r - rand_avg
+        verdict = (f"обгоняет случайный вход на {edge:+.3f} "
+                   f"при {tim_avg:.0%} времени в позиции")
+        if bh is not None and best_te.avg_r < bh:
+            verdict += f"; но «купи и держи» дал больше ({bh:+.3f})"
+
     print(f"\nВЫВОД: {verdict}")
 
-    bh_line = (f"«купи и держи» на проверке: {bh:+.3f}\n"
-               f"в позиции {tim_avg:.0%} времени\n"
-               if bh is not None and tim_avg is not None else "")
+    bh_line = ""
+    if bh is not None and tim_avg is not None:
+        bh_line = (f"«купи и держи»: {bh:+.3f} · в позиции "
+                   f"{tim_avg:.0%} времени\n")
+    if rand_avg is not None:
+        bh_line += (f"случайный вход той же экспозиции: {rand_avg:+.3f}\n")
 
     try:
         from src.telegram_sender import send_messages

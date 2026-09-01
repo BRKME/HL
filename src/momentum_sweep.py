@@ -201,3 +201,47 @@ def time_in_market(closes: Sequence[float], p: Params) -> Optional[float]:
         i = exit_i + 1
     span = len(closes) - start
     return days_in / span if span > 0 else None
+
+
+def random_entry_r(closes: Sequence[float], holding: int, exposure: float,
+                   long_only: bool = True, seed: int = 20260901,
+                   iterations: int = 400) -> Optional[float]:
+    """Средний R случайных входов с ТОЙ ЖЕ долей времени в рынке.
+
+    Правильный контроль, которого не даёт «купи и держи». Сравнение с
+    удержанием обманывает дважды и в обе стороны:
+
+    * на растущем рынке модель, сидящая в позиции половину времени,
+      проиграет удержанию просто потому, что была вне рынка;
+    * на падающем — выиграет по той же причине, ничего не предсказав.
+      Ровно так «альфа» недельного планнера перевернулась с +20 на −20,
+      когда рынок сменил направление.
+
+    Случайные входы с той же экспозицией снимают оба искажения: остаётся
+    только вопрос, есть ли в модели умение ВЫБИРАТЬ момент.
+    """
+    import random as _r
+
+    if len(closes) < 60 or holding < 1 or not 0 < exposure <= 1:
+        return None
+    rng = _r.Random(seed)
+    start = 40
+    span = len(closes) - start - holding - 1
+    if span <= 0:
+        return None
+    n_entries = max(1, int(span * exposure / holding))
+
+    totals = []
+    for _ in range(iterations):
+        rs = []
+        for _ in range(n_entries):
+            i = start + rng.randrange(span)
+            vol = _vol(closes, i)
+            if not vol:
+                continue
+            j = min(i + holding, len(closes) - 1)
+            side = 1 if long_only else rng.choice((1, -1))
+            rs.append((closes[j] / closes[i] - 1.0) * side / vol)
+        if rs:
+            totals.append(statistics.mean(rs))
+    return statistics.mean(totals) if totals else None
