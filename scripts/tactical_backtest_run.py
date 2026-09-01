@@ -16,7 +16,9 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
 from src.hl_api import fetch_candles  # noqa: E402
-from src.tactical_backtest import EXIT_MODES, replay, summarise  # noqa: E402
+from src.tactical_backtest import (  # noqa: E402
+    EXIT_MODES, replay, rs_at, split_by_rs, summarise,
+)
 from src.whitelist_focus import FOCUS_COINS  # noqa: E402
 
 import os
@@ -72,6 +74,40 @@ def main() -> int:
     print("сравнение. Результат это ГИПОТЕЗА, а не вывод: подтверждать надо")
     print("вне выборки. И трейлинг усиливает преимущество, но не создаёт его.")
 
+    # --- H4: предсказывает ли относительная сила ---
+    # Проверяется на входах baseline — того самого варианта, что оказался
+    # лучшим. Размечаем каждую сделку силой монеты против BTC НА МОМЕНТ
+    # ВХОДА и сравниваем средний R у сильных и слабых.
+    import statistics
+
+    btc = history.get("BTC")
+    marked = []
+    for coin, candles in history.items():
+        if coin == "BTC":
+            continue
+        for t in replay(coin, candles, exit_mode="baseline"):
+            rs = rs_at(candles, btc, t.entry_idx, lookback=30)
+            if rs is not None:
+                marked.append(type(t)(**{**t.__dict__, "rs": rs}))
+
+    h4_line = "H4: данных не хватило"
+    if marked:
+        strong, weak = split_by_rs(marked)
+        if strong and weak:
+            sa = statistics.mean(t.r for t in strong)
+            wa = statistics.mean(t.r for t in weak)
+            print(f"\n=== H4: относительная сила ===")
+            print(f"  RS > 0 (лидеры):    n={len(strong):>4} · avg R {sa:+.3f}")
+            print(f"  RS < 0 (отстающие): n={len(weak):>4} · avg R {wa:+.3f}")
+            print(f"  разница: {sa - wa:+.3f} R")
+            verdict = ("RS предсказывает" if sa - wa >= 0.20
+                       else "RS не предсказывает" if abs(sa - wa) < 0.10
+                       else "слабый признак")
+            print(f"  порог из предрегистрации 0.20 → {verdict}")
+            h4_line = (f"RS&gt;0 n={len(strong)} avg R {sa:+.3f} · "
+                       f"RS&lt;0 n={len(weak)} avg R {wa:+.3f} · "
+                       f"разница {sa - wa:+.3f} → {verdict}")
+
     try:
         from src.telegram_sender import send_messages
         rows = "\n".join(
@@ -82,7 +118,8 @@ def main() -> int:
             f"📐 <b>Бэктест: варианты выхода</b> — {LOOKBACK_DAYS} дн\n"
             f"<pre>{rows}</pre>\n"
             f"лучший: <b>{best}</b>, интервал [{lo:+.3f}, {hi:+.3f}]\n"
-            f"<i>без издержек · одни входы · это гипотеза, не вывод</i>"])
+            f"<i>без издержек · одни входы · это гипотеза, не вывод</i>\n\n"
+            f"<b>H4 — относительная сила</b>\n{h4_line}"])
     except Exception as e:  # noqa: BLE001
         print(f"[backtest] отправка не удалась: {e}")
     return 0

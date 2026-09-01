@@ -53,6 +53,9 @@ PARTIAL_AT_R = 1.0        # где фиксируется половина в hy
 
 @dataclass(frozen=True)
 class Trade:
+    # rs — относительная сила монеты против BTC на момент входа. Нужна для
+    # проверки H4: предсказывает ли она исход (заполняется отдельно, чтобы
+    # не тянуть данные BTC внутрь replay).
     coin: str
     direction: str
     entry_idx: int
@@ -63,6 +66,7 @@ class Trade:
     exit_px: float
     exit_reason: str
     r: float
+    rs: Optional[float] = None
 
 
 def _r_multiple(direction: str, entry: float, sl: float, exit_px: float) -> float:
@@ -223,3 +227,36 @@ def summarise(trades: Sequence[Trade]) -> dict:
         "by_reason": by_reason,
         "by_side": by_side,
     }
+
+
+# ------------------------------------------------- H4: относительная сила
+
+
+def rs_at(coin_candles, btc_candles, idx: int,
+          lookback: int = 30) -> Optional[float]:
+    """RS = доходность монеты минус доходность BTC за lookback дней, п.п.
+
+    Считается НА МОМЕНТ ВХОДА и только по прошлым свечам — заглядывание
+    вперёд сделало бы проверку бессмысленной.
+    """
+    if not coin_candles or not btc_candles:
+        return None
+    if idx < lookback or idx >= len(coin_candles) or idx >= len(btc_candles):
+        return None
+    try:
+        c0 = float(coin_candles[idx - lookback]["c"])
+        c1 = float(coin_candles[idx]["c"])
+        b0 = float(btc_candles[idx - lookback]["c"])
+        b1 = float(btc_candles[idx]["c"])
+    except (KeyError, TypeError, ValueError):
+        return None
+    if c0 <= 0 or b0 <= 0:
+        return None
+    return (c1 / c0 - 1.0) * 100 - (b1 / b0 - 1.0) * 100
+
+
+def split_by_rs(trades) -> tuple[list, list]:
+    """Разделить сделки на сильные (RS > 0) и слабые (RS < 0)."""
+    strong = [t for t in trades if getattr(t, "rs", None) is not None and t.rs > 0]
+    weak = [t for t in trades if getattr(t, "rs", None) is not None and t.rs < 0]
+    return strong, weak
