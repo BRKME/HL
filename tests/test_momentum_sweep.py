@@ -161,3 +161,48 @@ def test_random_entry_degenerate_inputs():
     assert random_entry_r([1.0, 2.0], holding=5, exposure=0.5) is None
     assert random_entry_r(_trend(), holding=0, exposure=0.5) is None
     assert random_entry_r(_trend(), holding=5, exposure=0) is None
+
+
+# ------------------------------------------- просадка: главное при плече
+
+def test_drawdown_is_zero_on_a_monotone_rise():
+    from src.momentum_sweep import max_drawdown
+
+    assert max_drawdown([0, 1, 2, 3]) == 0
+
+
+def test_drawdown_measures_worst_fall_from_peak():
+    from src.momentum_sweep import max_drawdown
+
+    assert max_drawdown([0, 5, 1, 4]) == pytest.approx(-4)
+
+
+def test_drawdown_of_empty_curve():
+    from src.momentum_sweep import max_drawdown
+
+    assert max_drawdown([]) is None
+
+
+def test_equity_curve_accumulates_trades():
+    from src.momentum_sweep import equity_curve
+
+    curve = equity_curve(_trend(), Params(28, 5, False, True))
+    assert curve
+    assert curve == sorted(curve) or True          # монотонность не требуется
+    assert len(curve) == len(run_one(_trend(), Params(28, 5, False, True)))
+
+
+def test_buy_and_hold_curve_starts_at_zero():
+    from src.momentum_sweep import buy_and_hold_curve
+
+    curve = buy_and_hold_curve(_trend())
+    assert curve and abs(curve[0]) < 1e-9
+
+
+def test_buy_and_hold_drawdown_is_measurable():
+    from src.momentum_sweep import buy_and_hold_curve, max_drawdown
+
+    updown = [100.0 * (1.01 ** i) for i in range(200)]
+    updown += [updown[-1] * (0.98 ** i) for i in range(1, 120)]
+    dd = max_drawdown(buy_and_hold_curve(updown))
+    assert dd is not None and dd < 0

@@ -245,3 +245,40 @@ def random_entry_r(closes: Sequence[float], holding: int, exposure: float,
         if rs:
             totals.append(statistics.mean(rs))
     return statistics.mean(totals) if totals else None
+
+
+def equity_curve(closes: Sequence[float], p: Params) -> list[float]:
+    """Кривая накопленного R по сделкам модели — для просадки."""
+    rs = run_one(closes, p)
+    curve, acc = [], 0.0
+    for r in rs:
+        acc += r
+        curve.append(acc)
+    return curve
+
+
+def max_drawdown(curve: Sequence[float]) -> Optional[float]:
+    """Максимальная просадка кривой, в тех же единицах R.
+
+    Для оператора на плече 5x просадка важнее доходности: стратегия с
+    меньшей доходностью и вдвое меньшей просадкой допускает вдвое большее
+    плечо при том же риске, то есть даёт БОЛЬШЕ денег. Сравнение по одной
+    доходности систематически выбирает то, что нельзя торговать с плечом.
+    """
+    if not curve:
+        return None
+    peak, worst = curve[0], 0.0
+    for x in curve:
+        peak = max(peak, x)
+        worst = min(worst, x - peak)
+    return worst
+
+
+def buy_and_hold_curve(closes: Sequence[float]) -> list[float]:
+    """«Купи и держи» в тех же единицах R — для сопоставимой просадки."""
+    if len(closes) < 40:
+        return []
+    vol = _vol(closes, len(closes) - 1)
+    if not vol:
+        return []
+    return [(c / closes[0] - 1.0) / vol for c in closes]

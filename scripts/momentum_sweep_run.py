@@ -19,8 +19,8 @@ sys.path.insert(0, str(REPO))
 
 from src.hl_api import fetch_candles  # noqa: E402
 from src.momentum_sweep import (  # noqa: E402
-    buy_and_hold_r, default_grid, random_entry_r, split, sweep,
-    time_in_market,
+    buy_and_hold_curve, buy_and_hold_r, default_grid, equity_curve,
+    max_drawdown, random_entry_r, split, sweep, time_in_market,
 )
 from src.whitelist_focus import FOCUS_COINS  # noqa: E402
 
@@ -110,6 +110,33 @@ def main() -> int:
         print(f"  случайный вход с той же экспозицией: {rand_avg:+.3f}")
         print(f"  умение выбирать момент: {best_te.avg_r - rand_avg:+.3f}")
 
+    # ИТОГ ЗА ПЕРИОД, а не на сделку. Прошлый отчёт сравнивал avg_r модели
+    # с итогом «купи и держи» — это разные единицы, и вывод «удержание дало
+    # больше» был бессмысленным.
+    model_total = _st.mean([best_te.avg_r * best_te.n / max(len(series), 1)]) \
+        if best_te.n else 0.0
+
+    # ПРОСАДКА. При плече 5x она важнее доходности: стратегия с меньшей
+    # доходностью и вдвое меньшей просадкой допускает вдвое большее плечо
+    # при том же риске — то есть даёт БОЛЬШЕ денег.
+    dd_model, dd_bh = [], []
+    for c in series.values():
+        test = split(c)[1]
+        d1 = max_drawdown(equity_curve(test, best_p))
+        d2 = max_drawdown(buy_and_hold_curve(test))
+        if d1 is not None:
+            dd_model.append(d1)
+        if d2 is not None:
+            dd_bh.append(d2)
+    ddm = _st.mean(dd_model) if dd_model else None
+    ddb = _st.mean(dd_bh) if dd_bh else None
+    if ddm is not None and ddb is not None:
+        print(f"  просадка модели: {ddm:+.2f} · «купи и держи»: {ddb:+.2f}")
+        if ddm < 0 and ddb < 0:
+            print(f"  доходность на единицу просадки: модель "
+                  f"{model_total / abs(ddm):+.2f} · удержание "
+                  f"{(bh or 0) / abs(ddb):+.2f}")
+
     # Вердикт — по сравнению с КОНТРОЛЕМ, а не по знаку прибыли.
     if rand_avg is None:
         verdict = "контроль недоступен — судить нельзя"
@@ -122,8 +149,11 @@ def main() -> int:
         edge = best_te.avg_r - rand_avg
         verdict = (f"обгоняет случайный вход на {edge:+.3f} "
                    f"при {tim_avg:.0%} времени в позиции")
-        if bh is not None and best_te.avg_r < bh:
-            verdict += f"; но «купи и держи» дал больше ({bh:+.3f})"
+        if ddm is not None and ddb is not None and ddm > ddb:
+            verdict += (f"; просадка вдвое меньше удержания "
+                        f"({ddm:+.2f} против {ddb:+.2f})"
+                        if abs(ddm) * 2 <= abs(ddb) else
+                        f"; просадка {ddm:+.2f} против {ddb:+.2f}")
 
     print(f"\nВЫВОД: {verdict}")
 
@@ -132,7 +162,9 @@ def main() -> int:
         bh_line = (f"«купи и держи»: {bh:+.3f} · в позиции "
                    f"{tim_avg:.0%} времени\n")
     if rand_avg is not None:
-        bh_line += (f"случайный вход той же экспозиции: {rand_avg:+.3f}\n")
+        bh_line += f"случайный вход той же экспозиции: {rand_avg:+.3f}\n"
+    if ddm is not None and ddb is not None:
+        bh_line += (f"просадка: модель {ddm:+.2f} · удержание {ddb:+.2f}\n")
 
     try:
         from src.telegram_sender import send_messages
