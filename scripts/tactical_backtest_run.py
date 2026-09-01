@@ -78,6 +78,7 @@ def main() -> int:
     # Проверяется на входах baseline — того самого варианта, что оказался
     # лучшим. Размечаем каждую сделку силой монеты против BTC НА МОМЕНТ
     # ВХОДА и сравниваем средний R у сильных и слабых.
+    import dataclasses
     import statistics
 
     btc = history.get("BTC")
@@ -88,9 +89,12 @@ def main() -> int:
         for t in replay(coin, candles, exit_mode="baseline"):
             rs = rs_at(candles, btc, t.entry_idx, lookback=30)
             if rs is not None:
-                marked.append(type(t)(**{**t.__dict__, "rs": rs}))
+                marked.append(dataclasses.replace(t, rs=rs))
 
-    h4_line = "H4: данных не хватило"
+    # Явно называем причину, если проверить не удалось: молчаливое
+    # «данных не хватило» уже однажды скрыло, что запущен старый код.
+    h4_line = (f"данных не хватило: размечено {len(marked)} сделок, "
+               f"BTC {'есть' if btc else 'НЕТ'}")
     if marked:
         strong, weak = split_by_rs(marked)
         if strong and weak:
