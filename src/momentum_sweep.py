@@ -148,3 +148,56 @@ def default_grid() -> list[Params]:
         for v in (False, True)
         for lo in (False, True)
     ]
+
+
+# ------------------------------------------- сравнение с «купи и держи»
+
+def buy_and_hold_r(closes: Sequence[float]) -> Optional[float]:
+    """Доходность «купи и держи» в тех же единицах, что и сделки модели.
+
+    Без этого числа результат перебора не значит ничего. Стратегия «только
+    лонг с удержанием 20 дней» асимптотически превращается в «купи и
+    держи»: если проверочный период был растущим, она покажет прибыль без
+    какого-либо предсказания. Ровно на этом мы уже обожглись с альфой
+    недельного планнера — измерили направленную стратегию на направленном
+    рынке и приняли бету за преимущество.
+    """
+    if len(closes) < 40:
+        return None
+    vol = _vol(closes, len(closes) - 1)
+    if not vol:
+        return None
+    total = closes[-1] / closes[0] - 1.0
+    return total / vol
+
+
+def time_in_market(closes: Sequence[float], p: Params) -> Optional[float]:
+    """Доля времени, проведённого в позиции.
+
+    Близкая к единице означает, что «стратегия» это и есть рынок.
+    """
+    if len(closes) < 40:
+        return None
+    days_in = 0
+    start = max(p.lookback, 40)
+    i = start
+    while i < len(closes) - 1:
+        mom = _returns(closes, i, p.lookback)
+        vol = _vol(closes, i)
+        if mom is None or not vol:
+            i += 1
+            continue
+        signal = 1 if mom > 0 else -1
+        if (p.vol_scaled and abs(mom) < vol) or (p.long_only and signal < 0):
+            i += 1
+            continue
+        exit_i = min(i + p.holding, len(closes) - 1)
+        for k in range(i + 1, exit_i + 1):
+            m = _returns(closes, k, p.lookback)
+            if m is not None and (1 if m > 0 else -1) != signal:
+                exit_i = k
+                break
+        days_in += exit_i - i
+        i = exit_i + 1
+    span = len(closes) - start
+    return days_in / span if span > 0 else None

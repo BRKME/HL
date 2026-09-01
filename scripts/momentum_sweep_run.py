@@ -18,7 +18,9 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
 from src.hl_api import fetch_candles  # noqa: E402
-from src.momentum_sweep import default_grid, sweep  # noqa: E402
+from src.momentum_sweep import (  # noqa: E402
+    buy_and_hold_r, default_grid, split, sweep, time_in_market,
+)
 from src.whitelist_focus import FOCUS_COINS  # noqa: E402
 
 LOOKBACK_DAYS = int(os.environ.get("SWEEP_LOOKBACK_DAYS") or 900)
@@ -57,6 +59,17 @@ def main() -> int:
     usable.sort(key=lambda x: x[1].avg_r, reverse=True)
     best_p, best_tr, best_te = usable[0]
 
+    # БЕНЧМАРК. Без него результат не значит ничего: «только лонг с
+    # удержанием 20 дней» на растущем рынке = «купи и держи», прибыль без
+    # предсказания. На этом мы уже обожглись с альфой планнера.
+    import statistics as _st
+    bh_test = [buy_and_hold_r(split(c)[1]) for c in series.values()]
+    bh_test = [x for x in bh_test if x is not None]
+    bh = _st.mean(bh_test) if bh_test else None
+    print(f"«купи и держи» на проверочном периоде: "
+          f"{bh:+.3f}" if bh is not None else "бенчмарк недоступен")
+    print()
+
     print("топ-5 по обучающей части:")
     print(f"{'окно':>5} {'держ':>5} {'норм':>5} {'лонг':>5} "
           f"{'обуч n':>7} {'обуч R':>8} {'пров n':>7} {'пров R':>8}")
@@ -68,6 +81,10 @@ def main() -> int:
     # Насколько лучший на обучении просел на проверке — мера подгонки.
     degradation = best_tr.avg_r - best_te.avg_r
     median_test = sorted(te.avg_r for _, _, te in usable)[len(usable) // 2]
+
+    tim = [time_in_market(split(c)[1], best_p) for c in series.values()]
+    tim = [x for x in tim if x is not None]
+    tim_avg = _st.mean(tim) if tim else None
 
     print(f"\nлучший по обучению: окно {best_p.lookback}, "
           f"держ {best_p.holding}, норм {best_p.vol_scaled}, "
@@ -85,6 +102,10 @@ def main() -> int:
                else "преимущества нет: лучший на обучении проваливает проверку")
     print(f"\nВЫВОД: {verdict}")
 
+    bh_line = (f"«купи и держи» на проверке: {bh:+.3f}\n"
+               f"в позиции {tim_avg:.0%} времени\n"
+               if bh is not None and tim_avg is not None else "")
+
     try:
         from src.telegram_sender import send_messages
         rows = "\n".join(
@@ -98,6 +119,7 @@ def main() -> int:
             f"{len(series)} монет, {LOOKBACK_DAYS} дн\n"
             f"<pre>{rows}</pre>\n"
             f"медиана по проверке: {median_test:+.3f}\n"
+            f"{bh_line}"
             f"<b>{verdict}</b>\n"
             f"<i>выбор по обучению, судим по проверке — она не видела "
             f"отбора</i>"])

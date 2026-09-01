@@ -85,3 +85,45 @@ def test_sweep_reports_train_and_test_separately():
 
 def test_empty_series_is_safe():
     assert run_one([], Params(28, 5, False, False)) == []
+
+
+# ------------------------------- бенчмарк: без него цифры ничего не значат
+
+def test_buy_and_hold_positive_on_a_trend():
+    from src.momentum_sweep import buy_and_hold_r
+
+    assert buy_and_hold_r(_trend()) > 0
+
+
+def test_buy_and_hold_negative_on_a_decline():
+    from src.momentum_sweep import buy_and_hold_r
+
+    down = [100.0 * (0.995 ** i) for i in range(400)]
+    assert buy_and_hold_r(down) < 0
+
+
+def test_long_only_long_holding_approaches_buy_and_hold():
+    """Ключевая проверка: «только лонг, удержание 20» на растущем рынке —
+    это и есть рынок. Если доля времени в позиции близка к единице,
+    прибыль стратегии не является преимуществом."""
+    from src.momentum_sweep import time_in_market
+
+    tim = time_in_market(_trend(), Params(60, 20, False, True))
+    assert tim is not None
+    assert tim > 0.5
+
+
+def test_selective_model_spends_less_time_in_market():
+    from src.momentum_sweep import time_in_market
+
+    loose = time_in_market(_noise(), Params(60, 20, False, True))
+    tight = time_in_market(_noise(), Params(7, 1, True, True))
+    if loose and tight:
+        assert tight < loose
+
+
+def test_short_series_is_safe():
+    from src.momentum_sweep import buy_and_hold_r, time_in_market
+
+    assert buy_and_hold_r([1.0, 2.0]) is None
+    assert time_in_market([1.0, 2.0], Params(28, 5, False, True)) is None
