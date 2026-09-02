@@ -18,6 +18,7 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
 from src.hl_api import fetch_candles  # noqa: E402
+from src.momentum_sweep import run_one  # noqa: E402
 from src.momentum_sweep import (  # noqa: E402
     buy_and_hold_curve, buy_and_hold_r, default_grid, equity_curve,
     max_drawdown, random_entry_r, split, sweep, time_in_market,
@@ -51,6 +52,36 @@ def main() -> int:
           f"{len(series)} монет · {LOOKBACK_DAYS} дней\n")
 
     res = sweep(series, grid)
+    import statistics as _st
+
+    # ПАРНОЕ СРАВНЕНИЕ ФИЛЬТРА. Не «найди лучший из ещё большего перебора»
+    # — это ловушка, в которую мы уже дважды почти попали, — а «тот же
+    # набор с фильтром и без». Улучшение усредняется по ВСЕМ наборам:
+    # если фильтр помогает лишь одному, это шум.
+    from src.momentum_sweep import REGIME_BUFFERS, REGIME_MA_LENGTHS
+    print("\n=== режимный фильтр: парное сравнение ===")
+    for ma_len in REGIME_MA_LENGTHS:
+        if ma_len == 0:
+            continue
+        for buf in REGIME_BUFFERS:
+            deltas, kept = [], []
+            for p, tr, te in res:
+                if te.avg_r is None or te.n < 10:
+                    continue
+                fp = type(p)(p.lookback, p.holding, p.vol_scaled,
+                             p.long_only, ma_len, buf)
+                f_rs = []
+                for closes in series.values():
+                    f_rs.extend(run_one(split(closes)[1], fp))
+                if len(f_rs) < 10:
+                    continue
+                deltas.append(_st.mean(f_rs) - te.avg_r)
+                kept.append(len(f_rs) / max(te.n, 1))
+            if deltas:
+                better = sum(1 for d in deltas if d > 0) / len(deltas)
+                print(f"  MA{ma_len} зона {buf:.0%}: средний прирост "
+                      f"{_st.mean(deltas):+.3f}, помог в {better:.0%} "
+                      f"наборов, сделок осталось {_st.mean(kept):.0%}")
     usable = [(p, tr, te) for p, tr, te in res
               if tr.n >= MIN_TEST_TRADES and te.n >= MIN_TEST_TRADES]
     if not usable:
@@ -64,7 +95,6 @@ def main() -> int:
     # БЕНЧМАРК. Без него результат не значит ничего: «только лонг с
     # удержанием 20 дней» на растущем рынке = «купи и держи», прибыль без
     # предсказания. На этом мы уже обожглись с альфой планнера.
-    import statistics as _st
     bh_test = [buy_and_hold_r(split(c)[1]) for c in series.values()]
     bh_test = [x for x in bh_test if x is not None]
     bh = _st.mean(bh_test) if bh_test else None

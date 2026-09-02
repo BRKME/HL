@@ -37,6 +37,8 @@ class Params:
     holding: int           # максимальное удержание, дней
     vol_scaled: bool       # нормировать сигнал на волатильность
     long_only: bool        # только лонги
+    ma_len: int = 0        # режимный фильтр по средней; 0 = выключен
+    ma_buffer: float = 0.0  # зона нечувствительности вокруг средней
 
 
 @dataclass(frozen=True)
@@ -46,6 +48,52 @@ class Result:
     avg_r: Optional[float]
     total_r: float
     wr: Optional[float]
+
+
+# ------------------------------------------------ режимный фильтр по средней
+
+# Ширина зоны нечувствительности вокруг средней, доля от её значения.
+# Замечание оператора 02.09: у самой линии случаются ложные пробои. Цена,
+# болтающаяся вокруг средней, без зоны даёт серию переключений подряд —
+# каждое из них стоит комиссии и портит выборку. Внутри зоны состояние
+# СОХРАНЯЕТСЯ, а не пересчитывается: это гистерезис, тот же приём, что мы
+# применили к verdict_flip в гварде.
+REGIME_BUFFERS = (0.0, 0.02, 0.04)
+REGIME_MA_LENGTHS = (0, 100, 200)      # 0 = фильтр выключен
+
+
+def moving_average(closes: Sequence[float], i: int, length: int
+                   ) -> Optional[float]:
+    if length <= 0 or i + 1 < length:
+        return None
+    window = closes[i + 1 - length: i + 1]
+    return sum(window) / len(window)
+
+
+def regime_series(closes: Sequence[float], ma_len: int,
+                  buffer_pct: float) -> list[Optional[bool]]:
+    """Для каждой свечи: True — «выше средней», False — «ниже», None — рано.
+
+    Внутри зоны нечувствительности состояние наследуется от предыдущего
+    дня. Именно это отсекает ложные пробои: чтобы режим сменился, цене
+    надо уйти за границу зоны, а не просто коснуться линии.
+    """
+    out: list[Optional[bool]] = []
+    state: Optional[bool] = None
+    for i in range(len(closes)):
+        ma = moving_average(closes, i, ma_len)
+        if ma is None or ma <= 0:
+            out.append(None)
+            continue
+        upper, lower = ma * (1 + buffer_pct), ma * (1 - buffer_pct)
+        price = closes[i]
+        if price > upper:
+            state = True
+        elif price < lower:
+            state = False
+        # внутри зоны — состояние не меняется
+        out.append(state)
+    return out
 
 
 def _returns(closes: Sequence[float], i: int, lookback: int) -> Optional[float]:
@@ -72,7 +120,11 @@ def run_one(closes: Sequence[float], p: Params) -> list[float]:
     сопоставимая между монетами и периодами.
     """
     rs: list[float] = []
-    start = max(p.lookback, 40)
+    # Режимная разметка считается один раз на всю серию: пересчёт внутри
+    # цикла давал бы то же самое, но медленнее.
+    regime = (regime_series(closes, p.ma_len, p.ma_buffer)
+              if p.ma_len else None)
+    start = max(p.lookback, 40, p.ma_len)
     i = start
     while i < len(closes) - 1:
         mom = _returns(closes, i, p.lookback)
@@ -87,6 +139,13 @@ def run_one(closes: Sequence[float], p: Params) -> list[float]:
         if p.long_only and signal < 0:
             i += 1
             continue
+        # Режимный фильтр: лонг только выше средней, шорт только ниже.
+        if regime is not None:
+            state = regime[i]
+            if state is None or (state and signal < 0) or \
+                    (not state and signal > 0):
+                i += 1
+                continue
 
         entry = closes[i]
         exit_i = min(i + p.holding, len(closes) - 1)
