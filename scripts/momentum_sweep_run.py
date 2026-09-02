@@ -60,6 +60,7 @@ def main() -> int:
     # если фильтр помогает лишь одному, это шум.
     from src.momentum_sweep import REGIME_BUFFERS, REGIME_MA_LENGTHS
     print("\n=== режимный фильтр: парное сравнение ===")
+    filter_rows = []
     for ma_len in REGIME_MA_LENGTHS:
         if ma_len == 0:
             continue
@@ -79,9 +80,11 @@ def main() -> int:
                 kept.append(len(f_rs) / max(te.n, 1))
             if deltas:
                 better = sum(1 for d in deltas if d > 0) / len(deltas)
-                print(f"  MA{ma_len} зона {buf:.0%}: средний прирост "
-                      f"{_st.mean(deltas):+.3f}, помог в {better:.0%} "
-                      f"наборов, сделок осталось {_st.mean(kept):.0%}")
+                line = (f"MA{ma_len} зона {buf:.0%}: прирост "
+                        f"{_st.mean(deltas):+.3f}, помог в {better:.0%} "
+                        f"наборов, сделок {_st.mean(kept):.0%}")
+                print("  " + line)
+                filter_rows.append((line, _st.mean(deltas), better))
     usable = [(p, tr, te) for p, tr, te in res
               if tr.n >= MIN_TEST_TRADES and te.n >= MIN_TEST_TRADES]
     if not usable:
@@ -243,6 +246,21 @@ def main() -> int:
                         f"{bh / abs(ddb):+.2f}\n")
     bh_line += wf_line
 
+    # Итог парного сравнения — В СООБЩЕНИЕ, а не только в лог Actions.
+    # Величина, посчитанная и не показанная, для оператора не существует:
+    # это уже третий такой случай.
+    filter_block = ""
+    if filter_rows:
+        best_f = max(filter_rows, key=lambda x: x[1])
+        rows_txt = "\n".join(r[0] for r in filter_rows)
+        filter_block = (f"\n<b>Режимный фильтр (парно)</b>\n"
+                        f"<pre>{rows_txt}</pre>\n")
+        if best_f[1] <= 0:
+            filter_block += "фильтр не помогает ни в одной конфигурации\n"
+        elif best_f[2] < 0.6:
+            filter_block += (f"помог лишь в {best_f[2]:.0%} наборов — "
+                             f"вероятно шум\n")
+
     try:
         from src.telegram_sender import send_messages
         rows = "\n".join(
@@ -258,6 +276,7 @@ def main() -> int:
             f"медиана по проверке: {median_test:+.3f}\n"
             f"{bh_line}"
             f"<b>{verdict}</b>\n"
+            f"{filter_block}"
             f"<i>выбор по обучению, судим по проверке — она не видела "
             f"отбора</i>"])
     except Exception as e:  # noqa: BLE001
