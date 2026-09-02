@@ -28,9 +28,9 @@ jobs:
       SWEEP_COINS: ${{ inputs.coins }}
       SWEEP_LOOKBACK_DAYS: ${{ inputs.lookback_days }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with: { fetch-depth: 1 }
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with: { python-version: "3.12" }
       - run: pip install -r requirements.txt
       - run: python scripts/momentum_sweep_run.py
