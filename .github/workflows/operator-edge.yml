@@ -1,0 +1,32 @@
+name: operator-edge
+
+# Разбор торговли оператора теми же мерками, что применялись к модели.
+# Вручную: это исследование, а не регулярный отчёт.
+
+on:
+  workflow_dispatch:
+    inputs:
+      lookback_days:
+        description: "Глубина истории сделок"
+        required: false
+        default: "180"
+
+permissions:
+  contents: read
+
+jobs:
+  edge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      HL_ACCOUNTS: ${{ secrets.HL_ACCOUNTS }}
+      EDGE_LOOKBACK_DAYS: ${{ inputs.lookback_days }}
+    steps:
+      - uses: actions/checkout@v5
+        with: { fetch-depth: 1 }
+      - uses: actions/setup-python@v6
+        with: { python-version: "3.12" }
+      - run: pip install -r requirements.txt
+      - run: python scripts/operator_edge_run.py
