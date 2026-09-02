@@ -246,3 +246,26 @@ def test_walk_forward_on_noise_has_no_persistent_edge():
     res = walk_forward(_noise(n=800), default_grid()[:20], folds=3)
     if len(res) >= 2:
         assert abs(st.mean(f for _, _, f in res)) < 1.0
+
+
+def test_walk_forward_can_report_drawdown_ratio():
+    """Ключевая проверка конфликта: доходность на единицу просадки на
+    КАЖДОМ отрезке, а не на одном удачном сплите."""
+    from src.momentum_sweep import walk_forward
+
+    res = walk_forward(_trend(n=900), default_grid()[:12], folds=3,
+                       with_drawdown=True)
+    assert res
+    for row in res:
+        assert len(row) == 5
+        _, _, _, ratio_m, ratio_b = row
+        assert ratio_m is None or isinstance(ratio_m, float)
+        assert ratio_b is None or isinstance(ratio_b, float)
+
+
+def test_walk_forward_default_shape_unchanged():
+    """Старые вызовы не должны сломаться."""
+    from src.momentum_sweep import walk_forward
+
+    res = walk_forward(_trend(n=800), default_grid()[:8], folds=3)
+    assert all(len(row) == 3 for row in res)

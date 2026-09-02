@@ -165,19 +165,33 @@ def main() -> int:
     # преимущества нет, каким бы удачным ни был один сплит.
     wf_all = []
     for c in series.values():
-        wf_all.extend(walk_forward(c, grid, folds=4))
+        wf_all.extend(walk_forward(c, grid, folds=4, with_drawdown=True))
     wf_line = ""
     if wf_all:
-        fwds = [f for _, _, f in wf_all]
+        fwds = [row[2] for row in wf_all]
         wf_mean = _st.mean(fwds)
         wf_pos = sum(1 for f in fwds if f > 0) / len(fwds)
-        windows = {p.lookback for p, _, _ in wf_all}
+        windows = {row[0].lookback for row in wf_all}
+
+        # Разрешение конфликта: доходность может быть неустойчивой, а
+        # преимущество по просадке — держаться, потому что оно структурное.
+        pairs = [(row[3], row[4]) for row in wf_all
+                 if row[3] is not None and row[4] is not None]
+        if pairs:
+            better = sum(1 for m, b in pairs if m > b) / len(pairs)
+            print(f"  доход/просадка выше, чем у удержания, в "
+                  f"{better:.0%} отрезков ({len(pairs)})")
+            wf_ratio_line = (f"доход/просадка лучше удержания в "
+                             f"{better:.0%} отрезков\n")
+        else:
+            wf_ratio_line = ""
         print(f"\nскользящая проверка: {len(wf_all)} отрезков, "
               f"средний результат вперёд {wf_mean:+.3f}, "
               f"положительных {wf_pos:.0%}")
         print(f"  выбранные окна: {sorted(windows)}")
         wf_line = (f"скользящая: {len(wf_all)} отрезков, вперёд "
-                   f"{wf_mean:+.3f}, плюсовых {wf_pos:.0%}\n")
+                   f"{wf_mean:+.3f}, плюсовых {wf_pos:.0%}\n"
+                   + wf_ratio_line)
         if wf_mean <= 0:
             verdict += "; но скользящая проверка не подтверждает"
         elif wf_pos < 0.6:

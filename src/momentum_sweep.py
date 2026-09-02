@@ -285,7 +285,7 @@ def buy_and_hold_curve(closes: Sequence[float]) -> list[float]:
 
 
 def walk_forward(closes: Sequence[float], grid: Sequence[Params],
-                 folds: int = 4) -> list[tuple[Params, float, float]]:
+                 folds: int = 4, with_drawdown: bool = False):
     """Скользящая проверка: обучаемся на прошлом, торгуем следующий отрезок.
 
     Разделение 70/30 отвечает на вопрос «работало ли это в конце периода».
@@ -322,6 +322,23 @@ def walk_forward(closes: Sequence[float], grid: Sequence[Params],
         scored.sort(reverse=True, key=lambda x: x[0])
         train_r, best_p = scored[0]
         fwd = run_one(test, best_p)
-        out.append((best_p, train_r,
-                    statistics.mean(fwd) if fwd else 0.0))
+        fwd_mean = statistics.mean(fwd) if fwd else 0.0
+        if not with_drawdown:
+            out.append((best_p, train_r, fwd_mean))
+            continue
+
+        # Доходность на единицу просадки — на КАЖДОМ отрезке, а не на
+        # одном удачном сплите. Преимущество по просадке структурное:
+        # модель вне рынка половину времени, — и может держаться там, где
+        # доходность неустойчива. Именно это и надо проверить отдельно.
+        curve, acc = [], 0.0
+        for r in fwd:
+            acc += r
+            curve.append(acc)
+        dd_m = max_drawdown(curve)
+        dd_b = max_drawdown(buy_and_hold_curve(test))
+        bh_r = buy_and_hold_r(test)
+        ratio_m = (sum(fwd) / abs(dd_m)) if (fwd and dd_m) else None
+        ratio_b = (bh_r / abs(dd_b)) if (bh_r is not None and dd_b) else None
+        out.append((best_p, train_r, fwd_mean, ratio_m, ratio_b))
     return out
