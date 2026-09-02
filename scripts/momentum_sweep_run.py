@@ -59,6 +59,27 @@ def main() -> int:
     # набор с фильтром и без». Улучшение усредняется по ВСЕМ наборам:
     # если фильтр помогает лишь одному, это шум.
     from src.momentum_sweep import REGIME_BUFFERS, REGIME_MA_LENGTHS
+    # ИЗДЕРЖКИ. Тот же лучший набор, но с комиссией и фандингом. Разница
+    # и есть цена реальности: измеренное преимущество против случайного
+    # входа было +0.44…+0.78 R, а издержки при удержании в 20 дней
+    # составляют около 0.24…0.30 R.
+    net_rs = []
+    for closes in series.values():
+        net_rs.extend(run_one(split(closes)[1], best_p, net_of_costs=True))
+    net_avg = _st.mean(net_rs) if net_rs else None
+    cost_line = ""
+    if net_avg is not None and best_te.avg_r is not None:
+        drag = best_te.avg_r - net_avg
+        print(f"\n=== издержки ===")
+        print(f"  до издержек: {best_te.avg_r:+.3f} · после: {net_avg:+.3f} "
+              f"· цена {drag:+.3f} R на сделку")
+        if rand_avg is not None:
+            print(f"  умение после издержек: {net_avg - rand_avg:+.3f}")
+        cost_line = (f"после издержек: {net_avg:+.3f} "
+                     f"(цена {drag:.3f} R)\n")
+        if rand_avg is not None and net_avg <= rand_avg:
+            cost_line += "издержки съедают всё преимущество\n"
+
     print("\n=== режимный фильтр: парное сравнение ===")
     filter_rows = []
     for ma_len in REGIME_MA_LENGTHS:
@@ -244,7 +265,7 @@ def main() -> int:
                         f"доход на единицу просадки: "
                         f"{model_total / abs(ddm):+.2f} против "
                         f"{bh / abs(ddb):+.2f}\n")
-    bh_line += wf_line
+    bh_line += wf_line + cost_line
 
     # Итог парного сравнения — В СООБЩЕНИЕ, а не только в лог Actions.
     # Величина, посчитанная и не показанная, для оператора не существует:

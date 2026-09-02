@@ -30,6 +30,31 @@ from typing import Optional, Sequence
 
 TRAIN_FRACTION = 0.70     # первые 70% истории — обучение, остальное проверка
 
+# Издержки, которых в бэктесте не было вовсе (добавлены 02.09). Пока
+# преимущество было отрицательным, это не мешало: не работает без
+# издержек — с ними тем более. Но измеренное преимущество против
+# случайного входа составляет +0.44…+0.78 R, а издержки при удержании в
+# 20 дней — около 0.24…0.30 R. Они съедают от трети до двух третей, то
+# есть решают знак.
+TAKER_FEE_PCT = 0.045     # комиссия в одну сторону, % нотионала
+FUNDING_APR_PCT = 11.0    # наблюдаемый фандинг; лонг ПЛАТИТ при положительном
+
+
+def trade_cost_r(holding_days: int, vol: float, direction: int = 1,
+                 funding_apr: float = FUNDING_APR_PCT) -> float:
+    """Издержки одной сделки в единицах R (суточной волатильности).
+
+    Комиссия платится дважды — вход и выход. Фандинг за время удержания
+    платит лонг, когда ставка положительна, и получает шорт. Знак важен:
+    все наши сигналы за месяц были лонгами при ставке +11%, то есть мы
+    систематически вставали на сторону, которая платит.
+    """
+    if vol <= 0:
+        return 0.0
+    fee = TAKER_FEE_PCT * 2
+    funding = funding_apr / 365 * max(holding_days, 0) * direction
+    return (fee + funding) / (vol * 100)
+
 
 @dataclass(frozen=True)
 class Params:
@@ -111,7 +136,8 @@ def _vol(closes: Sequence[float], i: int, window: int = 30) -> Optional[float]:
     return statistics.pstdev(rets) if len(rets) > 2 else None
 
 
-def run_one(closes: Sequence[float], p: Params) -> list[float]:
+def run_one(closes: Sequence[float], p: Params,
+            net_of_costs: bool = False) -> list[float]:
     """Вернуть список R по сделкам для одного набора параметров.
 
     Модель намеренно простая: сигнал — знак доходности за окно; вход по
@@ -155,7 +181,10 @@ def run_one(closes: Sequence[float], p: Params) -> list[float]:
                 exit_i = k
                 break
         move = (closes[exit_i] / entry - 1.0) * signal
-        rs.append(move / vol)            # R в единицах суточной волатильности
+        gross = move / vol               # R в единицах суточной волатильности
+        held = exit_i - i
+        rs.append(gross - trade_cost_r(held, vol, signal) if net_of_costs
+                  else gross)
         i = exit_i + 1
     return rs
 
