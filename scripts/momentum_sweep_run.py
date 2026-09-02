@@ -21,6 +21,7 @@ from src.hl_api import fetch_candles  # noqa: E402
 from src.momentum_sweep import (  # noqa: E402
     buy_and_hold_curve, buy_and_hold_r, default_grid, equity_curve,
     max_drawdown, random_entry_r, split, sweep, time_in_market,
+    walk_forward,
 )
 from src.whitelist_focus import FOCUS_COINS  # noqa: E402
 
@@ -157,6 +158,31 @@ def main() -> int:
 
     print(f"\nВЫВОД: {verdict}")
 
+    # СКОЛЬЗЯЩАЯ ПРОВЕРКА. Разделение 70/30 отвечает, работало ли это в
+    # конце периода. Скользящая — работало ли ПОВТОРЯЕМО: набор выбирается
+    # по прошлому и меряется на следующем отрезке, и так четыре раза. Если
+    # лучший набор скачет, а результаты вперёд около нуля, устойчивого
+    # преимущества нет, каким бы удачным ни был один сплит.
+    wf_all = []
+    for c in series.values():
+        wf_all.extend(walk_forward(c, grid, folds=4))
+    wf_line = ""
+    if wf_all:
+        fwds = [f for _, _, f in wf_all]
+        wf_mean = _st.mean(fwds)
+        wf_pos = sum(1 for f in fwds if f > 0) / len(fwds)
+        windows = {p.lookback for p, _, _ in wf_all}
+        print(f"\nскользящая проверка: {len(wf_all)} отрезков, "
+              f"средний результат вперёд {wf_mean:+.3f}, "
+              f"положительных {wf_pos:.0%}")
+        print(f"  выбранные окна: {sorted(windows)}")
+        wf_line = (f"скользящая: {len(wf_all)} отрезков, вперёд "
+                   f"{wf_mean:+.3f}, плюсовых {wf_pos:.0%}\n")
+        if wf_mean <= 0:
+            verdict += "; но скользящая проверка не подтверждает"
+        elif wf_pos < 0.6:
+            verdict += f"; скользящая плюсова лишь в {wf_pos:.0%} отрезков"
+
     bh_line = ""
     if bh is not None and tim_avg is not None:
         bh_line = (f"«купи и держи»: {bh:+.3f} · в позиции "
@@ -164,7 +190,14 @@ def main() -> int:
     if rand_avg is not None:
         bh_line += f"случайный вход той же экспозиции: {rand_avg:+.3f}\n"
     if ddm is not None and ddb is not None:
-        bh_line += (f"просадка: модель {ddm:+.2f} · удержание {ddb:+.2f}\n")
+        bh_line += f"просадка: модель {ddm:+.2f} · удержание {ddb:+.2f}\n"
+        if ddm < 0 and ddb < 0 and bh is not None:
+            bh_line += (f"итог за период: модель {model_total:+.2f} · "
+                        f"удержание {bh:+.2f}\n"
+                        f"доход на единицу просадки: "
+                        f"{model_total / abs(ddm):+.2f} против "
+                        f"{bh / abs(ddb):+.2f}\n")
+    bh_line += wf_line
 
     try:
         from src.telegram_sender import send_messages

@@ -206,3 +206,43 @@ def test_buy_and_hold_drawdown_is_measurable():
     updown += [updown[-1] * (0.98 ** i) for i in range(1, 120)]
     dd = max_drawdown(buy_and_hold_curve(updown))
     assert dd is not None and dd < 0
+
+
+# ------------------------- скользящая проверка: повторяемо ли преимущество
+
+def test_walk_forward_produces_folds():
+    from src.momentum_sweep import walk_forward
+
+    res = walk_forward(_trend(n=800), default_grid()[:12], folds=3)
+    assert len(res) >= 2
+    for p, tr, fwd in res:
+        assert isinstance(tr, float) and isinstance(fwd, float)
+
+
+def test_walk_forward_short_series_returns_nothing():
+    from src.momentum_sweep import walk_forward
+
+    assert walk_forward(_trend(n=100), default_grid()[:4]) == []
+
+
+def test_walk_forward_trains_only_on_the_past():
+    """Набор выбирается по прошлому, измеряется на будущем — иначе это
+    не проверка, а подгонка с лишними шагами.
+
+    Данные берутся с шумом: строго периодическая синтетика даёт одинаковые
+    отрезки, и результат вперёд совпадает с обучающим тождественно — это
+    свойство фикстуры, а не доказательство утечки."""
+    from src.momentum_sweep import walk_forward
+
+    res = walk_forward(_noise(n=900, seed=17), default_grid()[:20], folds=3)
+    assert res
+    assert any(abs(tr - fwd) > 1e-9 for _, tr, fwd in res)
+
+
+def test_walk_forward_on_noise_has_no_persistent_edge():
+    from src.momentum_sweep import walk_forward
+    import statistics as st
+
+    res = walk_forward(_noise(n=800), default_grid()[:20], folds=3)
+    if len(res) >= 2:
+        assert abs(st.mean(f for _, _, f in res)) < 1.0

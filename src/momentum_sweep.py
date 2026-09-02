@@ -282,3 +282,46 @@ def buy_and_hold_curve(closes: Sequence[float]) -> list[float]:
     if not vol:
         return []
     return [(c / closes[0] - 1.0) / vol for c in closes]
+
+
+def walk_forward(closes: Sequence[float], grid: Sequence[Params],
+                 folds: int = 4) -> list[tuple[Params, float, float]]:
+    """Скользящая проверка: обучаемся на прошлом, торгуем следующий отрезок.
+
+    Разделение 70/30 отвечает на вопрос «работало ли это в конце периода».
+    Скользящая проверка отвечает на другой, более важный: работало ли оно
+    ПОВТОРЯЕМО — то есть выдержит ли смену режима, которой мы ещё не
+    видели.
+
+    Каждый отрезок: выбрать лучший набор ТОЛЬКО по предыдущим данным, затем
+    измерить его на следующем отрезке, которого он не видел. Возвращается
+    список (выбранный набор, результат на обучении, результат вперёд).
+
+    Если лучший набор скачет от отрезка к отрезку, а результаты вперёд
+    около нуля — устойчивого преимущества нет, как бы хорош ни был один
+    удачный сплит.
+    """
+    n = len(closes)
+    if n < 300 or folds < 2:
+        return []
+    out = []
+    step = n // (folds + 1)
+    for f in range(1, folds + 1):
+        train_end = step * f
+        test_end = min(step * (f + 1), n)
+        train, test = closes[:train_end], closes[train_end:test_end]
+        if len(train) < 150 or len(test) < 40:
+            continue
+        scored = []
+        for p in grid:
+            rs = run_one(train, p)
+            if len(rs) >= 5:
+                scored.append((statistics.mean(rs), p))
+        if not scored:
+            continue
+        scored.sort(reverse=True, key=lambda x: x[0])
+        train_r, best_p = scored[0]
+        fwd = run_one(test, best_p)
+        out.append((best_p, train_r,
+                    statistics.mean(fwd) if fwd else 0.0))
+    return out
