@@ -1,0 +1,35 @@
+name: confluence
+
+# Стечение признаков на BTC и ETH: кит + тренд + объём. Вручную.
+
+on:
+  workflow_dispatch:
+    inputs:
+      min_notional:
+        description: "Минимальный размер сделки кита, $"
+        required: false
+        default: "25000"
+      horizon_h:
+        description: "Горизонт оценки, часов"
+        required: false
+        default: "24"
+
+permissions:
+  contents: read
+
+jobs:
+  confluence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      CONF_MIN_NOTIONAL: ${{ inputs.min_notional }}
+      CONF_HORIZON_H: ${{ inputs.horizon_h }}
+    steps:
+      - uses: actions/checkout@v5
+        with: { fetch-depth: 1 }
+      - uses: actions/setup-python@v6
+        with: { python-version: "3.12" }
+      - run: pip install -r requirements.txt
+      - run: python scripts/confluence_run.py
