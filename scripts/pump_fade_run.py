@@ -28,7 +28,10 @@ from src.whitelist_focus import FOCUS_COINS  # noqa: E402
 
 PUMP_PCT = float(os.environ.get("PUMP_PCT") or 50)
 WINDOW_D = int(os.environ.get("PUMP_WINDOW_D") or 7)
-HORIZONS = (3, 7, 14, 30)
+HORIZONS = (7, 14, 30)
+# Сетка стопов с шагом. Верхняя граница — 25%: при плече 5x ликвидация
+# наступает около 20%, и стоп шире неё бессмыслен, биржа закроет раньше.
+STOPS = (None, 5, 8, 10, 12, 15, 18, 20, 25)
 MIN_EVENTS = 30
 EDGE_PP = 3.0
 WORST_LIMIT = -40.0
@@ -38,7 +41,8 @@ def main() -> int:
     print(f"# Шорт после роста · +{PUMP_PCT:g}% за {WINDOW_D} дн · "
           f"{len(FOCUS_COINS)} монет\n")
 
-    per_h: dict[int, list] = {h: [] for h in HORIZONS}
+    # Для каждой пары (горизонт, стоп) собираем результат по всем монетам.
+    grid_rows: dict[tuple, list] = {}
     base_h: dict[int, list] = {h: [] for h in HORIZONS}
     total_events = 0
 
@@ -49,55 +53,69 @@ def main() -> int:
             print(f"  {coin}: {e}")
             continue
         closes = [float(c["c"]) for c in candles if c.get("c")]
+        highs = [float(c.get("h") or c["c"]) for c in candles if c.get("c")]
         if len(closes) < 120:
             continue
         events = find_pumps(closes, PUMP_PCT, WINDOW_D)
         total_events += len(events)
         print(f"  {coin:8} дней {len(closes):>5} · событий {len(events)}")
         for h in HORIZONS:
-            r = evaluate(closes, events, h)
-            if r.n:
-                per_h[h].append(r)
             b = baseline(closes, h)
             if b.n:
                 base_h[h].append(b)
+            for stop in STOPS:
+                r = evaluate(closes, events, h, stop_pct=stop, highs=highs)
+                if r.n:
+                    grid_rows.setdefault((h, stop), []).append(r)
 
     if not total_events:
         print("\nсобытий не найдено — снизить порог")
         return 1
 
     print(f"\nвсего событий: {total_events}\n")
-    print(f"{'гориз':>6} {'n':>5} {'шорт':>8} {'медиана':>9} {'WR':>6} "
-          f"{'худшая':>9} {'+фандинг':>10} {'случайный':>11} {'обгон':>8}")
+    print(f"{'гориз':>6} {'стоп':>6} {'n':>5} {'средняя':>9} {'медиана':>9} "
+          f"{'худшая':>8} {'выбито':>7} {'случ':>8} {'обгон':>8}")
     rows = []
     for h in HORIZONS:
-        rs = per_h[h]
         bs = base_h[h]
-        if not rs:
-            continue
-        n = sum(r.n for r in rs)
-        avg = statistics.mean([r.avg_pct for r in rs])
-        med = statistics.median([r.median_pct for r in rs])
-        wr = statistics.mean([r.win_rate for r in rs])
-        worst = min(r.worst_pct for r in rs)
-        with_f = statistics.mean([r.avg_with_funding_pct for r in rs])
         b_avg = statistics.mean([b.avg_pct for b in bs]) if bs else 0.0
-        edge = with_f - b_avg
-        rows.append((h, n, avg, med, wr, worst, with_f, b_avg, edge))
-        print(f"{h:>5}д {n:>5} {avg:>+7.2f}% {med:>+8.2f}% {wr:>5.0%} "
-              f"{worst:>+8.1f}% {with_f:>+9.2f}% {b_avg:>+10.2f}% "
-              f"{edge:>+7.2f}")
+        for stop in STOPS:
+            rs = grid_rows.get((h, stop))
+            if not rs:
+                continue
+            n = sum(r.n for r in rs)
+            with_f = statistics.mean([r.avg_with_funding_pct for r in rs])
+            med = statistics.median([r.median_pct for r in rs])
+            worst = min(r.worst_pct for r in rs)
+            stopped = statistics.mean(
+                [r.stopped_share for r in rs if r.stopped_share is not None]
+                or [0.0])
+            edge = with_f - b_avg
+            rows.append((h, stop, n, with_f, med, worst, stopped, b_avg, edge))
+            lab = "нет" if stop is None else f"-{stop}%"
+            print(f"{h:>5}д {lab:>6} {n:>5} {with_f:>+8.2f}% {med:>+8.2f}% "
+                  f"{worst:>+7.1f}% {stopped:>6.0%} {b_avg:>+7.2f}% "
+                  f"{edge:>+7.2f}")
+        print()
 
-    best = max(rows, key=lambda r: r[8]) if rows else None
-    if not best or best[1] < MIN_EVENTS:
-        verdict = (f"СУДИТЬ НЕЛЬЗЯ: {best[1] if best else 0} событий при "
+    # Отбираем только то, что ПРОХОДИТ предел риска: преимущество при
+    # неограниченном убытке нам не годится — при плече 5x счёт кончается
+    # раньше, чем стратегия успеет отработать.
+    survivable = [r for r in rows if r[5] > WORST_LIMIT and r[2] >= MIN_EVENTS]
+    rows_for_best = survivable or rows
+
+    best = max(rows_for_best, key=lambda r: r[8]) if rows_for_best else None
+    if not best or best[2] < MIN_EVENTS:
+        verdict = (f"СУДИТЬ НЕЛЬЗЯ: {best[2] if best else 0} событий при "
                    f"минимуме {MIN_EVENTS}")
-    elif best[5] <= WORST_LIMIT:
-        verdict = (f"НЕПРИЕМЛЕМЫЙ РИСК: худшая сделка {best[5]:+.0f}% "
-                   f"при пределе {WORST_LIMIT:+.0f}%")
+    elif not survivable:
+        verdict = (f"НЕПРИЕМЛЕМЫЙ РИСК при любом стопе: лучшая худшая "
+                   f"{max(r[5] for r in rows):+.0f}%")
     elif best[8] >= EDGE_PP:
-        verdict = (f"ПОДТВЕРЖДЕНО на {best[0]}д: обгон случайного шорта "
-                   f"{best[8]:+.2f} п.п.")
+        verdict = (f"ПОДТВЕРЖДЕНО: {best[0]}д, стоп "
+                   f"{'нет' if best[1] is None else str(-best[1]) + '%'}, "
+                   f"обгон {best[8]:+.2f} п.п., худшая {best[5]:+.0f}%, "
+                   f"выбито {best[6]:.0%}")
     else:
         verdict = (f"не подтверждено: лучший обгон {best[8]:+.2f} п.п. "
                    f"при пороге {EDGE_PP:+.1f}")
@@ -105,10 +123,12 @@ def main() -> int:
 
     try:
         from src.telegram_sender import send_messages
+        shown = sorted(rows_for_best, key=lambda r: -r[8])[:10]
         table = "\n".join(
-            f"{h:>2}д n={n:>4} шорт {with_f:+.2f}% vs случ {b_avg:+.2f}% "
-            f"= {edge:+.2f}пп · худшая {worst:+.0f}%"
-            for h, n, avg, med, wr, worst, with_f, b_avg, edge in rows)
+            f"{h:>2}д стоп {'нет' if stop is None else '-' + str(stop) + '%':>5} "
+            f"n={n:>4} {with_f:+.1f}% vs {b_avg:+.1f}% = {edge:+.1f}пп · "
+            f"худш {worst:+.0f}% · выбито {stopped:.0%}"
+            for h, stop, n, with_f, med, worst, stopped, b_avg, edge in shown)
         send_messages([
             f"📉 <b>Шорт после роста</b> · +{PUMP_PCT:g}% за {WINDOW_D}д\n"
             f"<pre>{table}</pre>\n<b>{verdict}</b>\n"

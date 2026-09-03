@@ -46,6 +46,7 @@ class FadeResult:
     win_rate: Optional[float]
     worst_pct: Optional[float]        # худшая сделка — мера риска сквиза
     avg_with_funding_pct: Optional[float]
+    stopped_share: Optional[float] = None
 
 
 def find_pumps(closes: Sequence[float], pump_pct: float = DEFAULT_PUMP_PCT,
@@ -71,18 +72,37 @@ def find_pumps(closes: Sequence[float], pump_pct: float = DEFAULT_PUMP_PCT,
 
 
 def evaluate(closes: Sequence[float], events: Sequence[PumpEvent],
-             horizon_d: int, funding_apr: float = FUNDING_APR_PCT
-             ) -> FadeResult:
+             horizon_d: int, funding_apr: float = FUNDING_APR_PCT,
+             stop_pct: Optional[float] = None,
+             highs: Optional[Sequence[float]] = None) -> FadeResult:
     """Что дал бы шорт на горизонте horizon_d.
 
     Доходность считается для шорта: цена упала — прибыль. Фандинг
     добавляется, а не вычитается: при положительной ставке шорт получает.
     """
     rets = []
+    stopped = 0
     for e in events:
         j = e.idx + horizon_d
         if j >= len(closes) or e.entry <= 0:
             continue
+
+        # Стоп проверяется ПО МАКСИМУМАМ, а не по закрытиям: цена может
+        # выбить стоп внутри дня и вернуться, и считать это выживанием
+        # значило бы завышать результат. При плече 5x ликвидация наступает
+        # около -20% — стоп шире неё бессмыслен, биржа закроет раньше.
+        if stop_pct is not None:
+            hit = False
+            for k in range(e.idx + 1, j + 1):
+                level = (highs[k] if highs and k < len(highs) else closes[k])
+                if (level / e.entry - 1.0) * 100 >= stop_pct:
+                    hit = True
+                    break
+            if hit:
+                rets.append(-stop_pct)
+                stopped += 1
+                continue
+
         rets.append((e.entry / closes[j] - 1.0) * 100)
     if not rets:
         return FadeResult(horizon_d, 0, None, None, None, None, None)
@@ -93,7 +113,8 @@ def evaluate(closes: Sequence[float], events: Sequence[PumpEvent],
         statistics.mean(rets), statistics.median(rets),
         sum(1 for r in rets if r > 0) / len(rets),
         min(rets),
-        statistics.mean(rets) + funding_gain)
+        statistics.mean(rets) + funding_gain,
+        stopped / len(rets) if rets else None)
 
 
 def baseline(closes: Sequence[float], horizon_d: int, step: int = 7,

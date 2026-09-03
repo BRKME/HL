@@ -105,3 +105,44 @@ def test_no_events_is_safe():
 
 def test_default_threshold_is_explicit():
     assert DEFAULT_PUMP_PCT == 50.0
+
+
+# ------------------------------------------- стопы: моделирование показало,
+# что преимущество их скорее всего переживает, но это надо проверить
+
+def test_stop_caps_the_worst_trade():
+    closes = [100.0] * 50 + [100.0 * (1.12 ** i) for i in range(1, 60)]
+    events = find_pumps(closes, 50, 7)
+    no_stop = evaluate(closes, events, horizon_d=30)
+    with_stop = evaluate(closes, events, horizon_d=30, stop_pct=15)
+    assert with_stop.worst_pct >= -15.0
+    assert with_stop.worst_pct > no_stop.worst_pct
+
+
+def test_stop_uses_highs_not_closes():
+    """Цена может выбить стоп внутри дня и вернуться. Считать это
+    выживанием значило бы завышать результат."""
+    closes = [100.0] * 50 + [100.0 * 1.5] + [100.0] * 60
+    highs = [c * 1.0 for c in closes]
+    highs[51] = 300.0                       # выброс внутри дня
+    events = find_pumps(closes, 40, 7)
+    if not events:
+        pytest.skip("событие не сработало на фикстуре")
+    by_close = evaluate(closes, events, 30, stop_pct=20)
+    by_high = evaluate(closes, events, 30, stop_pct=20, highs=highs)
+    assert by_high.stopped_share >= by_close.stopped_share
+
+
+def test_stopped_share_reported():
+    closes = [100.0] * 50 + [100.0 * (1.12 ** i) for i in range(1, 60)]
+    r = evaluate(closes, find_pumps(closes, 50, 7), 30, stop_pct=10)
+    assert r.stopped_share is not None
+    assert 0.0 <= r.stopped_share <= 1.0
+
+
+def test_no_stop_keeps_previous_behaviour():
+    closes = _pump_then_fade(n=260)
+    events = find_pumps(closes, 50, 7)
+    a = evaluate(closes, events, 30)
+    b = evaluate(closes, events, 30, stop_pct=None)
+    assert a.avg_pct == b.avg_pct
