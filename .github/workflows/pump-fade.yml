@@ -1,0 +1,35 @@
+name: pump-fade
+
+# Шорт экстремально выросших монет. Вручную.
+
+on:
+  workflow_dispatch:
+    inputs:
+      pump_pct:
+        description: "Рост, считающийся экстремальным, %"
+        required: false
+        default: "50"
+      window_d:
+        description: "За сколько дней"
+        required: false
+        default: "7"
+
+permissions:
+  contents: read
+
+jobs:
+  pump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      PUMP_PCT: ${{ inputs.pump_pct }}
+      PUMP_WINDOW_D: ${{ inputs.window_d }}
+    steps:
+      - uses: actions/checkout@v5
+        with: { fetch-depth: 1 }
+      - uses: actions/setup-python@v6
+        with: { python-version: "3.12" }
+      - run: pip install -r requirements.txt
+      - run: python scripts/pump_fade_run.py
