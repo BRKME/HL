@@ -1,13 +1,5 @@
 {
- "ZEC": {
-  "verdict": "LONG",
-  "since": "2026-09-02"
- },
  "HYPE": {
-  "verdict": "LONG",
-  "since": "2026-08-31"
- },
- "MORPHO": {
   "verdict": "LONG",
   "since": "2026-08-31"
  },
@@ -15,9 +7,9 @@
   "verdict": "LONG",
   "since": "2026-08-31"
  },
- "BTC": {
+ "MORPHO": {
   "verdict": "LONG",
-  "since": "2026-09-01"
+  "since": "2026-08-31"
  },
  "ASTER": {
   "verdict": "LONG",
@@ -26,5 +18,9 @@
  "NEAR": {
   "verdict": "LONG",
   "since": "2026-08-31"
+ },
+ "ONDO": {
+  "verdict": "LONG",
+  "since": "2026-09-03"
  }
 }
