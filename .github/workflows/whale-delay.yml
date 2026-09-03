@@ -1,0 +1,31 @@
+name: whale-delay
+
+# Живёт ли преимущество китового сигнала после задержки. Вручную:
+# исследование, а не регулярный отчёт.
+
+on:
+  workflow_dispatch:
+    inputs:
+      top_coins:
+        description: "Сколько монет разбирать"
+        required: false
+        default: "8"
+
+permissions:
+  contents: read
+
+jobs:
+  delay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      DELAY_TOP_COINS: ${{ inputs.top_coins }}
+    steps:
+      - uses: actions/checkout@v5
+        with: { fetch-depth: 1 }
+      - uses: actions/setup-python@v6
+        with: { python-version: "3.12" }
+      - run: pip install -r requirements.txt
+      - run: python scripts/whale_delay_run.py
