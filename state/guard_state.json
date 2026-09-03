@@ -1,4 +1,7 @@
 {
  "last_regime": "TRANSITION",
- "flip_streak": {}
+ "flip_streak": {
+  "BTC": 1,
+  "ZEC": 1
+ }
 }
