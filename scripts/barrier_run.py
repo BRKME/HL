@@ -29,15 +29,21 @@ EDGE_PP_THRESHOLD = 3.0    # порог, записанный ДО прогон�
 
 def main() -> int:
     print(f"# Барьеры · {', '.join(COINS)} · окно {MAX_BARS}ч\n")
-    all_rows = {}
+    all_rows, all_short = {}, {}
     for coin in COINS:
         try:
             candles = fetch_candles(coin, interval="1h", lookback_days=700)
         except Exception as e:  # noqa: BLE001
             print(f"  {coin}: свечи недоступны ({e})")
             continue
-        rows = grid(candles, max_bars=MAX_BARS)
+        # ОБЕ СТОРОНЫ. Симметричный барьер на растущем рынке чаще касается
+        # верхнего просто из-за сноса, а не из-за моментума. Различить одно
+        # от другого можно только шортами: снос даст на них зеркальный
+        # минус, моментум — тоже плюс.
+        rows = grid(candles, max_bars=MAX_BARS, side=1)
+        rows_short = grid(candles, max_bars=MAX_BARS, side=-1)
         all_rows[coin] = rows
+        all_short[coin] = rows_short
         print(f"\n{coin}: {len(candles)} свечей")
         print(f"{'SL':>5} {'TP':>5} {'n':>5} {'цель':>6} {'стоп':>6} "
               f"{'таймаут':>8} {'P набл':>8} {'P теор':>8} {'разница':>9} "
@@ -53,6 +59,8 @@ def main() -> int:
 
     edges = [r.edge_pp for rows in all_rows.values() for r in rows
              if r.edge_pp is not None]
+    edges_s = [r.edge_pp for rows in all_short.values() for r in rows
+               if r.edge_pp is not None]
     if not edges:
         print("\nданных не хватило")
         return 1
@@ -60,7 +68,22 @@ def main() -> int:
     avg_edge = statistics.mean(edges)
     positive = sum(1 for e in edges if e > 0) / len(edges)
 
-    if avg_edge >= EDGE_PP_THRESHOLD and positive >= 0.7:
+    avg_short = statistics.mean(edges_s) if edges_s else None
+    if avg_short is not None:
+        print(f"\nлонги: {avg_edge:+.1f} п.п. · шорты: {avg_short:+.1f} п.п.")
+        combined = (avg_edge + avg_short) / 2
+        print(f"среднее по обеим сторонам: {combined:+.1f} п.п.")
+        print("  снос даёт на сторонах ЗЕРКАЛЬНЫЕ знаки и в среднем ноль;")
+        print("  моментум даёт плюс на обеих.")
+
+    if avg_short is not None and avg_edge > 0 and avg_short < 0 \
+            and abs(avg_edge + avg_short) < EDGE_PP_THRESHOLD:
+        verdict = (f"это СНОС, а не моментум: лонги {avg_edge:+.1f}, "
+                   f"шорты {avg_short:+.1f} — зеркально, в сумме ноль")
+    elif avg_short is not None and min(avg_edge, avg_short) >= EDGE_PP_THRESHOLD:
+        verdict = (f"МОМЕНТУМ: обе стороны положительны "
+                   f"({avg_edge:+.1f} и {avg_short:+.1f})")
+    elif avg_edge >= EDGE_PP_THRESHOLD and positive >= 0.7:
         verdict = (f"рынок отличается от случайного блуждания: "
                    f"средняя разница {avg_edge:+.1f} п.п.")
     elif abs(avg_edge) < EDGE_PP_THRESHOLD:
@@ -85,7 +108,9 @@ def main() -> int:
         send_messages([
             f"🎯 <b>Барьеры SL/TP против теории</b>\n"
             f"<pre>{chr(10).join(lines[:16])}</pre>\n"
-            f"<b>{verdict}</b>\n"
+            + (f"лонги {avg_edge:+.1f}пп · шорты {avg_short:+.1f}пп\n"
+               if avg_short is not None else "")
+            + f"<b>{verdict}</b>\n"
             f"<i>теория: P(цель) = SL/(SL+TP), ожидание тождественно ноль "
             f"при любом соотношении</i>"])
     except Exception as e:  # noqa: BLE001
