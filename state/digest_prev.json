@@ -3,7 +3,7 @@
   "verdict": "LONG",
   "since": "2026-08-31"
  },
- "ETH": {
+ "NEAR": {
   "verdict": "LONG",
   "since": "2026-08-31"
  },
@@ -11,13 +11,17 @@
   "verdict": "LONG",
   "since": "2026-08-31"
  },
+ "ETH": {
+  "verdict": "LONG",
+  "since": "2026-08-31"
+ },
  "ASTER": {
   "verdict": "LONG",
   "since": "2026-08-31"
  },
- "NEAR": {
+ "BTC": {
   "verdict": "LONG",
-  "since": "2026-08-31"
+  "since": "2026-09-05"
  },
  "TAO": {
   "verdict": "LONG",
