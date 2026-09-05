@@ -1,4 +1,7 @@
 {
  "last_regime": "TRANSITION",
- "flip_streak": {}
+ "flip_streak": {
+  "NEAR": 1,
+  "ONDO": 1
+ }
 }
