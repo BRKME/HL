@@ -1,0 +1,27 @@
+name: ratio-probe
+
+# Доступ к позиционированию толпы: Bybit и OKX. Binance ответил 451 —
+# региональная блокировка раннеров Actions, не чинится настройками.
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+    steps:
+      - uses: actions/checkout@v5
+        with: { fetch-depth: 1 }
+      - uses: actions/setup-python@v6
+        with: { python-version: "3.12" }
+      # Без установки зависимостей прошлая проба не смогла отправить итог
+      # в канал: requests не оказалось в раннере.
+      - run: pip install -r requirements.txt
+      - run: python scripts/ratio_probe.py
