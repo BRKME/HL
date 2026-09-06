@@ -71,8 +71,10 @@ def main() -> int:
               f"{sorted(rows[0].keys()) if isinstance(rows[0], dict) else 'список'}")
         available.append(label)
 
-    # ФАКТИЧЕСКАЯ глубина у Bybit: документация обещает данные с 2020 года,
-    # но обещанное и отданное — разные вещи, поэтому запрашиваем явно.
+    # ФАКТИЧЕСКАЯ глубина. Первая версия пробы проверяла её только для
+    # Bybit, потому что я ожидал, что сработает именно он. Bybit не
+    # ответил, а про OKX выяснилось, что глубина неизвестна — проверка
+    # была написана под ожидаемый исход, а не под возможные.
     if any(a.startswith("bybit") for a in available):
         for years_back in (1, 3, 6):
             start = datetime.now(timezone.utc) - timedelta(days=365 * years_back)
@@ -85,15 +87,46 @@ def main() -> int:
                                        .timestamp() * 1000)),
                 })
                 rows = d.get("result", {}).get("list") or []
-                if rows:
-                    ts = int(rows[-1]["timestamp"])
-                    got = datetime.fromtimestamp(ts / 1000, timezone.utc)
-                    print(f"\n  bybit, {years_back} г назад: {len(rows)} "
-                          f"записей, самая ранняя {got.date()}")
-                else:
-                    print(f"\n  bybit, {years_back} г назад: данных нет")
+                got = (datetime.fromtimestamp(int(rows[-1]["timestamp"]) / 1000,
+                                              timezone.utc).date()
+                       if rows else None)
+                print(f"\n  bybit, {years_back} г назад: "
+                      f"{len(rows)} записей" + (f", ранняя {got}" if got else ""))
             except Exception as e:  # noqa: BLE001
                 print(f"\n  bybit, {years_back} г назад: ошибка {e}")
+
+    if any(a.startswith("okx") for a in available):
+        print("\nглубина OKX:")
+        for label, url, params in (
+            ("счета", SOURCES["окx / счета"][0] if False
+             else SOURCES["okx / счета"][0],
+             {"ccy": "BTC", "period": "1D", "limit": "500"}),
+            ("топ-позиции", SOURCES["okx / топ-позиции"][0],
+             {"instId": "BTC-USDT-SWAP", "period": "1D", "limit": "500"}),
+        ):
+            try:
+                d = _get(url, params)
+                rows = d.get("data") or []
+                if not rows:
+                    print(f"  {label:14} пусто")
+                    continue
+                # OKX отдаёт массивы [ts, ...]; берём крайние метки времени
+                stamps = []
+                for r in rows:
+                    ts = r[0] if isinstance(r, list) else r.get("ts")
+                    if ts:
+                        stamps.append(int(ts))
+                if not stamps:
+                    print(f"  {label:14} метки времени не распознаны: "
+                          f"{str(rows[0])[:70]}")
+                    continue
+                a = datetime.fromtimestamp(min(stamps) / 1000, timezone.utc)
+                b = datetime.fromtimestamp(max(stamps) / 1000, timezone.utc)
+                print(f"  {label:14} {len(rows)} записей · {a.date()} → "
+                      f"{b.date()} ({(b - a).days} дн)")
+                print(f"                 формат записи: {str(rows[0])[:70]}")
+            except Exception as e:  # noqa: BLE001
+                print(f"  {label:14} ошибка: {e}")
 
     print(f"\nИТОГ: доступно источников {len(available)} из {len(SOURCES)}")
     if available:
