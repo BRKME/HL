@@ -1,0 +1,41 @@
+name: positioning
+
+# Позиционирование толпы: сбор суточных точек и проверка предсказания.
+# Раз в сутки — за час толпа не меняется осмысленно.
+
+on:
+  schedule:
+    - cron: "30 6 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  positioning:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+    steps:
+      - uses: actions/checkout@v5
+        with: { fetch-depth: 1 }
+      - uses: actions/setup-python@v6
+        with: { python-version: "3.12" }
+      - run: pip install -r requirements.txt
+      - run: python scripts/positioning_run.py
+      - name: Commit positioning journal
+        run: |
+          set +e
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ -f "state/positioning.jsonl" ]; then
+            git add state/positioning.jsonl || true
+          fi
+          if git diff --cached --quiet; then
+            echo "no positioning changes"
+            exit 0
+          fi
+          git commit -m "state: positioning $(date -u +%Y-%m-%d) [skip ci]"
+          git push

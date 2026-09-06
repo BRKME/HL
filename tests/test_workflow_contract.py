@@ -37,8 +37,13 @@ def _all_workflow_text() -> str:
 
 
 def _state_files_written_by_code() -> set[str]:
-    src = "\n".join(p.read_text(encoding="utf-8")
-                    for p in (ROOT / "src").rglob("*.py"))
+    # Скрипты тоже пишут состояние (positioning.jsonl заводится в
+    # scripts/positioning_run.py). Проверка, смотревшая только в src/,
+    # объявляла такой файл «коммитим то, чего никто не пишет».
+    src = "\n".join(
+        p.read_text(encoding="utf-8")
+        for folder in ("src", "scripts")
+        for p in (ROOT / folder).rglob("*.py"))
     # Файл может писаться и как "state/x.json", и как state_dir / "x.json",
     # поэтому ищем любое имя файла состояния в кавычках, а не только с
     # префиксом каталога — иначе проверка даёт ложные пропуски.
