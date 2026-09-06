@@ -3,19 +3,11 @@
   "verdict": "LONG",
   "since": "2026-08-31"
  },
- "NEAR": {
-  "verdict": "LONG",
-  "since": "2026-08-31"
- },
  "MORPHO": {
   "verdict": "LONG",
   "since": "2026-08-31"
  },
  "ETH": {
-  "verdict": "LONG",
-  "since": "2026-08-31"
- },
- "ASTER": {
   "verdict": "LONG",
   "since": "2026-08-31"
  },
