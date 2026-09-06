@@ -1,0 +1,25 @@
+name: binance-probe
+
+# Разовая проверка доступа к Binance. Из песочницы он закрыт (403), а
+# писать сбор вслепую нельзя: проверки на подставных данных трижды за
+# неделю пропускали то, что вылезало в проде.
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+    steps:
+      - uses: actions/checkout@v5
+        with: { fetch-depth: 1 }
+      - uses: actions/setup-python@v6
+        with: { python-version: "3.12" }
+      - run: python scripts/binance_probe.py
