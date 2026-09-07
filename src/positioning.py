@@ -157,3 +157,35 @@ def evaluate(pairs: Sequence[tuple[Point, float]],
                        and _pct_rank(div, p.divergence) <= extreme_pct),
             "топы короче толпы (низ 20%)"))
     return out
+
+
+# ------------------------------------- краткая подпись для строки дайджеста
+
+def format_for_digest(accounts_ratio: Optional[float],
+                      top_pos_ratio: Optional[float]) -> str:
+    """«толпа 64/36 · топы 48/52» — расстановка сил рядом с решением.
+
+    Показываем ЧИСЛА, а не вывод. Замер 06–07.09 дал по этому признаку
+    +0.10% при пороге 0.5% — то есть предсказательная сила НЕ доказана, и
+    выдавать её за сигнал нельзя. Но оператор видит расстановку и решает
+    сам; это то же обращение, что с относительной силой.
+
+    Расхождение помечается только когда оно заметное: единственная группа,
+    показавшая устойчивый знак, — «крупные короче толпы», −0.45% на семи
+    монетах из девяти.
+    """
+    parts = []
+    la = long_share(accounts_ratio)
+    lt = long_share(top_pos_ratio)
+    if la is not None:
+        parts.append(f"толпа {la * 100:.0f}/{(1 - la) * 100:.0f}")
+    if lt is not None:
+        parts.append(f"топы {lt * 100:.0f}/{(1 - lt) * 100:.0f}")
+    if not parts:
+        return ""
+
+    note = ""
+    if la is not None and lt is not None and (la - lt) >= 0.15:
+        # Крупные короче толпы — единственный признак с устойчивым знаком.
+        note = " ⚠️ крупные короче"
+    return " · ".join(parts) + note

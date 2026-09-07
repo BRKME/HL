@@ -272,6 +272,29 @@ def _plan_line(verdict: str, entry: float, sl: float, n_entries: int) -> str:
     return f"↳ стоп {_fmt_price(sl)} ({risk_pct:.1f}%){size_txt}"
 
 
+def _positioning_for_digest(coin_data: dict) -> dict:
+    """Расстановка сил по монетам из данных, если их передали.
+
+    Дайджест сам в сеть не ходит: данные приходят готовыми от вызывающего.
+    Иначе построение сообщения зависело бы от доступности внешней биржи, а
+    это лишний способ остаться без письма.
+    """
+    out = {}
+    for coin, data in (coin_data or {}).items():
+        acc = (data or {}).get("accounts_ratio")
+        top = (data or {}).get("top_pos_ratio")
+        if acc is None and top is None:
+            continue
+        try:
+            from src.positioning import format_for_digest
+            line = format_for_digest(acc, top)
+        except Exception:  # noqa: BLE001
+            continue
+        if line:
+            out[coin] = line
+    return out
+
+
 def _entry_plan(coin: str, verdict: str, mark: float, data: dict,
                 n_entries: int = 1) -> str:
     """Стоп и размер для входа тем же расчётом, что и тактический сигнал."""
@@ -373,6 +396,8 @@ def render_whitelist_verdicts(
     # Относительная сила по каждой монете — для порядка входов и для того,
     # чтобы оператор видел, на чём этот порядок основан (30.08).
     rs_by_coin = _rs_for_digest(coin_data)
+    # Расстановка сил по монете — рядом с решением, а не отдельным отчётом.
+    pos_by_coin = _positioning_for_digest(coin_data)
     verdicts = [tuple(v) + (rs_by_coin.get(v[0]),) for v in verdicts]
 
     # Когда входы есть, «НЕ ВХОДИТЬ» сворачивается в строку-итог, а входы
@@ -419,7 +444,8 @@ def render_whitelist_verdicts(
             f"<b>{label}</b>{novelty_note}  <i>({short_rat})</i>"
         )
         if plan:
-            lines.append(f"    {plan}")
+            pos = pos_by_coin.get(coin, "")
+            lines.append(f"    {plan}" + (f" · {pos}" if pos else ""))
 
     if waits_line:
         lines.append("")

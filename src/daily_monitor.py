@@ -50,6 +50,45 @@ MIN_PORTFOLIO_USD = 5.0  # ниже — портфель считается пу
 logger = logging.getLogger("daily_monitor")
 
 
+def _positioning_by_coin(coins) -> dict:
+    """Расстановка сил с OKX. Молчаливо пустая при любой беде.
+
+    Дайджест не должен зависеть от доступности сторонней биржи: если OKX
+    недоступен, письмо выходит без этих чисел, а не не выходит вовсе.
+    """
+    import json as _json
+    import urllib.parse as _up
+    import urllib.request as _ur
+
+    def _get(url, params):
+        full = f"{url}?{_up.urlencode(params)}"
+        req = _ur.Request(full, headers={"User-Agent": "hl/1"})
+        with _ur.urlopen(req, timeout=10) as r:
+            return _json.loads(r.read().decode()).get("data") or []
+
+    from src.positioning import OKX_ACCOUNTS, OKX_TOP_POS, parse_okx
+
+    out = {}
+    for coin in coins:
+        acc = top = None
+        try:
+            rows = parse_okx(_get(OKX_ACCOUNTS,
+                                  {"ccy": coin, "period": "1D", "limit": "1"}))
+            acc = list(rows.values())[-1] if rows else None
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            rows = parse_okx(_get(OKX_TOP_POS,
+                                  {"instId": f"{coin}-USDT-SWAP",
+                                   "period": "1D", "limit": "1"}))
+            top = list(rows.values())[-1] if rows else None
+        except Exception:  # noqa: BLE001
+            pass
+        if acc is not None or top is not None:
+            out[coin] = (acc, top)
+    return out
+
+
 def load_accounts(path: Path) -> list[dict]:
     """Read whitelist.yaml `accounts:` section.
 
@@ -209,6 +248,7 @@ def _journal_verdicts_silently(now: datetime, accounts: list[dict]) -> None:
     marks, _ = _safe_fetch_marks()
 
     coin_data: dict[str, dict] = {}
+    _pos_cache = _positioning_by_coin(FOCUS_COINS)
     for c in FOCUS_COINS:
         try:
             candles = fetch_candles(c, interval="1d", lookback_days=220)
@@ -221,6 +261,11 @@ def _journal_verdicts_silently(now: datetime, accounts: list[dict]) -> None:
                 "candles": candles or None,
                 "funding_apr_pct": None,
             }
+            # Расстановка сил по монете — рядом с решением в письме.
+            _p = _pos_cache.get(c)
+            if _p:
+                coin_data[c]["accounts_ratio"] = _p[0]
+                coin_data[c]["top_pos_ratio"] = _p[1]
         except Exception as e:
             logger.warning("Digest candles fetch failed for %s: %s", c, e)
             coin_data[c] = {"mark": marks.get(c, 0.0)}
@@ -487,6 +532,7 @@ def run_daily_monitor(
                 render_whitelist_verdicts, compute_all_verdicts, FOCUS_COINS,
             )
             digest_coin_data: dict[str, dict] = {}
+            _pos_cache = _positioning_by_coin(FOCUS_COINS)
             for c in FOCUS_COINS:
                 try:
                     cs = fetch_candles(c, interval="1d", lookback_days=220)
@@ -499,6 +545,10 @@ def run_daily_monitor(
                         "candles": cs or None,
                         "funding_apr_pct": None,
                     }
+                    _p = _pos_cache.get(c)
+                    if _p:
+                        digest_coin_data[c]["accounts_ratio"] = _p[0]
+                        digest_coin_data[c]["top_pos_ratio"] = _p[1]
                 except Exception as e:
                     logger.warning("Digest candles failed for %s: %s", c, e)
                     digest_coin_data[c] = {"mark": marks.get(c, 0.0)}

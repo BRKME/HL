@@ -122,6 +122,9 @@ def test_run_daily_monitor_smoke(temp_repo, monkeypatch):
     import src.daily_monitor as dm_mod
     monkeypatch.setattr(dm_mod, "STATE_DIR", temp_repo / "state")
     monkeypatch.setattr(dm_mod, "fetch_candles", lambda *a, **k: [])
+    # Расстановка сил ходит в OKX — в тестах заглушаем: письмо не должно
+    # зависеть от доступности сторонней биржи, и тест тоже.
+    monkeypatch.setattr(dm_mod, "_positioning_by_coin", lambda *a, **k: {})
     sent_messages: list[list[str]] = []
 
     fake_marks = {"BTC": {"mark": 82000.0}}
@@ -178,6 +181,7 @@ def test_run_daily_monitor_no_positions_sends_nothing(temp_repo, monkeypatch):
          patch("src.daily_monitor.fetch_oracai_snapshot", return_value=None), \
          patch("src.daily_monitor.fetch_snapshot_days_ago", return_value=None), \
          patch("src.daily_monitor.fetch_candles", return_value=[]), \
+         patch("src.daily_monitor._positioning_by_coin", return_value={}), \
          patch("src.daily_monitor.send_messages", side_effect=lambda m: sent.append(m)):
         import src.daily_monitor as dm_mod
         monkeypatch.setattr(dm_mod, "STATE_DIR", temp_repo / "state")
@@ -229,6 +233,7 @@ def test_run_daily_monitor_no_positions_journals_silently(
                return_value={"regime": "BEAR", "cycle": {"phase": "EARLY_BEAR"}}), \
          patch("src.daily_monitor.fetch_snapshot_days_ago", return_value=None), \
          patch("src.daily_monitor.fetch_candles", return_value=[]), \
+         patch("src.daily_monitor._positioning_by_coin", return_value={}), \
          patch("src.verdict_journal.append_verdicts", side_effect=stub_append), \
          patch("src.daily_monitor.send_messages", side_effect=lambda m: sent.append(m)):
         run_daily_monitor(
@@ -250,6 +255,9 @@ def test_run_daily_monitor_survives_oracai_failure(temp_repo, monkeypatch):
     import src.daily_monitor as dm_mod
     monkeypatch.setattr(dm_mod, "STATE_DIR", temp_repo / "state")
     monkeypatch.setattr(dm_mod, "fetch_candles", lambda *a, **k: [])
+    # Расстановка сил ходит в OKX — в тестах заглушаем: письмо не должно
+    # зависеть от доступности сторонней биржи, и тест тоже.
+    monkeypatch.setattr(dm_mod, "_positioning_by_coin", lambda *a, **k: {})
     from src.oracai_history import OracAIHistoryError
     sent: list[list[str]] = []
 
@@ -314,6 +322,7 @@ def test_run_daily_monitor_survives_one_wallet_failure(temp_repo, monkeypatch):
          patch("src.daily_monitor.fetch_oracai_snapshot", return_value=None), \
          patch("src.daily_monitor.fetch_snapshot_days_ago", return_value=None), \
          patch("src.daily_monitor.fetch_candles", return_value=[]), \
+         patch("src.daily_monitor._positioning_by_coin", return_value={}), \
          patch("src.daily_monitor.send_messages", side_effect=lambda m: sent.append(m)):
         run_daily_monitor(
             whitelist_path=temp_repo / "whitelist.yaml",

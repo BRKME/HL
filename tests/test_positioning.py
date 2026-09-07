@@ -118,3 +118,80 @@ def test_extreme_is_relative_to_own_history():
 
 def test_empty_input_is_safe():
     assert evaluate([]) == []
+
+
+# ------------------------------- подпись в строке дайджеста (07.09)
+
+def test_digest_line_shows_both_slices():
+    from src.positioning import format_for_digest
+
+    out = format_for_digest(accounts_ratio=1.78, top_pos_ratio=0.92)
+    assert "толпа 64/36" in out
+    assert "топы 48/52" in out
+
+
+def test_digest_line_marks_big_money_shorter():
+    """Единственный признак с устойчивым знаком: крупные короче толпы —
+    -0.45% на семи монетах из девяти."""
+    from src.positioning import format_for_digest
+
+    assert "крупные короче" in format_for_digest(3.0, 0.8)
+
+
+def test_no_mark_when_aligned():
+    from src.positioning import format_for_digest
+
+    assert "крупные короче" not in format_for_digest(1.0, 1.05)
+
+
+def test_digest_line_handles_one_slice():
+    from src.positioning import format_for_digest
+
+    out = format_for_digest(1.78, None)
+    assert "толпа 64/36" in out
+    assert "топы" not in out
+
+
+def test_digest_line_empty_without_data():
+    from src.positioning import format_for_digest
+
+    assert format_for_digest(None, None) == ""
+
+
+def test_digest_renders_positioning_when_present():
+    """Расстановка появляется в строке плана, рядом со стопом и размером."""
+    import re
+    import tempfile
+    from datetime import datetime, timezone
+    from pathlib import Path
+
+    from src.whitelist_focus import render_whitelist_verdicts
+
+    closes = [100.0 * (1.004 ** i) for i in range(220)]
+    candles = [{"o": c, "h": c * 1.02, "l": c * 0.98, "c": c} for c in closes]
+    cd = {"BTC": {"mark": closes[-1], "candles_closes": closes,
+                  "candles": candles, "accounts_ratio": 1.78,
+                  "top_pos_ratio": 0.92}}
+    msg = render_whitelist_verdicts(
+        now=datetime(2026, 9, 7, 9, 0, tzinfo=timezone.utc), coin_data=cd,
+        regime_snapshot=None, state_dir=Path(tempfile.mkdtemp()),
+        show_whale_stance=False)
+    plain = re.sub(r"<[^>]+>", "", msg)
+    assert "толпа 64/36" in plain or "Входов нет" in plain
+
+
+def test_digest_survives_without_positioning():
+    """Данных нет — строка просто короче, письмо не ломается."""
+    import tempfile
+    from datetime import datetime, timezone
+    from pathlib import Path
+
+    from src.whitelist_focus import render_whitelist_verdicts
+
+    closes = [100.0 * (1.004 ** i) for i in range(220)]
+    cd = {"BTC": {"mark": closes[-1], "candles_closes": closes}}
+    msg = render_whitelist_verdicts(
+        now=datetime(2026, 9, 7, 9, 0, tzinfo=timezone.utc), coin_data=cd,
+        regime_snapshot=None, state_dir=Path(tempfile.mkdtemp()),
+        show_whale_stance=False)
+    assert msg
