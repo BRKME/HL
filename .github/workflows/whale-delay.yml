@@ -4,6 +4,9 @@ name: whale-delay
 # исследование, а не регулярный отчёт.
 
 on:
+  # То же: замер имеет смысл, когда добавились новые сделки китов.
+  schedule:
+    - cron: "0 9 1 * *"
   workflow_dispatch:
     inputs:
       top_coins:

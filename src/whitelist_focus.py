@@ -231,7 +231,14 @@ def _rs_for_digest(coin_data: dict) -> dict:
     return out
 
 
-def _plan_line(verdict: str, entry: float, sl: float, n_entries: int) -> str:
+# Минимальный размер ордера на Hyperliquid. Ниже него план неисполним:
+# биржа не примет заявку, и печатать такой план — то же, что печатать стоп
+# не на своей стороне (07.09).
+MIN_ORDER_USD = 10.0
+
+
+def _plan_line(verdict: str, entry: float, sl: float, n_entries: int,
+               equity: Optional[float] = None) -> str:
     """Строка «стоп · размер» — или пусто, если план неисполним.
 
     Две защиты, обе добавлены 30.08 после превью:
@@ -268,7 +275,16 @@ def _plan_line(verdict: str, entry: float, sl: float, n_entries: int) -> str:
     size = sizing.get("size_pct_equity")
     size_txt = ""
     if size:
-        size_txt = f" · размер ~{size / max(n_entries, 1):.1f}%"
+        share = size / max(n_entries, 1)
+        size_txt = f" · размер ~{share:.1f}%"
+        # В долларах, а не только в процентах: «размер ~1.0%» при счёте
+        # $174 это $1.74 нотионала — ниже минимального ордера, и сделку
+        # открыть нельзя. В процентах это невидимо.
+        if equity and equity > 0:
+            notional = equity * share / 100
+            size_txt += f" (${notional:.0f})"
+            if notional < MIN_ORDER_USD:
+                size_txt += f" ⚠️ ниже минимума ${MIN_ORDER_USD:.0f}"
     return f"↳ стоп {_fmt_price(sl)} ({risk_pct:.1f}%){size_txt}"
 
 
@@ -296,7 +312,7 @@ def _positioning_for_digest(coin_data: dict) -> dict:
 
 
 def _entry_plan(coin: str, verdict: str, mark: float, data: dict,
-                n_entries: int = 1) -> str:
+                n_entries: int = 1, equity: Optional[float] = None) -> str:
     """Стоп и размер для входа тем же расчётом, что и тактический сигнал."""
     if verdict not in ("LONG", "SHORT") or not mark:
         return ""
@@ -324,7 +340,7 @@ def _entry_plan(coin: str, verdict: str, mark: float, data: dict,
             swing_low, swing_high = min(closes[-30:]), max(closes[-30:])
 
         sl = sl_for(verdict, mark, atr, swing_low, swing_high)
-        return _plan_line(verdict, mark, sl, n_entries) if sl else ""
+        return _plan_line(verdict, mark, sl, n_entries, equity) if sl else ""
     except Exception:  # noqa: BLE001
         return ""
 
@@ -336,6 +352,7 @@ def render_whitelist_verdicts(
     state_dir: Path,
     show_whale_stance: bool = True,
     include_regime_line: bool = True,
+    equity: Optional[float] = None,
 ) -> str:
     """One-message report.
 
@@ -433,7 +450,7 @@ def render_whitelist_verdicts(
         # По входу сразу даём стоп и размер: без них письмо неисполнимо,
         # оператору приходилось ждать отдельного тактического сигнала.
         plan = _entry_plan(coin, verdict, mark, coin_data.get(coin) or {},
-                           n_entries=_n_entries)
+                           n_entries=_n_entries, equity=equity)
         rs_note = f" · RS {_rs:+.0f}" if (_rs is not None and
                                           verdict in ("LONG", "SHORT")) else ""
         novelty = _marks.get(coin)

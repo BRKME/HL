@@ -223,7 +223,8 @@ DIGEST_SENT_MARKER = "digest_sent.json"
 STATE_DIR = Path(__file__).resolve().parent.parent / "state"
 
 
-def _journal_verdicts_silently(now: datetime, accounts: list[dict]) -> None:
+def _journal_verdicts_silently(now: datetime, accounts: list[dict],
+                               equity: Optional[float] = None) -> None:
     """Morning whitelist digest path when user has no positions.
 
     Builds the same Whitelist daily message that would normally appear at
@@ -277,6 +278,7 @@ def _journal_verdicts_silently(now: datetime, accounts: list[dict]) -> None:
     digest = render_whitelist_verdicts(
         now=now, coin_data=coin_data,
         regime_snapshot=today_snapshot, state_dir=state_dir,
+        equity=equity,
     )
 
     # Relative Strength vs BTC — observability (analyst critique June 16)
@@ -560,6 +562,7 @@ def run_daily_monitor(
                 now=now, coin_data=digest_coin_data,
                 regime_snapshot=today_snapshot, state_dir=_state_dir,
                 include_regime_line=False,
+                equity=portfolio.total_account_value,
             )
             mark_digest_done(now, _state_dir)
         except Exception as e:

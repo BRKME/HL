@@ -3,6 +3,9 @@ name: confluence
 # Стечение признаков на BTC и ETH: кит + тренд + объём. Вручную.
 
 on:
+  # События кита копятся медленно: чаще раза в месяц выборка не меняется.
+  schedule:
+    - cron: "0 8 1 * *"
   workflow_dispatch:
     inputs:
       min_notional:
