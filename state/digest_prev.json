@@ -3,9 +3,17 @@
   "verdict": "LONG",
   "since": "2026-08-31"
  },
+ "NEAR": {
+  "verdict": "LONG",
+  "since": "2026-09-07"
+ },
  "MORPHO": {
   "verdict": "LONG",
   "since": "2026-08-31"
+ },
+ "TAO": {
+  "verdict": "LONG",
+  "since": "2026-09-04"
  },
  "ETH": {
   "verdict": "LONG",
@@ -14,10 +22,6 @@
  "BTC": {
   "verdict": "LONG",
   "since": "2026-09-05"
- },
- "TAO": {
-  "verdict": "LONG",
-  "since": "2026-09-04"
  },
  "ONDO": {
   "verdict": "LONG",
