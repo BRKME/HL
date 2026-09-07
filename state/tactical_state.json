@@ -18,10 +18,10 @@
   "last_change_ts": "2026-09-04T00:07:41.489481+00:00"
  },
  "NEAR": {
-  "last_verdict": "WAIT",
-  "last_action_verdict": null,
-  "last_alert_ts": "2026-09-05T04:42:41.313967+00:00",
-  "last_change_ts": "2026-09-06T22:08:07.415795+00:00"
+  "last_verdict": "LONG",
+  "last_action_verdict": "LONG",
+  "last_alert_ts": "2026-09-07T18:46:53.121446+00:00",
+  "last_change_ts": "2026-09-07T18:46:53.121446+00:00"
  },
  "HYPE": {
   "last_verdict": "LONG",
@@ -30,10 +30,10 @@
   "last_change_ts": "2026-08-30T21:16:30.714827+00:00"
  },
  "ASTER": {
-  "last_verdict": "WAIT",
-  "last_action_verdict": null,
-  "last_alert_ts": "2026-09-06T15:35:47.471974+00:00",
-  "last_change_ts": "2026-09-07T04:44:44.300327+00:00"
+  "last_verdict": "LONG",
+  "last_action_verdict": "LONG",
+  "last_alert_ts": "2026-09-07T18:46:53.121446+00:00",
+  "last_change_ts": "2026-09-07T18:46:53.121446+00:00"
  },
  "MORPHO": {
   "last_verdict": "LONG",
