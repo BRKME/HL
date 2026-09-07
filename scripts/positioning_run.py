@@ -140,15 +140,41 @@ def main() -> int:
                    f"при пороге {EDGE_PP:+.1f}")
     print(f"\nВЫВОД: {verdict}")
 
+    # Сообщение пишется для оператора, а не для меня. Прежняя версия
+    # печатала «+0.10пп · плюс у 56% монет» — это отчёт исследователя:
+    # непонятно ни что измеряли, ни что делать. Здесь каждая строка
+    # говорит, что происходит и насколько это повторяется.
+    def _plain(label: str) -> str:
+        return {
+            "толпа в шорте (низ 20%)": "Толпа в шорте",
+            "толпа в лонге (верх 20%)": "Толпа в лонге",
+            "топы длиннее толпы (верх 20%)": "Крупные длиннее толпы",
+            "топы короче толпы (низ 20%)": "Крупные короче толпы",
+        }.get(label, label)
+
+    total_coins = len(results)
+    lines_out = []
+    for label, n_coins, edge, pos, _n in summary:
+        # Доля монет, на которых знак ТОТ ЖЕ, что у среднего: для
+        # отрицательного эффекта совпадением считается минус, а не плюс.
+        agree = pos if edge > 0 else 1 - pos
+        mark = "🔴" if edge <= -0.3 else "🟢" if edge >= 0.3 else "⚪"
+        lines_out.append(f"{mark} {_plain(label)} → следующий день "
+                     f"{edge:+.2f}%, так на {round(agree * n_coins)} монетах "
+                     f"из {n_coins}")
+
+    if best and best[2] >= EDGE_PP:
+        action = f"Сигнал набрал силу: {_plain(best[0]).lower()}."
+    else:
+        action = (f"Пока слабо: нужен сдвиг от {EDGE_PP:.1f}%, "
+                  f"лучший {best[2]:+.2f}%. Действий не требуется.")
+
     try:
         from src.telegram_sender import send_messages
-        rows = "\n".join(f"{l:26} {e:+.2f}пп · плюс у {p:.0%} монет"
-                         for l, _, e, p, _ in summary)
-        send_messages([
-            f"👥 <b>Позиционирование толпы</b> · суточно\n"
-            f"<pre>{rows}</pre>\n<b>{verdict}</b>\n"
-            f"<i>экстремум считается по своей истории монеты · расчёт по "
-            f"каждой отдельно</i>"])
+        head = (f"\U0001F465 <b>Расстановка сил</b> \u00b7 {total_coins} монет"
+                f" \u00b7 180 дней\n"
+                f"<i>кто в лонге, кто в шорте — и что было дальше</i>\n\n")
+        send_messages([head + "\n".join(lines_out) + "\n\n" + action])
     except Exception as e:  # noqa: BLE001
         print(f"[pos] отправка не удалась: {e}")
     return 0
