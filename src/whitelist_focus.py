@@ -282,7 +282,7 @@ def _plan_line(verdict: str, entry: float, sl: float, n_entries: int,
     if verdict == "SHORT" and sl <= entry:
         return ""
 
-    from src.leverage import stop_survives_liquidation, suggest as leverage_suggest
+    from src.leverage import stop_survives_liquidation
 
     risk_pct = abs(entry - sl) / entry * 100
     # Стоп шире ликвидации не сработает никогда — позицию вынесет раньше,
@@ -290,33 +290,11 @@ def _plan_line(verdict: str, entry: float, sl: float, n_entries: int,
     # исполниться, печатать опаснее, чем не печатать (30.08, плечо 5x).
     if not stop_survives_liquidation(risk_pct):
         return ""
-    sizing = leverage_suggest("", verdict, None, entry, sl) or {}
-    size = sizing.get("size_pct_equity")
-    # Размер убран из письма по решению оператора 08.09: сколько брать —
-    # его выбор, зависящий от плеча и готовности рисковать. Ёмкость счёта
-    # осталась отдельной строкой: она про то, сколько сделок ФИЗИЧЕСКИ
-    # можно открыть, а не про размер каждой.
-    size_txt = ""
-    if False and size:
-        # Делим не на все входы, а на столько, сколько счёт тянет: иначе
-        # предупреждение «дели размер» превращает каждую сделку в
-        # неисполнимую, и оператор остаётся вовсе без плана.
-        usable = n_entries
-        if equity:
-            cap = supportable_entries(equity, risk_pct)
-            if cap:
-                usable = min(n_entries, cap)
-        share = size / max(usable, 1)
-        size_txt = f" · размер ~{share:.1f}%"
-        # В долларах, а не только в процентах: «размер ~1.0%» при счёте
-        # $174 это $1.74 нотионала — ниже минимального ордера, и сделку
-        # открыть нельзя. В процентах это невидимо.
-        if equity and equity > 0:
-            notional = equity * share / 100
-            size_txt += f" (${notional:.0f})"
-            if notional < MIN_ORDER_USD:
-                size_txt += f" ⚠️ ниже минимума ${MIN_ORDER_USD:.0f}"
-    return f"↳ стоп {_fmt_price(sl)} ({risk_pct:.1f}%){size_txt}"
+    # Размер в письме не печатается (решение оператора 08.09): сколько
+    # брать — его выбор, зависящий от плеча и готовности рисковать.
+    # Расчёт ёмкости счёта живёт отдельно, в supportable_entries: он про
+    # то, сколько сделок физически можно открыть, а не про размер каждой.
+    return f"↳ стоп {_fmt_price(sl)} ({risk_pct:.1f}%)"
 
 
 def _positioning_for_digest(coin_data: dict) -> dict:
@@ -482,13 +460,16 @@ def render_whitelist_verdicts(
         # оператору приходилось ждать отдельного тактического сигнала.
         plan = _entry_plan(coin, verdict, mark, coin_data.get(coin) or {},
                            n_entries=_n_entries, equity=equity)
-        # «RS +35» — внутренний термин. Это отставание или опережение BTC
-        # за 30 дней в процентных пунктах; у самого BTC оно тождественно
-        # ноль и печаталось как бессмысленное «RS +0» (08.09).
+        # «RS +35» был внутренним термином, а «vs BTC +35%» — неверным по
+        # существу: это разница ДОХОДНОСТЕЙ за 30 дней, то есть процентные
+        # ПУНКТЫ, а не проценты. «+35%» читается как «дороже BTC на 35%»,
+        # хотя означает «выросла на 35 пунктов больше». У самого BTC
+        # величина тождественно нулевая и не печатается вовсе.
         rs_note = ""
         if (_rs is not None and verdict in ("LONG", "SHORT")
                 and coin != "BTC"):
-            rs_note = f" · vs BTC {_rs:+.0f}%"
+            word = "сильнее" if _rs >= 0 else "слабее"
+            rs_note = f" · {word} BTC на {abs(_rs):.0f} п.п."
         novelty = _marks.get(coin)
         novelty_note = f" · {novelty}" if novelty else ""
 
