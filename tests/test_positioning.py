@@ -126,8 +126,12 @@ def test_digest_line_shows_both_slices():
     from src.positioning import format_for_digest
 
     out = format_for_digest(accounts_ratio=1.78, top_pos_ratio=0.92)
-    assert "толпа 64/36" in out
-    assert "топы 48/52" in out
+    # «толпа 64/36» было непонятно: где лонги, где шорты. Называем
+    # перевешивающую сторону (08.09).
+    assert "толпа 64% лонг" in out
+    # 0.92 — это 48% лонгов, то есть почти поровну: порог «поровну» стоит
+    # на 3 п.п. от середины, чтобы шум не выдавался за перекос.
+    assert "топы поровну" in out
 
 
 def test_digest_line_marks_big_money_shorter():
@@ -148,7 +152,7 @@ def test_digest_line_handles_one_slice():
     from src.positioning import format_for_digest
 
     out = format_for_digest(1.78, None)
-    assert "толпа 64/36" in out
+    assert "толпа 64% лонг" in out
     assert "топы" not in out
 
 
@@ -177,7 +181,7 @@ def test_digest_renders_positioning_when_present():
         regime_snapshot=None, state_dir=Path(tempfile.mkdtemp()),
         show_whale_stance=False)
     plain = re.sub(r"<[^>]+>", "", msg)
-    assert "толпа 64/36" in plain or "Входов нет" in plain
+    assert "толпа 64% лонг" in plain or "Входов нет" in plain
 
 
 def test_digest_survives_without_positioning():

@@ -319,9 +319,14 @@ def _journal_verdicts_silently(now: datetime, accounts: list[dict],
     return digest
 
 
-def _render_flat_digest(now: datetime, accounts: list[dict]):
-    """Дайджест для случая «вне рынка». Журналирует и возвращает текст."""
-    return _journal_verdicts_silently(now, accounts)
+def _render_flat_digest(now: datetime, accounts: list[dict],
+                        equity: Optional[float] = None):
+    """Дайджест для случая «вне рынка». Журналирует и возвращает текст.
+
+    Эквити нужна для строки о ёмкости счёта: без неё письмо вне рынка не
+    знало, сколько сделок счёт тянет (найдено 08.09).
+    """
+    return _journal_verdicts_silently(now, accounts, equity=equity)
 
 
 def _flat_digest_once_a_day(now: datetime, accounts: list[dict],

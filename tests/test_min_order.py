@@ -20,49 +20,21 @@ import pytest
 from src.whitelist_focus import MIN_ORDER_USD, _plan_line
 
 
-def test_shows_size_in_dollars():
+def test_size_removed_from_message():
+    """Размер убран из письма по решению оператора 08.09: сколько брать —
+    его выбор, зависящий от плеча. Расчёт ёмкости счёта остался."""
     out = _plan_line("LONG", entry=100.0, sl=90.0, n_entries=1, equity=1000.0)
-    assert "$" in out
+    assert "размер" not in out
+    assert "стоп" in out
 
 
-def test_flags_size_below_minimum():
-    """Пометка нужна там, где сделка неисполнима даже без деления.
 
-    После правки 07.09 размер делится не на все входы, а на то, сколько
-    счёт тянет, — поэтому семь входов при $174 больше не дают центы.
-    Неисполнимость остаётся при совсем крошечном счёте."""
-    out = _plan_line("LONG", entry=100.0, sl=90.0, n_entries=1, equity=50.0)
-    assert "ниже минимума" in out
-
-
-def test_no_flag_when_executable():
-    out = _plan_line("LONG", entry=100.0, sl=90.0, n_entries=1, equity=5000.0)
-    assert "ниже минимума" not in out
-
-
-def test_without_equity_shows_percent_only():
-    """Старые вызовы не должны сломаться."""
-    out = _plan_line("LONG", entry=100.0, sl=90.0, n_entries=1)
-    assert "размер" in out
-    assert "$" not in out.split("размер")[1]
 
 
 def test_minimum_is_explicit():
     assert MIN_ORDER_USD == 10.0
 
 
-def test_division_no_longer_breaks_executability():
-    """Было: деление на семь входов при $174 давало по $2 — сделку
-    открыть нельзя. Стало: делим на то, сколько счёт тянет, и обе
-    сделки исполнимы. Мера против бета-ставки сохранена отдельной
-    строкой «счёт тянет N из M»."""
-    one = _plan_line("LONG", 100.0, 90.0, n_entries=1, equity=174.0)
-    seven = _plan_line("LONG", 100.0, 90.0, n_entries=7, equity=174.0)
-    assert "ниже минимума" not in one
-    assert "ниже минимума" not in seven
-
-
-# ------------------------- сколько сделок тянет счёт (решение 07.09)
 
 def test_supportable_entries_small_account():
     """При $174 и стопе 10% счёт тянет ОДНУ сделку, а дайджест делил на 7."""
@@ -86,22 +58,33 @@ def test_supportable_entries_degenerate():
     assert supportable_entries(174, 0) == 0
 
 
-def test_size_divided_by_supportable_not_by_all():
-    """Ключевая правка: делим на то, что счёт тянет, а не на все входы —
-    иначе мера против бета-ставки делает каждую сделку неисполнимой."""
-    seven = _plan_line("LONG", 100.0, 90.0, n_entries=7, equity=174.0)
-    assert "ниже минимума" not in seven
 
 
-def test_large_account_still_divides_by_all_entries():
-    """На большом счёте ограничение не действует — делим как раньше."""
+
+def test_capacity_still_computed_without_size_in_message():
+    """Размер убран из письма, но ёмкость счёта считается: она про то,
+    сколько сделок физически можно открыть, а не про размер каждой."""
+    from src.whitelist_focus import supportable_entries
+
+    assert supportable_entries(174, stop_pct=10) == 1
+    assert supportable_entries(5000, stop_pct=10) == 50
+
+
+def test_rs_hidden_for_btc():
+    """«RS +0» у BTC — сравнение с самим собой, бессмысленно (08.09)."""
     import re
+    import tempfile
+    from datetime import datetime, timezone
+    from pathlib import Path
 
-    one = _plan_line("LONG", 100.0, 90.0, n_entries=1, equity=100000.0)
-    seven = _plan_line("LONG", 100.0, 90.0, n_entries=7, equity=100000.0)
+    from src.whitelist_focus import render_whitelist_verdicts
 
-    def pct(x):
-        m = re.search(r"размер ~([\d.]+)%", x)
-        return float(m.group(1)) if m else None
-
-    assert pct(seven) < pct(one)
+    closes = [100.0 * (1.004 ** i) for i in range(220)]
+    cd = {"BTC": {"mark": closes[-1], "candles_closes": closes,
+                  "candles": [{"o": c, "h": c * 1.02, "l": c * 0.98, "c": c}
+                              for c in closes]}}
+    msg = re.sub(r"<[^>]+>", "", render_whitelist_verdicts(
+        now=datetime(2026, 9, 8, 9, 0, tzinfo=timezone.utc), coin_data=cd,
+        regime_snapshot=None, state_dir=Path(tempfile.mkdtemp()),
+        show_whale_stance=False))
+    assert "vs BTC" not in msg

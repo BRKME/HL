@@ -292,8 +292,12 @@ def _plan_line(verdict: str, entry: float, sl: float, n_entries: int,
         return ""
     sizing = leverage_suggest("", verdict, None, entry, sl) or {}
     size = sizing.get("size_pct_equity")
+    # Размер убран из письма по решению оператора 08.09: сколько брать —
+    # его выбор, зависящий от плеча и готовности рисковать. Ёмкость счёта
+    # осталась отдельной строкой: она про то, сколько сделок ФИЗИЧЕСКИ
+    # можно открыть, а не про размер каждой.
     size_txt = ""
-    if size:
+    if False and size:
         # Делим не на все входы, а на столько, сколько счёт тянет: иначе
         # предупреждение «дели размер» превращает каждую сделку в
         # неисполнимую, и оператор остаётся вовсе без плана.
@@ -478,8 +482,13 @@ def render_whitelist_verdicts(
         # оператору приходилось ждать отдельного тактического сигнала.
         plan = _entry_plan(coin, verdict, mark, coin_data.get(coin) or {},
                            n_entries=_n_entries, equity=equity)
-        rs_note = f" · RS {_rs:+.0f}" if (_rs is not None and
-                                          verdict in ("LONG", "SHORT")) else ""
+        # «RS +35» — внутренний термин. Это отставание или опережение BTC
+        # за 30 дней в процентных пунктах; у самого BTC оно тождественно
+        # ноль и печаталось как бессмысленное «RS +0» (08.09).
+        rs_note = ""
+        if (_rs is not None and verdict in ("LONG", "SHORT")
+                and coin != "BTC"):
+            rs_note = f" · vs BTC {_rs:+.0f}%"
         novelty = _marks.get(coin)
         novelty_note = f" · {novelty}" if novelty else ""
 

@@ -104,21 +104,15 @@ def test_valid_stop_is_printed():
     assert "94" in out and "6.0%" in out
 
 
-def test_size_is_divided_between_simultaneous_entries():
-    """Четыре входа в одну сторону — одна ставка; размер делится.
-
-    Иначе предупреждение «дели размер» противоречит числу рядом с ним."""
+def test_size_no_longer_printed():
+    """Размер убран из письма 08.09 по решению оператора: сколько брать —
+    его выбор, зависящий от плеча и готовности рисковать. Деление между
+    входами сохранено в расчёте ёмкости счёта, но в строке плана его нет."""
     from src.whitelist_focus import _plan_line
 
-    one = _plan_line("LONG", entry=100.0, sl=90.0, n_entries=1)
-    four = _plan_line("LONG", entry=100.0, sl=90.0, n_entries=4)
-    def pct(s):
-        import re
-        m = re.search(r"размер ~([\d.]+)%", s)
-        return float(m.group(1)) if m else None
-    assert pct(one) and pct(four)
-    assert pct(four) < pct(one)
-    assert abs(pct(four) - pct(one) / 4) < 0.6
+    out = _plan_line("LONG", entry=100.0, sl=90.0, n_entries=4)
+    assert "размер" not in out
+    assert "90" in out
 
 
 def test_degenerate_inputs_print_nothing():

@@ -174,13 +174,21 @@ def format_for_digest(accounts_ratio: Optional[float],
     показавшая устойчивый знак, — «крупные короче толпы», −0.45% на семи
     монетах из девяти.
     """
+    # «толпа 38/62» непонятно: где лонги, где шорты. Называем сторону,
+    # которая ПЕРЕВЕШИВАЕТ, — это и есть смысл числа (08.09).
+    def _side(share: float) -> str:
+        if abs(share - 0.5) < 0.03:
+            return "поровну"
+        return (f"{share * 100:.0f}% лонг" if share > 0.5
+                else f"{(1 - share) * 100:.0f}% шорт")
+
     parts = []
     la = long_share(accounts_ratio)
     lt = long_share(top_pos_ratio)
     if la is not None:
-        parts.append(f"толпа {la * 100:.0f}/{(1 - la) * 100:.0f}")
+        parts.append(f"толпа {_side(la)}")
     if lt is not None:
-        parts.append(f"топы {lt * 100:.0f}/{(1 - lt) * 100:.0f}")
+        parts.append(f"топы {_side(lt)}")
     if not parts:
         return ""
 
