@@ -14,7 +14,7 @@ import sys
 import pytest
 
 
-def _fake_candles(n=600, base=100.0, drift=0.0015):
+def _fake_candles(n=400, base=100.0, drift=0.0015):
     import random
     rng = random.Random(4)
     out, p = [], base
@@ -52,16 +52,27 @@ def _load(path):
 
 
 def test_momentum_sweep_runner_completes(stubbed, monkeypatch):
-    """Ровно та поломка: переменная использовалась до присваивания."""
+    """Ровно та поломка: переменная использовалась до присваивания.
+
+    Сетка урезана до нескольких конфигураций: проверяем, что скрипт
+    доходит до конца, а не что перебор находит лучшую модель. Полная сетка
+    из 140 наборов занимала 12 секунд из 30 всего прогона — это тихий
+    износ, из-за которого набор перестают гонять часто."""
+    from src.momentum_sweep import default_grid
+
     mod = _load("scripts/momentum_sweep_run.py")
     monkeypatch.setattr(mod, "fetch_candles", lambda *a, **k: _fake_candles())
     monkeypatch.setattr(mod, "COINS", ["BTC", "ETH"])
+    monkeypatch.setattr(mod, "default_grid", lambda: default_grid()[:6])
     assert mod.main() == 0
 
 
 def test_tactical_backtest_runner_completes(stubbed, monkeypatch):
+    """История укорочена: смоук проверяет проходимость, не результат."""
     mod = _load("scripts/tactical_backtest_run.py")
-    monkeypatch.setattr(mod, "fetch_candles", lambda *a, **k: _fake_candles())
+    monkeypatch.setattr(mod, "fetch_candles",
+                        lambda *a, **k: _fake_candles(n=260))
+    monkeypatch.setattr(mod, "FOCUS_COINS", ["BTC", "ETH"])
     assert mod.main() in (0, 1)
 
 
