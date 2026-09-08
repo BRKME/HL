@@ -135,17 +135,21 @@ def test_digest_line_shows_both_slices():
 
 
 def test_digest_line_marks_big_money_shorter():
-    """Единственный признак с устойчивым знаком: крупные короче толпы —
-    -0.45% на семи монетах из девяти."""
+    """Толпа в лонге, крупные деньги в шорте — единственный признак с
+    устойчивым знаком: −0.45% на семи монетах из девяти.
+
+    Прежняя формулировка «крупные короче» была калькой с внутреннего
+    термина и читалась как чепуха: «короче» по-русски про длину, а не про
+    сторону сделки."""
     from src.positioning import format_for_digest
 
-    assert "крупные короче" in format_for_digest(3.0, 0.8)
+    assert "крупные против толпы" in format_for_digest(3.0, 0.8)
 
 
 def test_no_mark_when_aligned():
     from src.positioning import format_for_digest
 
-    assert "крупные короче" not in format_for_digest(1.0, 1.05)
+    assert "крупные против толпы" not in format_for_digest(1.0, 1.05)
 
 
 def test_digest_line_handles_one_slice():
