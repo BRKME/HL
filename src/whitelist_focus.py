@@ -237,6 +237,25 @@ def _rs_for_digest(coin_data: dict) -> dict:
 MIN_ORDER_USD = 10.0
 
 
+def supportable_entries(equity: Optional[float], stop_pct: float,
+                        risk_pct: float = 1.0,
+                        min_order: float = MIN_ORDER_USD) -> int:
+    """Сколько одновременных сделок счёт вообще тянет.
+
+    Деление размера между входами — верная мера против бета-ставки, но при
+    малом счёте оно делает каждую сделку неисполнимой: при $174 и семи
+    входах на каждую приходилось по $2, ниже минимального ордера.
+
+    Считаем честно: нотионал одной сделки = эквити × риск / дистанция
+    стопа; делить его можно ровно столько раз, сколько получится кусков не
+    меньше минимального ордера. При $174 и стопе 10% это ОДНА сделка.
+    """
+    if not equity or equity <= 0 or stop_pct <= 0:
+        return 0
+    notional = equity * risk_pct / stop_pct
+    return max(0, int(notional // min_order))
+
+
 def _plan_line(verdict: str, entry: float, sl: float, n_entries: int,
                equity: Optional[float] = None) -> str:
     """Строка «стоп · размер» — или пусто, если план неисполним.
@@ -275,7 +294,15 @@ def _plan_line(verdict: str, entry: float, sl: float, n_entries: int,
     size = sizing.get("size_pct_equity")
     size_txt = ""
     if size:
-        share = size / max(n_entries, 1)
+        # Делим не на все входы, а на столько, сколько счёт тянет: иначе
+        # предупреждение «дели размер» превращает каждую сделку в
+        # неисполнимую, и оператор остаётся вовсе без плана.
+        usable = n_entries
+        if equity:
+            cap = supportable_entries(equity, risk_pct)
+            if cap:
+                usable = min(n_entries, cap)
+        share = size / max(usable, 1)
         size_txt = f" · размер ~{share:.1f}%"
         # В долларах, а не только в процентах: «размер ~1.0%» при счёте
         # $174 это $1.74 нотионала — ниже минимального ордера, и сделку
@@ -463,6 +490,19 @@ def render_whitelist_verdicts(
         if plan:
             pos = pos_by_coin.get(coin, "")
             lines.append(f"    {plan}" + (f" · {pos}" if pos else ""))
+
+    # Сколько сделок счёт тянет — говорим прямо, если меньше, чем входов.
+    # Иначе оператор видит семь предложений и не знает, что взять можно
+    # одно: деление размера на семь делает каждое неисполнимым.
+    if equity and _n_entries > 1:
+        typical_stop = 10.0
+        cap = supportable_entries(equity, typical_stop)
+        if cap and cap < _n_entries:
+            lines.append("")
+            lines.append(
+                f"💰 Счёт ${equity:,.0f} тянет {cap} "
+                f"{'сделку' if cap == 1 else 'сделки'} из {_n_entries} — "
+                f"размер посчитан на {cap}. Выбери сам, какие брать.")
 
     if waits_line:
         lines.append("")
