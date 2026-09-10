@@ -48,7 +48,7 @@
   "last_change_ts": "2026-09-07T12:49:44.712718+00:00"
  },
  "ONDO": {
-  "last_verdict": "LONG",
+  "last_verdict": "WAIT",
   "last_action_verdict": "LONG",
   "last_alert_ts": "2026-09-06T15:35:47.471974+00:00",
   "last_change_ts": "2026-09-06T15:35:47.471974+00:00"
