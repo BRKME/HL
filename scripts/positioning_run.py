@@ -32,6 +32,9 @@ from src.positioning import (  # noqa: E402
 from src.whitelist_focus import FOCUS_COINS  # noqa: E402
 
 STATE = REPO / "state" / "positioning.jsonl"
+# День недели для ОТЧЁТА (0 — понедельник). Сбор идёт ежедневно: данные
+# нужны каждый день, а письмо с одними и теми же числами — нет.
+REPORT_DOW = int(os.environ.get("POS_REPORT_DOW") or 0)
 MIN_N = 30
 EDGE_PP = 0.5
 DAY = 86_400_000
@@ -168,6 +171,14 @@ def main() -> int:
     else:
         action = (f"Пока слабо: нужен сдвиг от {EDGE_PP:.1f}%, "
                   f"лучший {best[2]:+.2f}%. Действий не требуется.")
+
+    # Отчёт — только в назначенный день. Сбор выше отработал в любом
+    # случае: разделять их надо ВНУТРИ скрипта, а не расписанием, иначе
+    # редкий отчёт делает редким и сбор (найдено 10.09).
+    from datetime import datetime as _dt, timezone as _tz
+    if _dt.now(_tz.utc).weekday() != REPORT_DOW:
+        print(f"\nотчёт только по дню недели {REPORT_DOW}; сбор выполнен")
+        return 0
 
     try:
         from src.telegram_sender import send_messages

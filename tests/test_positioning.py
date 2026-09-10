@@ -203,3 +203,19 @@ def test_digest_survives_without_positioning():
         regime_snapshot=None, state_dir=Path(tempfile.mkdtemp()),
         show_whale_stance=False)
     assert msg
+
+
+def test_report_day_is_separate_from_collection():
+    """Сбор ежедневный, отчёт недельный — разделение внутри скрипта.
+
+    08.09 я перевёл на неделю сам воркфлоу и сказал, что сбор остаётся
+    ежедневным. Неверно: сбор и отчёт живут в одном скрипте, и на неделю
+    ушло и то и другое — журнал не обновлялся 69 часов."""
+    import pathlib
+
+    root = pathlib.Path(__file__).resolve().parents[1]
+    wf = (root / ".github/workflows/positioning.yml").read_text()
+    script = (root / "scripts/positioning_run.py").read_text()
+
+    assert '"30 6 * * *"' in wf, "расписание обязано быть ежедневным"
+    assert "REPORT_DOW" in script, "день отчёта задаётся внутри скрипта"
