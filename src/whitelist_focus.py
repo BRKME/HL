@@ -289,7 +289,13 @@ def _plan_line(verdict: str, entry: float, sl: float, n_entries: int,
     # и убыток будет не 1% депозита, а вся маржа. План, который не может
     # исполниться, печатать опаснее, чем не печатать (30.08, плечо 5x).
     if not stop_survives_liquidation(risk_pct):
-        return ""
+        # Раньше строка просто исчезала, и вход оставался в письме БЕЗ
+        # единой цифры — «ВХОДИТЬ LONG» без стопа и размера. Это худший из
+        # исходов: рекомендация без плана. Называем причину (10.09).
+        from src.leverage import OPERATOR_LEVERAGE, liquidation_distance_pct
+        return (f"↳ ⛔ стоп {risk_pct:.1f}% не помещается при плече "
+                f"{OPERATOR_LEVERAGE}× — ликвидация на "
+                f"{liquidation_distance_pct(OPERATOR_LEVERAGE):.0f}%")
     # Размер в письме не печатается (решение оператора 08.09): сколько
     # брать — его выбор, зависящий от плеча и готовности рисковать.
     # Расчёт ёмкости счёта живёт отдельно, в supportable_entries: он про

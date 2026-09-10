@@ -330,7 +330,8 @@ def _render_flat_digest(now: datetime, accounts: list[dict],
 
 
 def _flat_digest_once_a_day(now: datetime, accounts: list[dict],
-                            state_dir=None) -> bool:
+                            state_dir=None,
+                            equity: Optional[float] = None) -> bool:
     """Раз в сутки вне рынка: собрать вердикты И отправить дайджест.
 
     Отмена решения 13.06 «без позиций сообщение бесполезно» — по жалобе
@@ -357,7 +358,7 @@ def _flat_digest_once_a_day(now: datetime, accounts: list[dict],
     # пропал целиком. Окно существует ради оператора (сводка «что покупать»
     # бессмысленна ночью); у журнала такого ограничения нет.
     try:
-        digest = _render_flat_digest(now, accounts)
+        digest = _render_flat_digest(now, accounts, equity=equity)
     except Exception as e:  # noqa: BLE001
         logger.warning("Flat digest render failed: %s", e)
         return False
@@ -439,7 +440,12 @@ def run_daily_monitor(
             # отчёта без позиций нет, и без сводки оператор слеп. Раз в
             # сутки — он же и журналит вердикты.
             try:
-                _flat_digest_once_a_day(now, accounts, _state_dir)
+                # Эквити берём из УЖЕ посчитанного портфеля, а не запросом
+                # заново: повторный поход в сеть ради известного числа —
+                # лишний способ остаться без письма (10.09).
+                _flat_digest_once_a_day(
+                    now, accounts, _state_dir,
+                    equity=portfolio.total_account_value)
             except Exception as e:
                 logger.warning("Flat digest failed: %s", e)
         return

@@ -60,11 +60,16 @@ def test_degenerate_inputs():
 
 
 def test_plan_line_refuses_stop_that_liquidates_first():
-    """Печатать план, который не может исполниться, опаснее молчания."""
+    """План, который не может исполниться, не печатается как план.
+
+    До 10.09 строка была ПУСТОЙ, и вход оставался в письме без единой
+    цифры. Теперь вместо чисел стоит причина — рекомендация без плана хуже
+    обоих вариантов."""
     from src.whitelist_focus import _plan_line
 
-    # стоп 25% при 5x: ликвидация раньше
-    assert _plan_line("LONG", entry=100.0, sl=75.0, n_entries=1) == ""
+    out = _plan_line("LONG", entry=100.0, sl=75.0, n_entries=1)
+    assert "не помещается" in out
+    assert "стоп 75" not in out
 
 
 def test_plan_line_keeps_normal_stop():
@@ -72,3 +77,36 @@ def test_plan_line_keeps_normal_stop():
 
     out = _plan_line("LONG", entry=100.0, sl=94.0, n_entries=1)
     assert "94" in out
+
+
+# ------------- вход без плана — худший исход (замечание оператора 10.09)
+
+def test_too_wide_stop_explains_itself():
+    """В письме 10.09 у MORPHO стояло «ВХОДИТЬ LONG» и НИ ОДНОЙ цифры:
+    стоп разошёлся шире предела, и строка плана просто исчезала.
+
+    Рекомендация без плана хуже обоих вариантов — и показа с
+    предупреждением, и отсутствия входа вовсе. Теперь называется причина."""
+    from src.whitelist_focus import _plan_line
+
+    out = _plan_line("LONG", entry=100.0, sl=82.0, n_entries=1)
+    assert out
+    assert "не помещается" in out
+    assert "18.0%" in out
+
+
+def test_normal_stop_has_no_warning():
+    from src.whitelist_focus import _plan_line
+
+    out = _plan_line("LONG", entry=100.0, sl=88.0, n_entries=1)
+    assert "не помещается" not in out
+    assert "стоп" in out
+
+
+def test_entry_never_appears_without_a_plan_line():
+    """Сторож: у входа обязана быть строка плана — либо с числами, либо с
+    объяснением, почему их нет."""
+    from src.whitelist_focus import _plan_line
+
+    for sl in (95.0, 88.0, 82.0, 70.0):
+        assert _plan_line("LONG", 100.0, sl, 1), f"пусто при стопе {100-sl}%"

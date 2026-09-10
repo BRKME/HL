@@ -32,8 +32,12 @@ def test_data_collected_outside_window(monkeypatch, tmp_path):
 
     sent, journaled = [], []
     monkeypatch.setattr(dm, "send_messages", lambda m: sent.extend(m))
+    # Сбор эквити ходит в HL — заглушаем: письмо не должно зависеть от
+    # доступности биржи, и тест тоже (10.09).
+    monkeypatch.setattr(dm, "_build_portfolio", lambda *a, **k: None,
+                        raising=False)
     monkeypatch.setattr(dm, "_render_flat_digest",
-                        lambda now, acc: journaled.append(now) or "🎯 сводка")
+                        lambda now, acc, **kw: journaled.append(now) or "🎯 сводка")
 
     dm._flat_digest_once_a_day(_t(16), [], tmp_path)
     assert journaled, "данные обязаны собраться даже вне окна"
@@ -45,8 +49,12 @@ def test_message_sent_inside_window(monkeypatch, tmp_path):
 
     sent = []
     monkeypatch.setattr(dm, "send_messages", lambda m: sent.extend(m))
+    # Сбор эквити ходит в HL — заглушаем: письмо не должно зависеть от
+    # доступности биржи, и тест тоже (10.09).
+    monkeypatch.setattr(dm, "_build_portfolio", lambda *a, **k: None,
+                        raising=False)
     monkeypatch.setattr(dm, "_render_flat_digest",
-                        lambda now, acc: "🎯 сводка")
+                        lambda now, acc, **kw: "🎯 сводка")
 
     dm._flat_digest_once_a_day(_t(9), [], tmp_path)
     assert sent == ["🎯 сводка"]
@@ -57,8 +65,10 @@ def test_collection_happens_once_per_day(monkeypatch, tmp_path):
 
     calls = []
     monkeypatch.setattr(dm, "send_messages", lambda m: None)
+    monkeypatch.setattr(dm, "_build_portfolio", lambda *a, **k: None,
+                        raising=False)
     monkeypatch.setattr(dm, "_render_flat_digest",
-                        lambda now, acc: calls.append(now) or "🎯 сводка")
+                        lambda now, acc, **kw: calls.append(now) or "🎯 сводка")
 
     for hour in (7, 9, 16, 19):
         dm._flat_digest_once_a_day(_t(hour), [], tmp_path)
@@ -70,8 +80,10 @@ def test_late_collection_does_not_block_next_day(monkeypatch, tmp_path):
 
     calls = []
     monkeypatch.setattr(dm, "send_messages", lambda m: None)
+    monkeypatch.setattr(dm, "_build_portfolio", lambda *a, **k: None,
+                        raising=False)
     monkeypatch.setattr(dm, "_render_flat_digest",
-                        lambda now, acc: calls.append(now) or "🎯 сводка")
+                        lambda now, acc, **kw: calls.append(now) or "🎯 сводка")
 
     dm._flat_digest_once_a_day(_t(16, day=27), [], tmp_path)
     dm._flat_digest_once_a_day(_t(9, day=28), [], tmp_path)
@@ -84,8 +96,12 @@ def test_night_run_collects_but_stays_silent(monkeypatch, tmp_path):
 
     sent, calls = [], []
     monkeypatch.setattr(dm, "send_messages", lambda m: sent.extend(m))
+    # Сбор эквити ходит в HL — заглушаем: письмо не должно зависеть от
+    # доступности биржи, и тест тоже (10.09).
+    monkeypatch.setattr(dm, "_build_portfolio", lambda *a, **k: None,
+                        raising=False)
     monkeypatch.setattr(dm, "_render_flat_digest",
-                        lambda now, acc: calls.append(now) or "🎯 сводка")
+                        lambda now, acc, **kw: calls.append(now) or "🎯 сводка")
 
     dm._flat_digest_once_a_day(_t(2), [], tmp_path)
     assert calls and sent == []
@@ -101,8 +117,10 @@ def test_send_failure_keeps_data(monkeypatch, tmp_path):
         raise RuntimeError("telegram down")
 
     monkeypatch.setattr(dm, "send_messages", boom)
+    monkeypatch.setattr(dm, "_build_portfolio", lambda *a, **k: None,
+                        raising=False)
     monkeypatch.setattr(dm, "_render_flat_digest",
-                        lambda now, acc: calls.append(now) or "🎯 сводка")
+                        lambda now, acc, **kw: calls.append(now) or "🎯 сводка")
 
     dm._flat_digest_once_a_day(_t(9), [], tmp_path)
     assert calls

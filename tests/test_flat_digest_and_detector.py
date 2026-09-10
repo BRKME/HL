@@ -75,7 +75,7 @@ def test_digest_is_sent_when_flat(monkeypatch, tmp_path):
     monkeypatch.setattr(dm, "send_messages", lambda m: sent.extend(m))
     monkeypatch.setattr(dm, "STATE_DIR", tmp_path)
     monkeypatch.setattr(dm, "_render_flat_digest",
-                        lambda now, accounts: "🎯 Whitelist daily — тест",
+                        lambda now, accounts, **kw: "🎯 Whitelist daily — тест",
                         raising=False)
 
     dm._flat_digest_once_a_day(datetime(2026, 8, 21, 9, 0, tzinfo=timezone.utc),
@@ -89,7 +89,7 @@ def test_flat_digest_sent_once_per_day(monkeypatch, tmp_path):
     sent = []
     monkeypatch.setattr(dm, "send_messages", lambda m: sent.extend(m))
     monkeypatch.setattr(dm, "_render_flat_digest",
-                        lambda now, accounts: "🎯 дайджест", raising=False)
+                        lambda now, accounts, **kw: "🎯 дайджест", raising=False)
 
     for hour in (7, 9, 11, 13):
         dm._flat_digest_once_a_day(
@@ -103,7 +103,7 @@ def test_flat_digest_silent_outside_window(monkeypatch, tmp_path):
     sent = []
     monkeypatch.setattr(dm, "send_messages", lambda m: sent.extend(m))
     monkeypatch.setattr(dm, "_render_flat_digest",
-                        lambda now, accounts: "🎯 дайджест", raising=False)
+                        lambda now, accounts, **kw: "🎯 дайджест", raising=False)
 
     dm._flat_digest_once_a_day(
         datetime(2026, 8, 21, 20, 0, tzinfo=timezone.utc), [], tmp_path)
@@ -120,7 +120,7 @@ def test_send_failure_does_not_burn_the_day(monkeypatch, tmp_path):
 
     monkeypatch.setattr(dm, "send_messages", boom)
     monkeypatch.setattr(dm, "_render_flat_digest",
-                        lambda now, accounts: "🎯 дайджест", raising=False)
+                        lambda now, accounts, **kw: "🎯 дайджест", raising=False)
 
     dm._flat_digest_once_a_day(
         datetime(2026, 8, 21, 9, 0, tzinfo=timezone.utc), [], tmp_path)
