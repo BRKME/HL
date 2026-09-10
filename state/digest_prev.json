@@ -3,6 +3,10 @@
   "verdict": "LONG",
   "since": "2026-08-31"
  },
+ "NEAR": {
+  "verdict": "LONG",
+  "since": "2026-09-10"
+ },
  "ETH": {
   "verdict": "LONG",
   "since": "2026-08-31"
@@ -11,20 +15,16 @@
   "verdict": "LONG",
   "since": "2026-09-04"
  },
- "ASTER": {
-  "verdict": "LONG",
-  "since": "2026-09-08"
- },
  "BTC": {
   "verdict": "LONG",
   "since": "2026-09-05"
  },
+ "ASTER": {
+  "verdict": "LONG",
+  "since": "2026-09-08"
+ },
  "MORPHO": {
   "verdict": "LONG",
   "since": "2026-08-31"
- },
- "ONDO": {
-  "verdict": "LONG",
-  "since": "2026-09-03"
  }
 }
