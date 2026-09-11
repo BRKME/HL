@@ -463,7 +463,12 @@ def test_run_whale_monitor_flushes_digest_after_24h(temp_repo):
     assert len(sent_messages) == 1
     assert "digest" in sent_messages[0].lower() or "Whale digest" in sent_messages[0]
     # pending cleared
-    assert not pending.exists()
+    # Файл обязан ОСТАТЬСЯ пустым, а не исчезнуть: воркфлоу делает
+    # `git add` только для существующих файлов, и удаление не попадало в
+    # индекс — буфер возвращался из репозитория, и одни и те же шесть
+    # сигналов рассылались каждый день как «за 24ч» (11.09).
+    assert pending.exists()
+    assert pending.read_text().strip() == ""
     # last_digest updated
     last = json.loads((state / "whale_last_digest.json").read_text())
     assert last["sent_at"] == NOW.isoformat()

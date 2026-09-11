@@ -460,9 +460,22 @@ def _read_pending(path: Path) -> list[Signal]:
 
 
 def _clear_pending(path: Path) -> None:
+    """Опустошить буфер, НЕ удаляя файл.
+
+    Удаление не переживало прогон Actions: воркфлоу делает `git add` только
+    для существующих файлов, поэтому исчезновение файла в индекс не
+    попадало, и он возвращался из репозитория при следующем checkout.
+    Шесть сигналов, накопленных с 21.08 по 04.09, рассылались КАЖДЫЙ день
+    как «за 24ч» — три одинаковых письма подряд заметил оператор (11.09).
+
+    Пустой файл коммитится нормально, поэтому очистка переживает прогон.
+    """
     path = Path(path)
-    if path.exists():
-        path.unlink()
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("", encoding="utf-8")
+    except OSError as e:
+        logger.warning("could not clear pending digest buffer: %s", e)
 
 
 def _should_flush_digest(last_digest_path: Path, now: datetime) -> bool:
