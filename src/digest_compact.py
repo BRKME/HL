@@ -130,7 +130,7 @@ def collapse_waits_when_entries(verdicts):
     return kept, ("⚪ Ждут — " + " • ".join(parts)) if parts else ""
 
 
-def rank_entries(verdicts):
+def rank_entries(verdicts, scores: dict = None):
     """Упорядочить входы по относительной силе, сильные выше.
 
     ВАЖНО: валидированного способа ранжировать входы у системы нет.
@@ -146,8 +146,67 @@ def rank_entries(verdicts):
     if len(entries) < 2:
         return list(verdicts)
     rest = [v for v in verdicts if v[_VERDICT] not in _ENTRY_VERDICTS]
-    ranked = sorted(
-        entries,
-        key=lambda v: (v[6] is None, -(v[6] or 0.0)),
-    )
+    if scores:
+        # Составная оценка: расстановка сил, сила против BTC, новизна,
+        # исполнимость. Веса — из фактических замеров, см. entry_score.
+        ranked = sorted(entries, key=lambda v: -scores.get(v[_COIN], 0.0))
+    else:
+        ranked = sorted(entries, key=lambda v: (v[6] is None, -(v[6] or 0.0)))
     return ranked + rest
+
+
+# ------------------------------------------------- приоритет входов (11.09)
+
+# Веса взяты из ФАКТИЧЕСКИХ замеров, а не назначены:
+#
+#   расстановка сил  0.45 — «крупные в шорте при толпе в лонге» дало
+#                           −0.45% на семи монетах из девяти (07–08.09).
+#                           Самый сильный измеренный эффект из имеющихся.
+#   сила против BTC  0.13 — разница avg R между RS>0 и RS<0 составила
+#                           +0.128 (H4, 24.08).
+#   новизна          0.10 — НЕ измерялась. Вес мал намеренно: ценность
+#                           практическая, а не предсказательная — сигнал
+#                           двенадцатого дня оператор уже видел и не взял.
+#
+# ВАЖНО: ни один признак не перешёл порог значимости. RS дал +0.128 при
+# пороге 0.20, расстановка −0.45% при пороге 0.5%. Порядок — подсказка, а
+# не сигнал; он меняет, что читать первым, и не меняет, что эмитируется.
+W_POSITIONING = 0.45
+W_RELATIVE_STRENGTH = 0.13
+W_NOVELTY = 0.10
+
+RS_SCALE = 30.0        # п.п., выше которых прибавка не растёт
+
+
+def entry_score(rs_pp, accounts_ratio, top_pos_ratio, is_new,
+                executable=True) -> float:
+    """Оценка привлекательности входа. Больше — выше в письме.
+
+    Неисполнимое опускается вниз безусловно: сделка, которую нельзя
+    открыть, не может быть первой в списке, каким бы хорошим ни был
+    сигнал.
+    """
+    if not executable:
+        return -100.0
+
+    score = 0.0
+
+    if rs_pp is not None:
+        # Обрезаем: +105 п.п. у ZEC не втрое лучше, чем +35, — это уже
+        # область, где рост говорит скорее о перегреве, чем о качестве.
+        capped = max(-RS_SCALE, min(RS_SCALE, float(rs_pp)))
+        score += W_RELATIVE_STRENGTH * (capped / RS_SCALE)
+
+    # Расстановка: крупные против толпы — вниз, крупные заодно с толпой
+    # в противоход толпе — вверх.
+    if accounts_ratio is not None and top_pos_ratio is not None:
+        from src.positioning import long_share
+        la, lt = long_share(accounts_ratio), long_share(top_pos_ratio)
+        if la is not None and lt is not None:
+            divergence = lt - la          # >0: крупные длиннее толпы
+            score += W_POSITIONING * max(-1.0, min(1.0, divergence * 4))
+
+    if is_new:
+        score += W_NOVELTY
+
+    return score

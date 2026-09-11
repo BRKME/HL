@@ -435,8 +435,12 @@ def render_whitelist_verdicts(
     # Когда входы есть, «НЕ ВХОДИТЬ» сворачивается в строку-итог, а входы
     # выстраиваются по силе. Отбор сигналов при этом не меняется.
     verdicts, waits_line = collapse_waits_when_entries(verdicts)
-    verdicts = rank_entries(verdicts)
 
+    # Порядок входов — по составной оценке, а не по одной относительной
+    # силе. Веса взяты из фактических замеров (см. entry_score); ни один
+    # признак не перешёл порог значимости, поэтому это подсказка, что
+    # читать первым, а не сигнал.
+    from src.digest_compact import entry_score
     # Новизна: «🆕» или «N-й день». Без неё оператору приходилось держать
     # вчерашнее письмо в голове, чтобы понять, новый это сигнал или тот же.
     try:
@@ -446,6 +450,24 @@ def render_whitelist_verdicts(
         save_prev(state_dir, _new_state)
     except Exception:  # noqa: BLE001
         _marks = {}
+
+    _scores = {}
+    for v in verdicts:
+        coin_, verdict_ = v[0], v[2]
+        if verdict_ not in ("LONG", "SHORT"):
+            continue
+        data = coin_data.get(coin_) or {}
+        plan_ok = bool(_entry_plan(coin_, verdict_, v[1], data, 1, equity)
+                       and "не помещается" not in
+                       _entry_plan(coin_, verdict_, v[1], data, 1, equity))
+        _scores[coin_] = entry_score(
+            rs_pp=v[6] if len(v) > 6 else None,
+            accounts_ratio=data.get("accounts_ratio"),
+            top_pos_ratio=data.get("top_pos_ratio"),
+            is_new=_marks.get(coin_) == "🆕",
+            executable=plan_ok)
+    verdicts = rank_entries(verdicts, _scores)
+
 
     _n_entries = sum(1 for v in verdicts if v[2] in ("LONG", "SHORT"))
 
