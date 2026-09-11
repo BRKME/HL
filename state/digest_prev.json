@@ -1,30 +1,34 @@
 {
- "HYPE": {
+ "ZEC": {
   "verdict": "LONG",
-  "since": "2026-08-31"
+  "since": "2026-09-11"
  },
  "NEAR": {
   "verdict": "LONG",
   "since": "2026-09-10"
  },
- "ETH": {
+ "HYPE": {
   "verdict": "LONG",
   "since": "2026-08-31"
  },
- "TAO": {
+ "ETH": {
   "verdict": "LONG",
-  "since": "2026-09-04"
+  "since": "2026-08-31"
  },
  "BTC": {
   "verdict": "LONG",
   "since": "2026-09-05"
  },
- "ASTER": {
+ "TAO": {
   "verdict": "LONG",
-  "since": "2026-09-08"
+  "since": "2026-09-04"
  },
  "MORPHO": {
   "verdict": "LONG",
   "since": "2026-08-31"
+ },
+ "ASTER": {
+  "verdict": "LONG",
+  "since": "2026-09-08"
  }
 }
