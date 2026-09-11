@@ -493,12 +493,22 @@ def render_whitelist_verdicts(
     if equity and _n_entries > 1:
         typical_stop = 10.0
         cap = supportable_entries(equity, typical_stop)
-        if cap and cap < _n_entries:
+        # `if cap` глушило сообщение при cap == 0 — то есть ровно тогда,
+        # когда счёт не тянет НИ ОДНОЙ сделки и предупреждение важнее
+        # всего. Четвёртый случай «ноль это ложь» за неделю (11.09).
+        if cap == 0:
+            lines.append("")
+            lines.append(
+                f"⛔ Счёт ${equity:,.0f} не тянет ни одной сделки: при "
+                f"типичном стопе {typical_stop:.0f}% позиция выходит меньше "
+                f"минимального ордера ${MIN_ORDER_USD:.0f}. Сигналы ниже — "
+                f"для наблюдения, не для исполнения.")
+        elif cap < _n_entries:
             lines.append("")
             lines.append(
                 f"💰 Счёт ${equity:,.0f} тянет {cap} "
                 f"{'сделку' if cap == 1 else 'сделки'} из {_n_entries} — "
-                f"размер посчитан на {cap}. Выбери сам, какие брать.")
+                f"выбери сам, какие брать.")
 
     if waits_line:
         lines.append("")

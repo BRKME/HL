@@ -88,3 +88,34 @@ def test_rs_hidden_for_btc():
         regime_snapshot=None, state_dir=Path(tempfile.mkdtemp()),
         show_whale_stance=False))
     assert "vs BTC" not in msg
+
+
+def test_zero_capacity_is_announced_not_suppressed():
+    """`if cap` глушило сообщение при cap == 0 — ровно тогда, когда счёт не
+    тянет ни одной сделки и предупреждение важнее всего.
+
+    Четвёртый случай «ноль это ложь» за неделю: до этого метка времени 0
+    отбрасывалась в свече, в заполнении и в индексе."""
+    import re
+    import tempfile
+    from datetime import datetime, timezone
+    from pathlib import Path
+
+    from src.whitelist_focus import render_whitelist_verdicts
+
+    closes = [100.0 * (1.004 ** i) for i in range(220)]
+    candles = [{"o": c, "h": c * 1.02, "l": c * 0.98, "c": c} for c in closes]
+    cd = {c: {"mark": closes[-1], "candles_closes": closes,
+              "candles": candles} for c in ("BTC", "ETH", "NEAR")}
+    msg = re.sub(r"<[^>]+>", "", render_whitelist_verdicts(
+        now=datetime(2026, 9, 11, 9, 0, tzinfo=timezone.utc), coin_data=cd,
+        regime_snapshot=None, state_dir=Path(tempfile.mkdtemp()),
+        show_whale_stance=False, equity=30.0))
+    assert "не тянет ни одной" in msg or "Входов нет" in msg
+
+
+def test_partial_capacity_still_announced():
+    from src.whitelist_focus import supportable_entries
+
+    assert supportable_entries(30, 10) == 0
+    assert supportable_entries(174, 10) == 1
