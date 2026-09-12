@@ -5,6 +5,18 @@
       "whale": "0xdd7a372377fc633f74ab6e20963803d52f448830",
       "coin": "TAO",
       "ts": 1789236238
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0x6ba889db7f923622d3548f621ecc2054b80c1817",
+      "coin": "ETH",
+      "ts": 1789250099
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xc926ddba8b7617dbc65712f20cf8e1b58b8598d3",
+      "coin": "PUMP",
+      "ts": 1789250099
     }
   ]
 }
