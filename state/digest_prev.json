@@ -1,4 +1,12 @@
 {
+ "BTC": {
+  "verdict": "LONG",
+  "since": "2026-09-05"
+ },
+ "ETH": {
+  "verdict": "LONG",
+  "since": "2026-08-31"
+ },
  "ZEC": {
   "verdict": "LONG",
   "since": "2026-09-11"
@@ -11,24 +19,16 @@
   "verdict": "LONG",
   "since": "2026-08-31"
  },
- "ETH": {
+ "ASTER": {
   "verdict": "LONG",
-  "since": "2026-08-31"
- },
- "BTC": {
-  "verdict": "LONG",
-  "since": "2026-09-05"
- },
- "TAO": {
-  "verdict": "LONG",
-  "since": "2026-09-04"
+  "since": "2026-09-08"
  },
  "MORPHO": {
   "verdict": "LONG",
   "since": "2026-08-31"
  },
- "ASTER": {
+ "TAO": {
   "verdict": "LONG",
-  "since": "2026-09-08"
+  "since": "2026-09-04"
  }
 }
