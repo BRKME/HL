@@ -2,9 +2,9 @@
   "entries": [
     {
       "rule": "WHALE_NEW_OPEN",
-      "whale": "0x8a3cf3c4b300be69429cce5beb2ef14d7200b6b7",
-      "coin": "PUMP",
-      "ts": 1788536583
+      "whale": "0xdd7a372377fc633f74ab6e20963803d52f448830",
+      "coin": "TAO",
+      "ts": 1789236238
     }
   ]
 }
