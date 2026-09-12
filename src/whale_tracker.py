@@ -70,6 +70,27 @@ class WhaleFill:
 @dataclass
 class FillCursor:
     last_tid_by_whale: dict[str, int] = field(default_factory=dict)
+    # Время последнего виденного заполнения и идентификаторы сделок ровно
+    # на этой метке: время монотонно, tid — нет, поэтому граница окна
+    # держится временем, а повторы внутри одной метки отсекаются tid.
+    last_time_by_whale: dict[str, int] = field(default_factory=dict)
+    boundary_tids_by_whale: dict[str, list] = field(default_factory=dict)
+
+    def last_time_ms(self, whale: str) -> int:
+        return int(self.last_time_by_whale.get(whale, 0))
+
+    def recent_tids(self, whale: str) -> set:
+        return set(self.boundary_tids_by_whale.get(whale, []))
+
+    def advance_time(self, whale: str, time_ms: int, tids: list) -> None:
+        prev = self.last_time_by_whale.get(whale, 0)
+        if time_ms > prev:
+            self.last_time_by_whale[whale] = int(time_ms)
+            self.boundary_tids_by_whale[whale] = [int(t) for t in tids]
+        elif time_ms == prev:
+            merged = set(self.boundary_tids_by_whale.get(whale, [])) | set(
+                int(t) for t in tids)
+            self.boundary_tids_by_whale[whale] = sorted(merged)
 
     def advance(self, whale: str, tid: int) -> None:
         prev = self.last_tid_by_whale.get(whale, 0)
@@ -220,8 +241,9 @@ def fetch_whale_fills(
     """
     whale_lc = whale.lower()
     last_tid = cursor.last_tid(whale_lc)
+    last_seen_ms = cursor.last_time_ms(whale_lc)
 
-    if last_tid == 0:
+    if last_tid == 0 and last_seen_ms == 0:
         start_ms = int((now - timedelta(hours=bootstrap_hours)).timestamp() * 1000)
     else:
         # Cursor's last fill time isn't in the cursor — we go back a bit and dedup by tid.
@@ -241,19 +263,35 @@ def fetch_whale_fills(
     if not isinstance(raw_fills, list):
         return []
 
+    # Дедуп ПО ВРЕМЕНИ, а не по идентификатору сделки.
+    #
+    # Прежняя версия отбрасывала всё с `tid <= last_tid`, предполагая, что
+    # идентификаторы растут со временем. На наших данных это неверно: 34
+    # тысячи нарушений монотонности из 120 тысяч заполнений, почти треть.
+    # Один высокий tid НАВСЕГДА закрывал для кита все последующие сделки с
+    # меньшими номерами — сбор обвалился с тысяч заполнений в день до
+    # единиц после 3 сентября, и сигналов не стало вовсе (12.09).
+    #
+    # Время монотонно по определению. Идентификаторы при этом остаются
+    # нужны: внутри одной секунды бывает несколько сделок, и без них
+    # повторы на границе окна прошли бы дважды.
     parsed: list[WhaleFill] = []
-    max_tid = last_tid
+    max_time = last_seen_ms
+    seen_tids = cursor.recent_tids(whale_lc)
     for raw in raw_fills:
         f = parse_fill(raw, whale=whale_lc)
         if f is None:
             continue
-        if f.tid <= last_tid:
+        if f.time_ms < last_seen_ms:
+            continue
+        if f.time_ms == last_seen_ms and f.tid in seen_tids:
             continue
         parsed.append(f)
-        if f.tid > max_tid:
-            max_tid = f.tid
+        if f.time_ms > max_time:
+            max_time = f.time_ms
 
-    if max_tid > last_tid:
-        cursor.advance(whale_lc, max_tid)
+    if parsed:
+        boundary = [f.tid for f in parsed if f.time_ms == max_time]
+        cursor.advance_time(whale_lc, max_time, boundary)
 
     return parsed

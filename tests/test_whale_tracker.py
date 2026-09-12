@@ -253,17 +253,24 @@ def test_fetch_whale_fills_uses_full_history_for_new_whale():
     assert abs(kwargs["start_time_ms"] - four_hours_ago_ms) < 5000
 
 
-def test_fetch_whale_fills_filters_out_already_seen_tids():
-    """Cursor at tid=100. Response has tids 99, 100, 101 — keep only 101."""
+def test_fetch_whale_fills_dedups_by_time_not_tid():
+    """Дедуп по ВРЕМЕНИ: идентификаторы не монотонны (34k нарушений из
+    120k), и отсечение по ним навсегда закрывало кита — сбор обвалился с
+    тысяч заполнений в день до единиц (12.09).
+
+    Курсор стоит на метке времени t. Заполнение с МЕНЬШИМ tid, но БОЛЬШИМ
+    временем обязано пройти."""
+    t = int(SAMPLE_FILL["time"])
     client = MagicMock()
     client.get_user_fills_by_time.return_value = [
-        {**SAMPLE_FILL, "tid": 99},
-        {**SAMPLE_FILL, "tid": 100},
-        {**SAMPLE_FILL, "tid": 101},
+        {**SAMPLE_FILL, "tid": 99, "time": t - 1000},     # раньше — мимо
+        {**SAMPLE_FILL, "tid": 100, "time": t},           # ровно граница
+        {**SAMPLE_FILL, "tid": 5, "time": t + 1000},      # позже, tid МЕНЬШЕ
     ]
-    cursor = FillCursor(last_tid_by_whale={"0xabc": 100})
+    cursor = FillCursor(last_time_by_whale={"0xabc": t},
+                        boundary_tids_by_whale={"0xabc": [100]})
     fills = fetch_whale_fills(client, "0xabc", cursor, now=NOW)
-    assert [f.tid for f in fills] == [101]
+    assert [f.tid for f in fills] == [5]
 
 
 def test_fetch_whale_fills_returns_empty_on_client_error():
@@ -276,13 +283,19 @@ def test_fetch_whale_fills_returns_empty_on_client_error():
 
 
 def test_fetch_whale_fills_advances_cursor_on_success():
-    """Cursor must advance to the max tid seen."""
+    """Курсор двигается по ВРЕМЕНИ, а не по идентификатору.
+
+    Идентификаторы у трёх заполнений идут не по порядку (201, 203, 202) —
+    именно поэтому опираться на них нельзя."""
+    t = int(SAMPLE_FILL["time"])
     client = MagicMock()
     client.get_user_fills_by_time.return_value = [
-        {**SAMPLE_FILL, "tid": 201},
-        {**SAMPLE_FILL, "tid": 203},
-        {**SAMPLE_FILL, "tid": 202},
+        {**SAMPLE_FILL, "tid": 201, "time": t + 1000},
+        {**SAMPLE_FILL, "tid": 203, "time": t + 2000},
+        {**SAMPLE_FILL, "tid": 202, "time": t + 3000},
     ]
-    cursor = FillCursor(last_tid_by_whale={"0xabc": 100})
+    cursor = FillCursor()
     fetch_whale_fills(client, "0xabc", cursor, now=NOW)
-    assert cursor.last_tid_by_whale["0xabc"] == 203
+    assert cursor.last_time_ms("0xabc") == t + 3000
+    # на границе остаётся идентификатор самой поздней сделки
+    assert cursor.recent_tids("0xabc") == {202}
