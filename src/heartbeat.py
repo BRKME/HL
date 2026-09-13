@@ -48,13 +48,15 @@ def build_heartbeat(regime: Optional[str], phase: Optional[str],
     ph = phase or "n/a"
     pos = "есть открытые позиции" if has_positions else "позиций нет (вне рынка)"
     date = now.strftime("%d.%m.%Y")
-    lines = [f"✅ HL бот жив · {date}",
-             f"Режим: {reg} · фаза: {ph}",
-             f"Портфель: {pos}"]
+    # «Бот жив» убрано: детектор журнала кричит при молчании источника, а
+    # сам факт прихода письма и есть доказательство живости. Строка про
+    # «статус-пинг» тоже: письмо теперь несёт табель, а не пустой сигнал
+    # о себе (13.09).
+    lines = [f"📋 <b>Итог дня</b> · {date}",
+             f"Режим: {reg} · фаза: {ph} · {pos}"]
     if tactical_line:
+        lines.append("")
         lines.append(tactical_line)
-    lines.append("<i>Тихий день — новых сигналов нет (вердикт не менялся). "
-                 "Это статус-пинг, не сигнал.</i>")
     return "\n".join(lines)
 
 
@@ -94,10 +96,13 @@ def _current_price(coin: str) -> Optional[float]:
     return None
 
 
-def _tactical_line() -> Optional[str]:
-    """Полный вид модели для heartbeat: направление, исходный вход @ цена, SL,
-    текущая цена. Чтобы пропустивший алерт оператор видел уровни и мог войти
-    по текущей цене, не дожидаясь следующего сигнала (~2 недели)."""
+def _tactical_line(as_rows: bool = False):
+    """Открытые модельные сделки: вход, стоп, цель, текущая цена.
+
+    as_rows=True возвращает данные для табеля вместо готового текста.
+    Список монет в письмо больше не идёт: он повторял дайджест с меньшим
+    набором данных (замечание оператора 13.09).
+    """
     try:
         import json
         from src.tactical_signals import tactical_levels_line
@@ -127,10 +132,14 @@ def _tactical_line() -> Optional[str]:
                 "current": _current_price(coin),
                 "days": days,
             }
+        if as_rows:
+            # Табелю нужны данные, а не текст: монета попадает в строку
+            # словаря, из которого scorecard считает результат.
+            return [dict(v, coin=c) for c, v in signals.items()]
         return tactical_levels_line(signals) or None
     except Exception as e:  # noqa: BLE001
         print(f"[heartbeat] tactical levels n/a: {e}")
-        return None
+        return [] if as_rows else None
 
 
 def main() -> None:
@@ -157,8 +166,15 @@ def main() -> None:
     except Exception as e:  # noqa: BLE001
         print(f"[heartbeat] portfolio n/a: {e}")
 
+    # Табель вместо списка монет: письмо должно говорить то, чего нет в
+    # дайджесте, — как идут УЖЕ ВЫДАННЫЕ сигналы.
+    try:
+        card = scorecard(_tactical_line(as_rows=True))
+    except Exception as e:  # noqa: BLE001
+        print(f"[heartbeat] scorecard n/a: {e}")
+        card = None
     msg = build_heartbeat(regime, phase, has_positions, now,
-                          tactical_line=_tactical_line())
+                          tactical_line=card)
     print(msg)
     try:
         # Heartbeat — тоже сообщение в канал, поэтому шлём через send_messages:
@@ -172,3 +188,48 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+def scorecard(open_trades) -> Optional[str]:
+    """Табель системы: как идут сигналы, которые она сама выдала.
+
+    Заведён 13.09 по замечанию оператора: прежний heartbeat перечислял те
+    же монеты, что и дайджест, только с меньшим набором данных — читался
+    как худшая копия. Но одно он знает, чего не знает дайджест: результат
+    УЖЕ ВЫДАННЫХ сигналов с момента входа.
+
+    В тот день это было 1 из 7 в плюсе при среднем −3.7%. Такое письмо
+    стоит получать; список монет, повторяющий дайджест, — нет.
+
+    «Бот жив» убрано: детектор журнала кричит при молчании источника, и
+    отдельный пинг о том же лишний. Живость доказывается тем, что письмо
+    пришло.
+    """
+    import statistics
+
+    rows = []
+    for t in open_trades or []:
+        entry = t.get("entry") if isinstance(t, dict) else getattr(t, "entry", None)
+        cur = t.get("current") if isinstance(t, dict) else getattr(t, "current", None)
+        coin = t.get("coin") if isinstance(t, dict) else getattr(t, "coin", None)
+        side = (t.get("direction") if isinstance(t, dict)
+                else getattr(t, "direction", "LONG")) or "LONG"
+        if not entry or not cur or entry <= 0:
+            continue
+        move = (cur / entry - 1.0) * 100
+        rows.append((coin, move if side == "LONG" else -move))
+
+    if not rows:
+        return None
+
+    pnl = [r[1] for r in rows]
+    wins = sum(1 for x in pnl if x > 0)
+    best = max(rows, key=lambda r: r[1])
+    worst = min(rows, key=lambda r: r[1])
+    avg = statistics.mean(pnl)
+    mark = "🟢" if avg > 0 else "🔴" if avg < -1 else "⚪"
+
+    return (f"{mark} <b>Как идут сигналы системы</b>\n"
+            f"в плюсе {wins} из {len(rows)} · средний результат {avg:+.1f}%\n"
+            f"лучший {best[0]} {best[1]:+.1f}% · худший {worst[0]} "
+            f"{worst[1]:+.1f}%")

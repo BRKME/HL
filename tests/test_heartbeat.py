@@ -32,7 +32,12 @@ class TestText:
         assert "BEAR" in msg
         assert "CAPITULATION" in msg
         assert "позиц" in msg.lower()
-        assert "✅" in msg or "жив" in msg.lower() or "работает" in msg.lower()
+        # «Бот жив» убрано 13.09: детектор журнала кричит при молчании
+        # источника, а сам факт прихода письма и есть доказательство
+        # живости. Письмо теперь несёт табель сигналов, а не сообщение о
+        # себе — оператор заметил, что оно дублировало дайджест.
+        assert "Итог дня" in msg
+        assert "жив" not in msg.lower()
 
     def test_text_positions_flag(self):
         msg = hb.build_heartbeat(regime="BULL", phase="MARKUP",
