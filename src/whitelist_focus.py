@@ -476,7 +476,19 @@ def render_whitelist_verdicts(
             lines.append(f"⚫ <code>{_e(coin)}</code> — нет данных")
             continue
 
+        # По входу сразу даём стоп и размер: без них письмо неисполнимо,
+        # оператору приходилось ждать отдельного тактического сигнала.
+        plan = _entry_plan(coin, verdict, mark, coin_data.get(coin) or {},
+                           n_entries=_n_entries, equity=equity)
+
+        # Жёлтый для входа, который нельзя исполнить при текущем плече.
+        # Зелёный кружок над строкой «стоп не помещается» обещает то, чего
+        # нет: цвет говорит «действуй», а план — «нельзя» (13.09).
+        # Больше оттенков не вводим: три состояния читаются, пять сольются
+        # в пестроту и перестанут нести смысл.
         emoji = emoji_map.get(verdict, "⚪")
+        if verdict in ("LONG", "SHORT") and plan and "не помещается" in plan:
+            emoji = "🟡"
         label = label_map.get(verdict, "НЕ ВХОДИТЬ")
 
         # Compact: parenthesised rationale, trimmed to keep one line short
@@ -484,10 +496,6 @@ def render_whitelist_verdicts(
         if len(short_rat) > 90:
             short_rat = short_rat[:87].rstrip() + "…"
 
-        # По входу сразу даём стоп и размер: без них письмо неисполнимо,
-        # оператору приходилось ждать отдельного тактического сигнала.
-        plan = _entry_plan(coin, verdict, mark, coin_data.get(coin) or {},
-                           n_entries=_n_entries, equity=equity)
         # «RS +35» был внутренним термином, а «vs BTC +35%» — неверным по
         # существу: это разница ДОХОДНОСТЕЙ за 30 дней, то есть процентные
         # ПУНКТЫ, а не проценты. «+35%» читается как «дороже BTC на 35%»,

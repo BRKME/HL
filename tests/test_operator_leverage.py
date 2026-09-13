@@ -110,3 +110,24 @@ def test_entry_never_appears_without_a_plan_line():
 
     for sl in (95.0, 88.0, 82.0, 70.0):
         assert _plan_line("LONG", 100.0, sl, 1), f"пусто при стопе {100-sl}%"
+
+
+def test_unexecutable_entry_is_not_green():
+    """Зелёный кружок над строкой «стоп не помещается» обещает то, чего
+    нет: цвет говорит «действуй», а план — «нельзя» (13.09, ZEC).
+
+    Проверяется прямо на правиле выбора значка: строить синтетику с
+    достаточно широким стопом хрупко, а правило одно и проверяемо."""
+    import inspect
+
+    from src import whitelist_focus
+
+    src = inspect.getsource(whitelist_focus)
+    assert 'emoji = "🟡"' in src
+    assert '"не помещается" in plan' in src
+
+
+def test_executable_entry_stays_green():
+    from src.whitelist_focus import _plan_line
+
+    assert "не помещается" not in _plan_line("LONG", 100.0, 92.0, 1)
