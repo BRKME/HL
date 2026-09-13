@@ -1,6 +1,7 @@
 {
  "last_regime": "TRANSITION",
  "flip_streak": {
-  "MORPHO": 1
+  "MORPHO": 2,
+  "TAO": 1
  }
 }
