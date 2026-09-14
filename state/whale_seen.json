@@ -47,6 +47,24 @@
       "whale": "0x757df2c060ec6c7ba898fa6570aa98c1f46294ba",
       "coin": "ZEC",
       "ts": 1789337081
+    },
+    {
+      "rule": "WHALE_CLUSTER",
+      "whale": "",
+      "coin": "ZEC",
+      "ts": 1789355728
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0x469e9a7f624b04c24f0e64edf8d8a277e6bf58a5",
+      "coin": "ZEC",
+      "ts": 1789355728
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xaf0fdd39e5d92499b0ed9f68693da99c0ec1e92e",
+      "coin": "BTC",
+      "ts": 1789355728
     }
   ]
 }
