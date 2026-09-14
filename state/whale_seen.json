@@ -1,42 +1,6 @@
 {
   "entries": [
     {
-      "rule": "WHALE_CLUSTER",
-      "whale": "",
-      "coin": "ETH",
-      "ts": 1789313642
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0xaf0fdd39e5d92499b0ed9f68693da99c0ec1e92e",
-      "coin": "ETH",
-      "ts": 1789313642
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0x90dbb196cacf24bd212b377a0dd62eaad5e8151b",
-      "coin": "ETH",
-      "ts": 1789313642
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0x9e2cbb5d800181c1ef21b25010dc4ea80eeb5508",
-      "coin": "HYPE",
-      "ts": 1789313642
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0x9e2cbb5d800181c1ef21b25010dc4ea80eeb5508",
-      "coin": "BTC",
-      "ts": 1789313642
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0xfc27136e42af1732ddc9ce2605ea9bff1b959d9d",
-      "coin": "BTC",
-      "ts": 1789313642
-    },
-    {
       "rule": "WHALE_NEW_OPEN",
       "whale": "0x795cfd1b03eafc11c4ec958b8a94cfc9aa64a242",
       "coin": "ETH",
@@ -65,6 +29,42 @@
       "whale": "0xaf0fdd39e5d92499b0ed9f68693da99c0ec1e92e",
       "coin": "BTC",
       "ts": 1789355728
+    },
+    {
+      "rule": "WHALE_CLUSTER",
+      "whale": "",
+      "coin": "ETH",
+      "ts": 1789407482
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0x469e9a7f624b04c24f0e64edf8d8a277e6bf58a5",
+      "coin": "ETH",
+      "ts": 1789407482
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0x469e9a7f624b04c24f0e64edf8d8a277e6bf58a5",
+      "coin": "BTC",
+      "ts": 1789407482
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xc926ddba8b7617dbc65712f20cf8e1b58b8598d3",
+      "coin": "HYPE",
+      "ts": 1789407482
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0x5f94a51948d2376ad34a6fadfa2544e651b74b96",
+      "coin": "BNB",
+      "ts": 1789407482
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0x0871deb34bfd2052b1c10dc4f6c0912a2a47e927",
+      "coin": "ZEC",
+      "ts": 1789407482
     }
   ]
 }
