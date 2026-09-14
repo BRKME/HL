@@ -55,8 +55,31 @@ def _fmt_money(v: float) -> str:
 
 # --------------------------------------------------------------- routing
 
-def split_by_mode(signals: list[Signal]) -> tuple[list[Signal], list[Signal]]:
-    """Return (instant, digest). warn+ are instant; info are digest."""
+# Ночное окно тишины, МСК. Мгновенный алерт ночью оператор всё равно не
+# исполнит — он либо срочный, либо не нужен вовсе, а разбудить может.
+# Копим и отдаём утренним дайджестом (14.09, письмо в 01:04 про одного
+# кита). Границы по московскому времени, потому что живёт он по нему.
+QUIET_START_MSK = 23
+QUIET_END_MSK = 7
+
+
+def in_quiet_hours(now) -> bool:
+    """Ночь ли сейчас по Москве. Окно переходит через полночь."""
+    from datetime import timedelta
+
+    msk = (now + timedelta(hours=3)).hour
+    return msk >= QUIET_START_MSK or msk < QUIET_END_MSK
+
+
+def split_by_mode(signals: list[Signal], now=None
+                  ) -> tuple[list[Signal], list[Signal]]:
+    """Return (instant, digest). warn+ are instant; info are digest.
+
+    Ночью мгновенных алертов нет вовсе: всё уходит в дайджест, который
+    отправится утром.
+    """
+    if now is not None and in_quiet_hours(now):
+        return [], list(signals)
     instant: list[Signal] = []
     digest: list[Signal] = []
     for s in signals:

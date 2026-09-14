@@ -376,7 +376,7 @@ def run_whale_monitor(
             })
         save_seen_signals(seen, seen_path)
 
-    instant, info = split_by_mode(signals)
+    instant, info = split_by_mode(signals, now=now)
 
     # Одно письмо вместо двух: дайджест и мгновенные алерты этого прогона
     # склеиваются. Дайджест обязан уходить и в тихие дни, поэтому его
