@@ -42,15 +42,15 @@
   "last_change_ts": "2026-09-13T11:55:30.000056+00:00"
  },
  "TAO": {
-  "last_verdict": "WAIT",
+  "last_verdict": "LONG",
   "last_action_verdict": "LONG",
   "last_alert_ts": "2026-09-11T16:39:03.175540+00:00",
   "last_change_ts": "2026-09-11T16:39:03.175540+00:00"
  },
  "ONDO": {
-  "last_verdict": "WAIT",
-  "last_action_verdict": null,
-  "last_alert_ts": "2026-09-06T15:35:47.471974+00:00",
-  "last_change_ts": "2026-09-10T17:42:41.406104+00:00"
+  "last_verdict": "LONG",
+  "last_action_verdict": "LONG",
+  "last_alert_ts": "2026-09-14T19:30:14.259319+00:00",
+  "last_change_ts": "2026-09-14T19:30:14.259319+00:00"
  }
 }
