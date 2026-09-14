@@ -220,6 +220,16 @@ def scorecard(open_trades) -> Optional[str]:
         rows.append((coin, move if side == "LONG" else -move))
 
     if not rows:
+        # Цены не подтянулись — молчать нельзя: 14.09 «Итог дня» пришёл
+        # пустым, и понять почему было невозможно. Прежний код умел
+        # показать вход и стоп без текущей цены, мой табель без неё
+        # бессилен — значит обязан сказать об этом вслух.
+        known = [t for t in (open_trades or [])
+                 if (t.get("entry") if isinstance(t, dict)
+                     else getattr(t, "entry", None))]
+        if known:
+            return (f"⚠️ Открытых сигналов {len(known)}, но текущие цены "
+                    f"недоступны — результат не посчитан.")
         return None
 
     pnl = [r[1] for r in rows]

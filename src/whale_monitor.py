@@ -208,8 +208,35 @@ def run_whale_monitor(
     pending_path = state_dir / "whale_pending_info.jsonl"
     last_digest_path = state_dir / "whale_last_digest.json"
 
-    # Digest first: it must run even on quiet days (no new fills / no candidates).
-    _maybe_flush_digest(pending_path, last_digest_path, now=now)
+    # Дайджест НЕ шлём здесь: если в этом же прогоне найдутся мгновенные
+    # алерты, получится два письма с разницей в минуту — 14.09 дайджест
+    # ушёл в 06:15, а CLUSTER ZEC отдельным письмом в 06:16. Флаг ставим,
+    # отправляем ниже, объединив с алертами этого прогона.
+    _digest_due = _should_flush_digest(last_digest_path, now=now)
+
+    def _flush_digest_alone() -> None:
+        """Отправить дайджест без алертов — для тихих дней.
+
+        Функция выходит рано, если нет новых заполнений или кандидатов, и
+        дайджест обязан уйти всё равно: он отчитывается за сутки, а не за
+        прогон. Раньше это обеспечивалось отправкой в самом начале, но
+        тогда алерты того же прогона уходили вторым письмом минутой позже
+        (14.09). Теперь склейка внизу, а здесь — запасной путь.
+        """
+        if not _digest_due:
+            return
+        rows = _read_pending(pending_path)
+        if not rows:
+            return
+        msg = render_digest(rows, now=now)
+        if not msg:
+            return
+        try:
+            send_messages([msg])
+            _clear_pending(pending_path)
+            _mark_digest_sent(last_digest_path, now=now)
+        except Exception as e:  # noqa: BLE001
+            logger.warning("digest telegram send failed: %s", e)
 
     # rotate + prune old archives BEFORE writing new fills
     rotated = rotate_if_month_changed(fills_path, now=now)
@@ -225,6 +252,7 @@ def run_whale_monitor(
     except WhaleSourceError as e:
         logger.warning("leaderboard fetch failed: %s — skipping this run", e)
         _write_run_meta(meta_path, now, candidate_count=0, status="leaderboard_failed")
+        _flush_digest_alone()
         return
 
     candidates = pick_candidates(all_candidates, CandidateFilters(top_n=top_n))
@@ -266,6 +294,7 @@ def run_whale_monitor(
 
     if not candidates:
         _write_run_meta(meta_path, now, candidate_count=0, status="no_candidates")
+        _flush_digest_alone()
         return
 
     # ---- 2-3. incremental fills per whale
@@ -289,6 +318,7 @@ def run_whale_monitor(
         _write_run_meta(meta_path, now,
                         candidate_count=len(candidates),
                         new_fills=0, status="no_new_fills")
+        _flush_digest_alone()
         return
 
     # ---- 4. score every whale that produced new fills
@@ -348,15 +378,29 @@ def run_whale_monitor(
 
     instant, info = split_by_mode(signals)
 
-    # Instant: send immediately
+    # Одно письмо вместо двух: дайджест и мгновенные алерты этого прогона
+    # склеиваются. Дайджест обязан уходить и в тихие дни, поэтому его
+    # готовность проверена выше, до сбора сигналов.
+    parts = []
+    pending = _read_pending(pending_path) if _digest_due else []
+    digest_msg = render_digest(pending, now=now) if pending else None
+    if digest_msg:
+        parts.append(digest_msg)
     if instant:
-        msg = render_instant_alerts(instant, now=now)
-        if msg:
-            try:
-                send_messages([msg])
-                logger.info("sent instant alert with %d signals", len(instant))
-            except Exception as e:
-                logger.warning("instant telegram send failed: %s", e)
+        alert_msg = render_instant_alerts(instant, now=now)
+        if alert_msg:
+            parts.append(alert_msg)
+
+    if parts:
+        try:
+            send_messages(["\n\n".join(parts)])
+            logger.info("sent %d block(s): digest=%s instant=%d",
+                        len(parts), bool(digest_msg), len(instant))
+            if digest_msg:
+                _clear_pending(pending_path)
+                _mark_digest_sent(last_digest_path, now=now)
+        except Exception as e:
+            logger.warning("whale telegram send failed: %s", e)
 
     # Info: park in pending (digest flush already ran at top of function).
     # Отфильтровано тем же правилом, что и показ, — буфер и заголовок обязаны

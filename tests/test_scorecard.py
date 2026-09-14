@@ -57,3 +57,22 @@ def test_no_trades_no_message():
 
 def test_broken_rows_skipped():
     assert scorecard([{"coin": "A"}, _t("B", 100, 110)]) is not None
+
+
+def test_says_why_when_prices_unavailable():
+    """14.09 «Итог дня» пришёл ПУСТЫМ: цены не подтянулись, и табель молча
+    вернул ничего. Прежний код умел показать вход и стоп без текущей цены;
+    мой без неё бессилен — значит обязан сказать об этом вслух."""
+    rows = [{"coin": "BTC", "entry": 79505.0, "current": None,
+             "direction": "LONG"},
+            {"coin": "ETH", "entry": 2433.0, "current": None,
+             "direction": "LONG"}]
+    out = scorecard(rows)
+    assert out is not None
+    assert "цены" in out and "2" in out
+
+
+def test_silent_only_when_nothing_is_open():
+    """Сигналов нет — писать нечего, и это законное молчание."""
+    assert scorecard([]) is None
+    assert scorecard([{"coin": "BTC"}]) is None
