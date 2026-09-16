@@ -436,7 +436,18 @@ def build_alert(*, coin: str, direction: str, entry: float, sl: Optional[float],
         from src import leverage as _lev
         _s = _lev.suggest(coin, direction, regime, entry, sl)
         if _s:
-            lines.append(_lev.format_line(_s))
+            # Счёт нужен, чтобы не предлагать неисполнимый размер: при
+            # $6 «8% депозита» — это 48 центов при минимальном ордере $10
+            # (16.09). Дайджест такое уже помечал, тактический слой нет.
+            _eq = None
+            try:
+                from src.hl_client import HLClient
+                from src.daily_monitor import _build_portfolio, load_accounts
+                _eq = float(_build_portfolio(
+                    HLClient(), load_accounts()).total_account_value)
+            except Exception:  # noqa: BLE001
+                pass
+            lines.append(_lev.format_line(_s, equity=_eq))
 
     # 3. Блок рынка — контекст, отделён от уровней сделки
     lines.append("")

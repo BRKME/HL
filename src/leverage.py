@@ -91,6 +91,25 @@ def suggest(coin: str, direction: str, regime: Optional[str],
     }
 
 
-def format_line(s: dict) -> str:
-    return (f"⚖️ Плечо: {s['leverage']}x · размер ~{s['size_pct_equity']:.0f}% "
+def format_line(s: dict, equity: Optional[float] = None) -> str:
+    """Строка плеча и размера. При известном счёте — с проверкой
+    исполнимости.
+
+    16.09: тактический сигнал предлагал «размер ~8% депозита» при счёте
+    $6 — это 48 центов при минимальном ордере $10. Дайджест такую сделку
+    уже помечал неисполнимой, а тактический слой о размере счёта не знал
+    вовсе: проверка была добавлена только в одно из двух мест.
+    """
+    base = (f"⚖️ Плечо: {s['leverage']}x · размер ~{s['size_pct_equity']:.0f}% "
             f"депозита ({s['note']})")
+    if not equity or equity <= 0:
+        return base
+
+    from src.whitelist_focus import MIN_ORDER_USD
+
+    notional = equity * float(s["size_pct_equity"]) / 100
+    if notional < MIN_ORDER_USD:
+        return (f"⚖️ Плечо: {s['leverage']}x · размер ~{notional:.2f}$ "
+                f"⛔ ниже минимального ордера ${MIN_ORDER_USD:.0f} — "
+                f"сделку открыть нельзя")
+    return f"{base} ≈ ${notional:.0f}"
