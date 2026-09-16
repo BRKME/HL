@@ -26,11 +26,17 @@ from src.leverage import (
 )
 
 
-def test_operator_leverage_is_five():
-    assert OPERATOR_LEVERAGE == 5
+def test_operator_leverage_is_three():
+    """Снижено с 5x до 3x 16.09 — следствие перехода на недельный горизонт.
+
+    При 5x предел стопа был 16%, и недельная ставка (стоп ~16%) помещалась
+    впритык: ZEC со стопом 17% каждый день помечался неисполнимым. При 3x
+    предел 27% — недельные уровни проходят с запасом."""
+    assert OPERATOR_LEVERAGE == 3
 
 
-@pytest.mark.parametrize("lev,expected", [(1, 100.0), (2, 50.0), (5, 20.0)])
+@pytest.mark.parametrize("lev,expected", [(1, 100.0), (2, 50.0), (3, 100/3),
+                                         (5, 20.0)])
 def test_liquidation_distance(lev, expected):
     assert liquidation_distance_pct(lev) == pytest.approx(expected)
 
@@ -43,6 +49,19 @@ def test_stop_near_liquidation_is_rejected():
     """12.3% при 5x проходит, 17% — уже нет: запас съеден."""
     assert stop_survives_liquidation(12.3, leverage=5) is True
     assert stop_survives_liquidation(17.0, leverage=5) is False
+
+
+def test_weekly_stop_fits_at_three_but_not_five():
+    """Смысл перехода на 3x: недельный стоп 17% перестаёт быть
+    неисполнимым. Ровно случай ZEC, жёлтого каждый день."""
+    assert stop_survives_liquidation(17.0, leverage=5) is False
+    assert stop_survives_liquidation(17.0, leverage=3) is True
+
+
+def test_three_week_stop_still_does_not_fit():
+    """27% не помещается и при 3x — предел 26.7%. Граница названа честно,
+    а не подтянута под желаемое."""
+    assert stop_survives_liquidation(27.0, leverage=3) is False
 
 
 def test_stop_wider_than_liquidation_is_rejected():
@@ -67,9 +86,9 @@ def test_plan_line_refuses_stop_that_liquidates_first():
     обоих вариантов."""
     from src.whitelist_focus import _plan_line
 
-    out = _plan_line("LONG", entry=100.0, sl=75.0, n_entries=1)
+    out = _plan_line("LONG", entry=100.0, sl=65.0, n_entries=1)
     assert "не помещается" in out
-    assert "стоп 75" not in out
+    assert "стоп 65" not in out
 
 
 def test_plan_line_keeps_normal_stop():
@@ -89,10 +108,12 @@ def test_too_wide_stop_explains_itself():
     предупреждением, и отсутствия входа вовсе. Теперь называется причина."""
     from src.whitelist_focus import _plan_line
 
-    out = _plan_line("LONG", entry=100.0, sl=82.0, n_entries=1)
+    # Порог зависит от плеча: при 3x предел 27%, поэтому пример взят
+    # шире прежнего (18% теперь ПРОХОДИТ — в этом и был смысл перехода).
+    out = _plan_line("LONG", entry=100.0, sl=70.0, n_entries=1)
     assert out
     assert "не помещается" in out
-    assert "18.0%" in out
+    assert "30.0%" in out
 
 
 def test_normal_stop_has_no_warning():
