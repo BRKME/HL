@@ -44,7 +44,20 @@ TARGET_R = 1.5            # та же цель, что в тактическом
 # преимущество, но не создаёт его. Если входы теряют без него, никакое
 # правило выхода их не спасёт. И перебор вариантов на одних данных — это
 # множественное сравнение: результат считается гипотезой, а не выводом.
-EXIT_MODES = ("baseline", "no_flip", "trail", "hybrid")
+EXIT_MODES = ("baseline", "no_flip", "trail", "hybrid", "weekly_sltp")
+
+# Недельные уровни (16.09). Прежний замер «только SL/TP» оставил дневные:
+# стоп 2 ATR ≈ 8% — это движение двух дней, и на недельной ставке цена
+# проходит такое туда-обратно между делом. Отсюда WR 33% против 46%.
+#
+# Оператор: «эту роль должны играть SL и TP». Мысль верная, но проверять
+# её надо на уровнях СВОЕГО горизонта: стоп 4 ATR ≈ 16%, цель 3R.
+#
+# Оговорка, которую нельзя терять: при плече 5× ликвидация на 20%, и стоп
+# 16% стоит ровно на границе. Недельная ставка и пятикратное плечо
+# совместимы впритык; трёхнедельная требует 27% и не влезает вовсе.
+WEEKLY_ATR_MULT = 4.0
+WEEKLY_TARGET_R = 3.0
 
 TRAIL_ACTIVATE_R = 1.0    # трейлинг включается, только заработав право
 TRAIL_ATR_MULT = 2.5      # ширина трейла в ATR — «дать место в середине»
@@ -152,7 +165,8 @@ def replay(coin: str, candles: Sequence[dict],
                 reason, px = "sl", sl
             elif hit_tp:
                 reason, px = "tp", tp
-            elif exit_mode == "baseline" and verdict and verdict != d:
+            elif (exit_mode in ("baseline", "hybrid")
+                  and verdict and verdict != d):
                 reason, px = "verdict_flip", price
             if reason:
                 trades.append(Trade(
@@ -176,7 +190,16 @@ def replay(coin: str, candles: Sequence[dict],
             if sl and sl > 0 and ((verdict == "LONG" and sl < price)
                                   or (verdict == "SHORT" and sl > price)):
                 risk = abs(price - sl)
-                if exit_mode in ("trail",):
+                if exit_mode == "weekly_sltp":
+                    # Недельные уровни: стоп шире, цель дальше, выход
+                    # только по ним — без вмешательства вердикта.
+                    atr_now = ta.atr(candles[: i + 1], 14) or risk
+                    wide = WEEKLY_ATR_MULT * atr_now
+                    sl = (price - wide if verdict == "LONG" else price + wide)
+                    risk = abs(price - sl)
+                    tp = (price + WEEKLY_TARGET_R * risk if verdict == "LONG"
+                          else price - WEEKLY_TARGET_R * risk)
+                elif exit_mode in ("trail",):
                     tp = None          # цели нет: выход только трейлингом
                 elif exit_mode == "hybrid":
                     tp = (price + PARTIAL_AT_R * risk if verdict == "LONG"

@@ -32,10 +32,12 @@ def _candles(n=320, base=100.0, drift=0.004, wobble=0.02):
 
 
 def test_all_modes_are_named():
-    assert set(EXIT_MODES) == {"baseline", "no_flip", "trail", "hybrid"}
+    assert set(EXIT_MODES) == {"baseline", "no_flip", "trail", "hybrid",
+                               "weekly_sltp"}
 
 
-@pytest.mark.parametrize("mode", ["baseline", "no_flip", "trail", "hybrid"])
+@pytest.mark.parametrize("mode", ["baseline", "no_flip", "trail", "hybrid",
+                                  "weekly_sltp"])
 def test_every_mode_runs(mode):
     trades = replay("TEST", _candles(), exit_mode=mode)
     assert isinstance(trades, list)
@@ -79,3 +81,42 @@ def test_trail_activates_only_after_profit():
 def test_unknown_mode_is_rejected():
     with pytest.raises(ValueError):
         replay("TEST", _candles(), exit_mode="выдумка")
+
+
+# ------------------- недельные уровни: идея оператора, проверенная как надо
+
+def test_weekly_mode_exists():
+    assert "weekly_sltp" in EXIT_MODES
+
+
+def test_weekly_stop_is_wider_than_baseline():
+    """Прежний замер «только SL/TP» оставил ДНЕВНЫЕ уровни: стоп 2 ATR ≈ 8%,
+    то есть движение двух дней. На недельной ставке цена проходит такое
+    туда-обратно между делом — отсюда WR 33% против 46%.
+
+    Недельный стоп 4 ATR ≈ 16%: цена должна реально развернуться, чтобы
+    его достать."""
+    from src.tactical_backtest import WEEKLY_ATR_MULT
+
+    assert WEEKLY_ATR_MULT >= 4.0
+
+
+def test_weekly_target_is_further():
+    from src.tactical_backtest import WEEKLY_TARGET_R, TARGET_R
+
+    assert WEEKLY_TARGET_R > TARGET_R
+
+
+def test_weekly_mode_ignores_verdict_flip():
+    """Смысл режима: выход только по SL/TP, без вмешательства вердикта."""
+    trades = replay("TEST", _candles(), exit_mode="weekly_sltp")
+    assert all(t.exit_reason != "verdict_flip" for t in trades)
+
+
+def test_weekly_stop_fits_leverage_limit():
+    """При плече 5× ликвидация на 20%. Недельный стоп стоит на границе —
+    и это надо знать до того, как торговать по нему."""
+    from src.leverage import stop_survives_liquidation
+
+    assert stop_survives_liquidation(16.0) is True
+    assert stop_survives_liquidation(27.0) is False
