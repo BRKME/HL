@@ -19,8 +19,8 @@
   "verdict": "LONG",
   "since": "2026-08-31"
  },
- "ASTER": {
-  "verdict": "LONG",
-  "since": "2026-09-08"
+ "TAO": {
+  "verdict": "SHORT",
+  "since": "2026-09-16"
  }
 }
