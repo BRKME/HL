@@ -134,9 +134,16 @@ def _short_sig(entry=100.0, sl=110.0, tp=70.0):
     return {"direction": "SHORT", "entry": entry, "sl": sl, "tp": tp}
 
 
-def test_k_is_three():
-    """K зафиксирован в коде: разрыв в данных между 2 и 6 тиками."""
-    assert FLIP_CONFIRM_RUNS == 3
+def test_confirmation_matches_the_weeks_horizon():
+    """Было K=3 (шесть часов), стало 24 (двое суток).
+
+    Вход строится на EMA50/200 дневных свечей — это недели. Выход
+    подтверждался шесть часов, разрыв тридцатикратный: недельная идея
+    закрывалась после полудня колебаний. 44 выхода из 97 случались в
+    первые сутки (16.09)."""
+    from src.position_guard import FLIP_CONFIRM_RUNS
+
+    assert FLIP_CONFIRM_RUNS == 24
 
 
 def test_single_wait_dip_does_not_exit():
@@ -215,5 +222,10 @@ def test_default_flip_streak_preserves_old_behaviour():
     assert ex["reason"] == "verdict_flip"
 
 
-def test_policy_version_is_two():
-    assert POLICY_VERSION == 2
+def test_policy_version_is_three():
+    """Версия поднята до 3: выборки с гистерезисом 6 часов и двое суток —
+    разные стратегии, складывать их в одну статистику нельзя."""
+    from src.position_guard import POLICY_VERSION
+
+    assert POLICY_VERSION == 3
+
