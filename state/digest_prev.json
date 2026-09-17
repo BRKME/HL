@@ -11,16 +11,12 @@
   "verdict": "LONG",
   "since": "2026-09-11"
  },
- "NEAR": {
-  "verdict": "LONG",
-  "since": "2026-09-10"
- },
  "HYPE": {
   "verdict": "LONG",
   "since": "2026-08-31"
  },
- "TAO": {
-  "verdict": "SHORT",
-  "since": "2026-09-16"
+ "ASTER": {
+  "verdict": "LONG",
+  "since": "2026-09-17"
  }
 }
