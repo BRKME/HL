@@ -13,15 +13,15 @@
  },
  "ZEC": {
   "last_verdict": "LONG",
-  "last_action_verdict": "LONG",
+  "last_action_verdict": null,
   "last_alert_ts": "2026-09-10T16:33:25.007627+00:00",
-  "last_change_ts": "2026-09-10T16:33:25.007627+00:00"
+  "last_change_ts": "2026-09-17T18:15:57.066296+00:00"
  },
  "NEAR": {
   "last_verdict": "WAIT",
-  "last_action_verdict": "LONG",
+  "last_action_verdict": null,
   "last_alert_ts": "2026-09-10T11:33:46.917170+00:00",
-  "last_change_ts": "2026-09-10T11:33:46.917170+00:00"
+  "last_change_ts": "2026-09-17T18:15:57.066296+00:00"
  },
  "HYPE": {
   "last_verdict": "WAIT",
