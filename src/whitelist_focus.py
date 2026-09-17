@@ -398,10 +398,15 @@ def render_whitelist_verdicts(
     lines = [header + regime_line]
 
     # Whale stance line — derived from whale_fills.jsonl
+    # Позиция китов по монетам — нужна и для шапки, и для строк входов.
+    # Объявляем до условия: слой не должен зависеть от того, показываем ли
+    # шапку.
+    _stance_by_coin: dict = {}
     if show_whale_stance:
         try:
             from src.whale_stance import compute_stance, format_stance_line
             stances = compute_stance(state_dir, coins=FOCUS_COINS, now=now)
+            _stance_by_coin = stances or {}
             stance_line = format_stance_line(stances, FOCUS_COINS)
             # Монеты без данных из строки убираются (03.08): «BTC — • NEAR —
             # • HYPE —» несёт нули информации при полной строке текста.
@@ -506,6 +511,18 @@ def render_whitelist_verdicts(
                 and coin != "BTC"):
             word = "сильнее" if _rs >= 0 else "слабее"
             rs_note = f" · {word} BTC на {abs(_rs):.0f} п.п."
+        # Киты против вердикта — та же мысль, что «крупные против толпы»,
+        # но из другого источника: реальные кошельки, а не срезы биржи.
+        # 17.09: четыре кита шортили BTC на $12.3M, пока письмо предлагало
+        # лонг. Данные о них были в шапке, но со строками монет не связаны —
+        # слои спорили молча.
+        whale_note = ""
+        _st = _stance_by_coin.get(coin)
+        if _st is not None and verdict in ("LONG", "SHORT"):
+            bias = _st.bias
+            if bias and bias.upper() != verdict:
+                whale_note = f" ⚠️ киты в {'шорте' if bias == 'short' else 'лонге'}"
+
         novelty = _marks.get(coin)
         novelty_note = f" · {novelty}" if novelty else ""
 
@@ -515,7 +532,8 @@ def render_whitelist_verdicts(
         )
         if plan:
             pos = pos_by_coin.get(coin, "")
-            lines.append(f"    {plan}" + (f" · {pos}" if pos else ""))
+            lines.append(f"    {plan}" + (f" · {pos}" if pos else "")
+                         + whale_note)
 
     # Сколько сделок счёт тянет — говорим прямо, если меньше, чем входов.
     # Иначе оператор видит семь предложений и не знает, что взять можно
