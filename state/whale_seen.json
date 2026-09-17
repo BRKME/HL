@@ -1,36 +1,6 @@
 {
   "entries": [
     {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0x9e2cbb5d800181c1ef21b25010dc4ea80eeb5508",
-      "coin": "BTC",
-      "ts": 1789549363
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0x152e41f0b83e6cad4b5dc730c1d6279b7d67c9dc",
-      "coin": "HYPE",
-      "ts": 1789574679
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0x152e41f0b83e6cad4b5dc730c1d6279b7d67c9dc",
-      "coin": "NEAR",
-      "ts": 1789574679
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0xfc27136e42af1732ddc9ce2605ea9bff1b959d9d",
-      "coin": "BTC",
-      "ts": 1789574679
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0xaeaab54bbf65bfd6efed7d2eb68372298e3c2416",
-      "coin": "ZEC",
-      "ts": 1789574679
-    },
-    {
       "rule": "WHALE_CLUSTER",
       "whale": "",
       "coin": "ZEC",
@@ -77,6 +47,54 @@
       "whale": "0x0871deb34bfd2052b1c10dc4f6c0912a2a47e927",
       "coin": "ZEC",
       "ts": 1789615125
+    },
+    {
+      "rule": "WHALE_CLUSTER",
+      "whale": "",
+      "coin": "ETH",
+      "ts": 1789661467
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0x469e9a7f624b04c24f0e64edf8d8a277e6bf58a5",
+      "coin": "ZEC",
+      "ts": 1789661467
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xc926ddba8b7617dbc65712f20cf8e1b58b8598d3",
+      "coin": "HYPE",
+      "ts": 1789661467
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xf517639a8872e756ac98d3c65507d2ebc25cc032",
+      "coin": "BTC",
+      "ts": 1789661467
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0x9e2cbb5d800181c1ef21b25010dc4ea80eeb5508",
+      "coin": "HYPE",
+      "ts": 1789661467
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xe09726ff25f5001f37b15049f54116cb83d7d0fe",
+      "coin": "ZEC",
+      "ts": 1789661467
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0x4e23288cee4960f9f962195c22948e4bc7ae20c3",
+      "coin": "ZEC",
+      "ts": 1789661467
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0x757df2c060ec6c7ba898fa6570aa98c1f46294ba",
+      "coin": "ZEC",
+      "ts": 1789661467
     }
   ]
 }
