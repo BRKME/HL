@@ -1,6 +1,8 @@
 {
  "last_regime": "TRANSITION",
  "flip_streak": {
-  "ASTER": 1
+  "ASTER": 1,
+  "NEAR": 1,
+  "TAO": 1
  }
 }
