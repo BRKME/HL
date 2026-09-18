@@ -1,0 +1,25 @@
+name: aevo-probe
+
+# Разовая проверка Aevo: доступ, состав опционов, наличие IV в стакане,
+# спред, минимальный ордер. Из песочницы API закрыт (403).
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+    steps:
+      - uses: actions/checkout@v5
+        with: { fetch-depth: 1 }
+      - uses: actions/setup-python@v6
+        with: { python-version: "3.12" }
+      - run: pip install -r requirements.txt
+      - run: python scripts/aevo_probe.py
