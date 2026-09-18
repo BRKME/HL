@@ -7,10 +7,6 @@
   "verdict": "LONG",
   "since": "2026-08-31"
  },
- "ZEC": {
-  "verdict": "LONG",
-  "since": "2026-09-11"
- },
  "HYPE": {
   "verdict": "LONG",
   "since": "2026-08-31"
@@ -18,5 +14,17 @@
  "ASTER": {
   "verdict": "LONG",
   "since": "2026-09-17"
+ },
+ "MORPHO": {
+  "verdict": "LONG",
+  "since": "2026-09-18"
+ },
+ "TAO": {
+  "verdict": "LONG",
+  "since": "2026-09-18"
+ },
+ "ONDO": {
+  "verdict": "LONG",
+  "since": "2026-09-18"
  }
 }
