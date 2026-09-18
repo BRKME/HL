@@ -36,10 +36,10 @@
   "last_change_ts": "2026-09-16T18:15:48.985211+00:00"
  },
  "MORPHO": {
-  "last_verdict": "WAIT",
-  "last_action_verdict": null,
-  "last_alert_ts": "2026-08-24T19:07:46.028608+00:00",
-  "last_change_ts": "2026-09-13T11:55:30.000056+00:00"
+  "last_verdict": "LONG",
+  "last_action_verdict": "LONG",
+  "last_alert_ts": "2026-09-18T07:29:37.519942+00:00",
+  "last_change_ts": "2026-09-18T07:29:37.519942+00:00"
  },
  "TAO": {
   "last_verdict": "WAIT",
@@ -48,7 +48,7 @@
   "last_change_ts": "2026-09-15T11:55:25.699206+00:00"
  },
  "ONDO": {
-  "last_verdict": "LONG",
+  "last_verdict": "WAIT",
   "last_action_verdict": "LONG",
   "last_alert_ts": "2026-09-17T13:38:24.128071+00:00",
   "last_change_ts": "2026-09-17T13:38:24.128071+00:00"
