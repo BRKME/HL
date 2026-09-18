@@ -89,6 +89,42 @@
       "whale": "0xe09726ff25f5001f37b15049f54116cb83d7d0fe",
       "coin": "NEAR",
       "ts": 1789721020
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xbf732ea04197942783e34730ed6e0f6099575d58",
+      "coin": "ETH",
+      "ts": 1789746408
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0x6ba889db7f923622d3548f621ecc2054b80c1817",
+      "coin": "ETH",
+      "ts": 1789746408
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xf02d16a272a842f8bac1d9a9e773aba1933454c6",
+      "coin": "HYPE",
+      "ts": 1789746408
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0x0871deb34bfd2052b1c10dc4f6c0912a2a47e927",
+      "coin": "PUMP",
+      "ts": 1789746408
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0x5f94a51948d2376ad34a6fadfa2544e651b74b96",
+      "coin": "HYPE",
+      "ts": 1789746408
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xaeaab54bbf65bfd6efed7d2eb68372298e3c2416",
+      "coin": "BTC",
+      "ts": 1789746408
     }
   ]
 }
