@@ -473,6 +473,12 @@ def render_whitelist_verdicts(
             executable=plan_ok)
     verdicts = rank_entries(verdicts, _scores)
 
+    # Одно предложение в день: недельный горизонт не требует семи идей
+    # ежедневно, а счёт тянет одну сделку. Остальные названы строкой —
+    # не спрятаны (18.09).
+    from src.digest_compact import keep_top_entry
+    verdicts, _more_line = keep_top_entry(verdicts, _scores)
+
 
     _n_entries = sum(1 for v in verdicts if v[2] in ("LONG", "SHORT"))
 
@@ -557,6 +563,10 @@ def render_whitelist_verdicts(
                 f"💰 Счёт ${equity:,.0f} тянет {cap} "
                 f"{'сделку' if cap == 1 else 'сделки'} из {_n_entries} — "
                 f"выбери сам, какие брать.")
+
+    if _more_line:
+        lines.append("")
+        lines.append(_more_line)
 
     if waits_line:
         lines.append("")

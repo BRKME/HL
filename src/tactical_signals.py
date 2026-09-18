@@ -466,7 +466,7 @@ def build_alert(*, coin: str, direction: str, entry: float, sl: Optional[float],
         lines.append(f"🐋 {whale_line}")
 
     lines.append("")
-    lines.append("Горизонт: дни · размер тактический, не из лестницы")
+    lines.append("Горизонт: недели · размер тактический, не из лестницы")
     return "\n".join(lines)
 
 

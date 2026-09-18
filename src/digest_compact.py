@@ -210,3 +210,36 @@ def entry_score(rs_pp, accounts_ratio, top_pos_ratio, is_new,
         score += W_NOVELTY
 
     return score
+
+
+
+# --------------------------------- одно предложение в день (18.09.2026)
+
+def keep_top_entry(verdicts, scores: dict = None):
+    """Оставить один вход, остальные свернуть в строку-итог.
+
+    Указание оператора: «предложение должно быть одно в день, ведь мы
+    смотрим рынок в среднесрочной перспективе».
+
+    Семь идей в день при удержании неделями — это две сотни идей на
+    горизонте одной сделки. И письмо противоречило себе трижды разом:
+    «вот семь входов», «это одна бета-ставка на рынок», «счёт тянет одну
+    сделку».
+
+    Остальные входы НЕ прячутся: они уходят в одну строку с монетами.
+    Скрыть их значило бы лишить оператора выбора; показать наравне —
+    вернуть ту же кашу.
+    """
+    entries = [v for v in verdicts if v[_VERDICT] in _ENTRY_VERDICTS]
+    if len(entries) <= 1:
+        return list(verdicts), ""
+
+    rest_of_list = [v for v in verdicts if v[_VERDICT] not in _ENTRY_VERDICTS]
+    if scores:
+        entries = sorted(entries, key=lambda v: -scores.get(v[_COIN], 0.0))
+
+    top, others = entries[0], entries[1:]
+    names = " ".join(f"<code>{v[_COIN]}</code>" for v in others)
+    line = (f"🔁 Ещё {len(others)} входа в ту же сторону: {names} — "
+            f"по одной идее в день, остальные ждут своей очереди.")
+    return [top] + rest_of_list, line
