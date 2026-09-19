@@ -314,7 +314,7 @@ def test_render_report_groups_n_lt_10_shown_as_insufficient():
         max_dd_pct={24: -1.0, 48: -2.0, 6: -0.5, 168: -3.0},
     )
     text = render_report([small], now=NOW)
-    assert "мало данных" in text.lower() or "n=4" in text.lower() or "4 ev" in text
+    assert "мало данных" in text.lower() or "n=4" in text.lower() or "4 соб" in text
 
 
 def test_render_report_empty_groups():
@@ -427,11 +427,13 @@ def test_render_comparison_report_shows_all_thresholds():
     results = {0: [g_all], 10_000: [g_big]}
     text = render_comparison_report(results, now=NOW)
     assert "ETH" in text
+    # Формат строки изменён 18.09: «10 ev» → «10 соб», главной стала
+    # НЕДЕЛЬНАЯ цифра, а не суточная — с 16.09 ставка на недели.
     assert "≥$0" in text or "≥$0k" in text
     assert "≥$10k" in text
     # Both rows visible
-    assert "10 ev" in text
-    assert "4 ev" in text
+    assert "10 соб" in text
+    assert "4 соб" in text
 
 
 def test_render_comparison_report_empty():

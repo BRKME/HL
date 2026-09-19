@@ -30,7 +30,11 @@ HORIZONS_HOURS = [6, 24, 48, 168]  # 168h = 7 days
 # Actionability thresholds — what makes a group "alpha"
 MIN_EVENTS_ACTIONABLE = 10
 MIN_WIN_RATE_ACTIONABLE = 0.60
-PRIMARY_HORIZON = 24  # The horizon used for headline WR
+# Главный горизонт — НЕДЕЛЬНЫЙ с 18.09: оператор торгует неделями, и
+# метка 🎯 по суточному винрейту ставилась у групп, проигрышных там, где
+# торгуем. Пример: ZEC давал 24ч WR 69% avg +6.7% и при этом 7д WR 31%
+# avg −2.8% — метка стояла, деньги терялись.
+PRIMARY_HORIZON = 168
 
 
 # ----------------------------------------------------- models
@@ -67,9 +71,12 @@ class BacktestGroup:
     max_dd_pct: dict        # horizon_hours -> worst DD seen across events
 
     def is_actionable(self) -> bool:
-        wr = self.win_rate.get(PRIMARY_HORIZON, 0.0)
+        # Нет данных на главном горизонте — метки нет. Отсутствие оценки
+        # не равно провалу, но и основанием для метки быть не может.
+        if PRIMARY_HORIZON not in self.win_rate:
+            return False
         return (self.n_events >= MIN_EVENTS_ACTIONABLE
-                and wr >= MIN_WIN_RATE_ACTIONABLE)
+                and self.win_rate[PRIMARY_HORIZON] >= MIN_WIN_RATE_ACTIONABLE)
 
     def headline_wr(self) -> float:
         return self.win_rate.get(PRIMARY_HORIZON, 0.0)
@@ -290,9 +297,10 @@ def _aggregate(outcomes: list[SignalOutcome]) -> tuple[dict, dict, dict]:
         rets = [o.returns_pct.get(h) for o in outcomes
                 if o.returns_pct.get(h) is not None]
         if not rets:
-            win_rate[h] = 0.0
-            avg_return[h] = 0.0
-            max_dd[h] = 0.0
+            # Данных на горизонте НЕТ — это не нулевой винрейт. Раньше сюда
+            # писался 0.0, и «семь дней ещё не прошло» печаталось как «7d WR
+            # 0%»: шесть групп из девяти выглядели провалившимися (18.09).
+            # Пропускаем ключ вовсе — отсутствие теперь отличимо от нуля.
             continue
         wins = sum(1 for r in rets if r > 0)
         win_rate[h] = wins / len(rets)
@@ -397,13 +405,21 @@ def _render_group(g: BacktestGroup, mark_alpha: bool = False) -> str:
     wr24 = g.win_rate.get(24, 0.0) * 100
     avg24 = g.avg_return_pct.get(24, 0.0)
     dd24 = g.max_dd_pct.get(24, 0.0)
-    wr168 = g.win_rate.get(168, 0.0) * 100
-    avg168 = g.avg_return_pct.get(168, 0.0)
+
+    # Второй построитель отчёта имел тот же дефект, что первый: отсутствие
+    # данных на горизонте печаталось как «WR 0%». Правка в одном месте из
+    # двух — знакомый класс (свечи, маркер, порог ордера), четвёртый раз.
+    if 168 in g.win_rate:
+        week = (f"    7д: WR {g.win_rate[168] * 100:.0f}%, "
+                f"avg {g.avg_return_pct.get(168, 0.0):+.1f}%")
+    else:
+        week = "    7д: ещё не созрело"
+
     return (
-        f"{prefix}<code>{g.coin}</code> {_short_rule(g.rule)} {g.direction.upper()} — "
-        f"{g.n_events} ev\n"
-        f"   24h: WR {wr24:.0f}%, avg {avg24:+.1f}%, worst {dd24:+.1f}%\n"
-        f"    7d: WR {wr168:.0f}%, avg {avg168:+.1f}%"
+        f"{prefix}<code>{g.coin}</code> {_short_rule(g.rule)} "
+        f"{g.direction.upper()} — {g.n_events} соб\n"
+        f"{week}\n"
+        f"   24ч: WR {wr24:.0f}%, avg {avg24:+.1f}%, worst {dd24:+.1f}%"
     )
 
 
@@ -536,14 +552,27 @@ def render_comparison_report(
         all_same = len(non_null) > 1 and len(set(non_null)) == 1
 
         def _fmt_line(label, g):
-            wr24 = g.win_rate.get(24, 0.0) * 100
-            avg24 = g.avg_return_pct.get(24, 0.0)
-            wr168 = g.win_rate.get(168, 0.0) * 100
-            avg168 = g.avg_return_pct.get(168, 0.0)
+            # Отсутствие данных на горизонте — НЕ нулевой винрейт. Раньше
+            # `.get(168, 0.0)` превращал «семь дней ещё не прошло» в «7d WR
+            # 0%», и шесть групп из девяти выглядели провалившимися
+            # (18.09). Горизонт недельный — он теперь главный, суточный
+            # оставлен справочно.
+            def _h(hours):
+                if hours not in g.win_rate:
+                    return None
+                return (g.win_rate[hours] * 100,
+                        g.avg_return_pct.get(hours, 0.0))
+
+            week, day = _h(168), _h(24)
             alpha = " 🎯" if g.is_actionable() else ""
-            return (f"  {label:<8}: {g.n_events} ev, "
-                    f"24h WR {wr24:.0f}% avg {avg24:+.1f}% • "
-                    f"7d WR {wr168:.0f}% avg {avg168:+.1f}%{alpha}")
+
+            if week is None:
+                tail = "7д: ещё не созрело"
+            else:
+                tail = f"7д WR {week[0]:.0f}% avg {week[1]:+.1f}%"
+            head = ("24ч нет данных" if day is None
+                    else f"24ч {day[1]:+.1f}%")
+            return f"  {label:<8}: {g.n_events} соб · {tail} · {head}{alpha}"
 
         if all_same:
             # все пороги одинаковы — одна строка по самому строгому с данными
@@ -557,7 +586,7 @@ def render_comparison_report(
                 g = per_t.get(t)
                 label = f"≥${int(t/1000)}k" if t >= 1000 else "≥$0"
                 if g is None or g.n_events == 0:
-                    parts.append(f"  {label:<8}: 0 ev")
+                    parts.append(f"  {label:<8}: 0 соб")
                 else:
                     parts.append(_fmt_line(label, g))
 
@@ -576,7 +605,7 @@ def render_comparison_report(
                 "(≥$10k) с N≥3 — на этой неделе «настоящих» китовых паттернов "
                 "не выделено. Это нормальный результат, не ошибка.")
 
-    parts.append("\n<i>Показаны только сигналы, пережившие фильтр ≥$10k — "
-                 "те, где за паттерном стоят крупные киты, а не шум мелких "
-                 "сделок.</i>")
+    parts.append("\n<i>Порог применён: показаны группы, набравшие "
+                 f"{MIN_EVENTS_ACTIONABLE}+ событий с оценкой на недельном "
+                 "горизонте. Остальные ждут, пока созреют.</i>")
     return "\n".join(parts)
