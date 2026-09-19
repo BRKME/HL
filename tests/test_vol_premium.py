@@ -110,3 +110,67 @@ def test_empty_summary_is_not_zero():
     s = summarise([])
     assert s["n"] == 0
     assert s["mean_pp"] is None
+
+
+# ------------------ форвардная реализованная: исправление ошибки 19.09
+
+def test_forward_realized_looks_ahead_not_back():
+    """Премия — это подразумеваемая СЕГОДНЯ против реализованной в
+    СЛЕДУЮЩИЕ тридцать дней.
+
+    Первая версия сравнивала с реализованной за ПРОШЕДШИЕ тридцать — это
+    другая величина: она отвечает «была ли волатильность выше ожиданий
+    вчера», а не «переплачивали ли за опцион». Ошибка была бы невидима:
+    числа выглядели бы правдоподобно."""
+    from src.vol_premium import forward_realized
+
+    calm = _flat(40)
+    wild = _swinging(40, daily=0.06)
+    series = calm + wild                    # сначала тихо, потом буря
+
+    assert forward_realized(series, 0, 30) == pytest.approx(0.0, abs=1e-9)
+    assert forward_realized(series, 45, 30) > 0.5
+
+
+def test_forward_realized_none_past_data_end():
+    """За горизонтом данных нет — и это не ноль."""
+    from src.vol_premium import forward_realized
+
+    assert forward_realized(_flat(40), 20, 30) is None
+
+
+def test_build_history_pairs_dvol_with_forward():
+    """DVOL публикуется в процентах, реализованная — в долях: перепутать
+    единицы значит получить премию в сто раз больше."""
+    from src.vol_premium import build_history
+
+    DAY = 86_400_000
+    candles = [{"t": i * DAY, "h": 100.0, "l": 100.0, "c": 100.0}
+               for i in range(80)]
+    dvol = [[i * DAY, 40.0, 41.0, 39.0, 40.0] for i in range(10)]
+
+    pts = build_history(dvol, candles, asset="BTC", horizon_days=30)
+    assert pts
+    assert pts[0].implied == pytest.approx(0.40)
+    assert pts[0].realized == pytest.approx(0.0, abs=1e-9)
+    assert pts[0].premium_pp == pytest.approx(40.0)
+
+
+def test_build_history_skips_days_without_candles():
+    from src.vol_premium import build_history
+
+    DAY = 86_400_000
+    candles = [{"t": i * DAY, "h": 100.0, "l": 100.0, "c": 100.0}
+               for i in range(40)]
+    dvol = [[999 * DAY, 40.0, 41.0, 39.0, 40.0]]
+    assert build_history(dvol, candles, "BTC") == []
+
+
+def test_build_history_survives_broken_rows():
+    from src.vol_premium import build_history
+
+    DAY = 86_400_000
+    candles = [{"t": i * DAY, "h": 100.0, "l": 100.0, "c": 100.0}
+               for i in range(80)]
+    dvol = [None, [], ["x"], [0 * DAY, 40.0, 41.0, 39.0, 40.0]]
+    assert len(build_history(dvol, candles, "BTC")) == 1

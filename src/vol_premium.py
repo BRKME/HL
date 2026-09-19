@@ -27,6 +27,16 @@ MIN_OBSERVATIONS = 20       # ниже — оценка волатильност
 
 @dataclass(frozen=True)
 class PremiumPoint:
+    """Одно наблюдение премии.
+
+    ВАЖНО: realized — это волатильность ВПЕРЁД от ts_ms, за horizon_days.
+    Премия есть «подразумеваемая сегодня против реализованной в следующие
+    тридцать дней». Первая версия сравнивала подразумеваемую сегодня с
+    реализованной за ПРОШЕДШИЕ тридцать — это другая величина, отвечающая
+    на вопрос «была ли волатильность выше ожиданий вчера», а не «переплачивали
+    ли за опцион». Ошибка была бы невидима: числа выглядели бы правдоподобно
+    (19.09).
+    """
     ts_ms: int
     asset: str
     implied: float          # доля, не проценты: 0.35 = 35%
@@ -127,3 +137,56 @@ def summarise(points: Sequence[PremiumPoint]) -> dict:
         "positive_share": sum(1 for v in vals if v > 0) / len(vals),
         "worst_pp": min(vals),
     }
+
+
+
+def forward_realized(candles: Sequence[dict], start_idx: int,
+                     horizon_days: int = 30) -> Optional[float]:
+    """Реализованная волатильность ВПЕРЁД от точки start_idx.
+
+    Именно она сравнивается с подразумеваемой: премия есть разница между
+    тем, что рынок ожидал, и тем, что случилось ПОСЛЕ. Оценка Паркинсона
+    по тем же соображениям, что и везде.
+    """
+    if start_idx < 0 or start_idx + horizon_days >= len(candles or []):
+        return None
+    window = candles[start_idx: start_idx + horizon_days]
+    return parkinson_volatility(window, window=horizon_days)
+
+
+def build_history(dvol_rows: Sequence, candles: Sequence[dict],
+                  asset: str, horizon_days: int = 30) -> list:
+    """Сопоставить историю DVOL с форвардной реализованной.
+
+    dvol_rows — свечи индекса: [метка, открытие, максимум, минимум, закрытие].
+    Берётся закрытие: это значение на конец суток, и ему соответствует
+    следующее окно реализованной.
+    """
+    by_day = {}
+    for c in candles or []:
+        if not isinstance(c, dict):
+            continue
+        ts = c.get("t") if c.get("t") is not None else c.get("T")
+        if ts is not None:
+            by_day[int(ts) // 86_400_000] = c
+    days = sorted(by_day)
+    ordered = [by_day[d] for d in days]
+    index_of = {d: i for i, d in enumerate(days)}
+
+    out = []
+    for row in dvol_rows or []:
+        try:
+            ts, close = int(row[0]), float(row[4])
+        except (TypeError, ValueError, IndexError):
+            continue
+        day = ts // 86_400_000
+        i = index_of.get(day)
+        if i is None:
+            continue
+        rv = forward_realized(ordered, i, horizon_days)
+        if rv is None:
+            continue
+        # DVOL публикуется в процентах, реализованная — в долях.
+        out.append(PremiumPoint(ts_ms=ts, asset=asset, implied=close / 100.0,
+                                realized=rv, horizon_days=horizon_days))
+    return out
