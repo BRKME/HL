@@ -114,16 +114,38 @@ def main() -> int:
         print("\nсопоставить не удалось")
         return 1
 
-    # Режимы: премия может быть платой за страховку, а не преимуществом.
+    # Разделение по режимам, известным В МОМЕНТ РЕШЕНИЯ.
+    #
+    # Первая версия делила по РЕАЛИЗОВАННОЙ волатильности — величине,
+    # известной только ПОСЛЕ. Картина «спокойно +8.6 / буря −4.4» была
+    # верна как описание, но неприменима: разделить наперёд по ней нельзя.
+    # Ранг считается по предшествующим наблюдениям каждой точки.
+    from src.vol_premium import split_by_iv_rank
+
+    merged_sorted = sorted(merged, key=lambda p: p.ts_ms)
+    buckets = split_by_iv_rank(merged_sorted)
+    s_hi, s_mid, s_lo = (summarise(buckets["high"]), summarise(buckets["mid"]),
+                         summarise(buckets["low"]))
+    print("\n  по IV Rank (известен в момент решения):")
+    for label, sb in (("высокий (>=50)", s_hi), ("средний", s_mid),
+                      ("низкий (<=30)", s_lo)):
+        if sb["n"]:
+            print(f"    {label:16} {sb['mean_pp']:+6.1f} п.п. · "
+                  f"положительных {sb['positive_share']:.0%} · "
+                  f"худшее {sb['worst_pp']:+.0f} (n={sb['n']})")
+
+    # Справочно — прежнее разделение по факту, с пометкой о заглядывании.
     calm = [p for p in merged if p.realized < statistics.median(
         [q.realized for q in merged])]
     wild = [p for p in merged if p not in calm]
     s_calm, s_wild = summarise(calm), summarise(wild)
-    print(f"\n  в спокойные периоды: {s_calm['mean_pp']:+.1f} п.п. "
-          f"(n={s_calm['n']})")
-    print(f"  в бурные периоды   : {s_wild['mean_pp']:+.1f} п.п. "
-          f"(n={s_wild['n']})")
+    print(f"\n  справочно, по факту (ЗАГЛЯДЫВАЕТ ВПЕРЁД, торговать нельзя):")
+    print(f"    спокойно {s_calm['mean_pp']:+.1f} · буря {s_wild['mean_pp']:+.1f}")
 
+    # Практики продают при высоком ранге: если премия там не выше, их
+    # правило на наших данных не работает.
+    rank_works = (s_hi["n"] >= 50 and s_lo["n"] >= 50
+                  and (s_hi["mean_pp"] or 0) - (s_lo["mean_pp"] or 0) >= 5.0)
     insurance = (s_calm["mean_pp"] or 0) > 0 > (s_wild["mean_pp"] or 0)
 
     if s["n"] < MIN_N:
@@ -131,6 +153,10 @@ def main() -> int:
     elif s["worst_pp"] < WORST_LIMIT:
         verdict = (f"ПРОФИЛЬ ОПАСЕН: худшее {s['worst_pp']:+.0f} п.п. — "
                    f"продажа исключается независимо от средней")
+    elif rank_works and (s_hi["worst_pp"] or 0) > WORST_LIMIT:
+        verdict = (f"РАНГ РАБОТАЕТ: при высоком IV Rank премия "
+                   f"{s_hi['mean_pp']:+.1f} п.п. против {s_lo['mean_pp']:+.1f} "
+                   f"при низком, и хвост терпим")
     elif insurance:
         verdict = ("ЭТО ПЛАТА ЗА СТРАХОВКУ, а не преимущество: премия "
                    "положительна в спокойствии и отрицательна в буре")
@@ -150,8 +176,8 @@ def main() -> int:
         send_messages([
             f"📐 <b>Премия за волатильность</b> · история {YEARS} лет\n"
             f"<pre>{rows}</pre>\n"
-            f"спокойно {s_calm['mean_pp']:+.1f} · буря {s_wild['mean_pp']:+.1f}"
-            f" · худшее {s['worst_pp']:+.0f}\n"
+            f"IV Rank высокий {s_hi['mean_pp']:+.1f} · низкий "
+            f"{s_lo['mean_pp']:+.1f} · худшее {s['worst_pp']:+.0f}\n"
             f"<b>{verdict}</b>\n"
             f"<i>подразумеваемая сегодня против реализованной в следующие "
             f"{HORIZON_DAYS} дней</i>"])

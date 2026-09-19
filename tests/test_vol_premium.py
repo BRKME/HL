@@ -174,3 +174,56 @@ def test_build_history_survives_broken_rows():
                for i in range(80)]
     dvol = [None, [], ["x"], [0 * DAY, 40.0, 41.0, 39.0, 40.0]]
     assert len(build_history(dvol, candles, "BTC")) == 1
+
+
+# ---------------------------- IV Rank: режим, известный ДО решения (19.09)
+
+def test_iv_rank_positions_within_range():
+    from src.vol_premium import iv_rank
+
+    hist = [0.2] * 30 + [0.6] * 30
+    assert iv_rank(hist, 0.4) == pytest.approx(50.0)
+    assert iv_rank(hist, 0.6) == pytest.approx(100.0)
+    assert iv_rank(hist, 0.2) == pytest.approx(0.0)
+
+
+def test_iv_rank_needs_history():
+    from src.vol_premium import iv_rank
+
+    assert iv_rank([0.3] * 5, 0.3) is None
+
+
+def test_percentile_is_robust_to_single_spike():
+    """Слабость ранга названа в источниках: один давний всплеск задаёт верх
+    диапазона и занижает ранг надолго. Процентиль от этого не зависит."""
+    from src.vol_premium import iv_percentile, iv_rank
+
+    hist = [0.3] * 59 + [2.0]          # один выброс
+    assert iv_rank(hist, 0.35) < 10     # ранг раздавлен выбросом
+    assert iv_percentile(hist, 0.35) > 90
+
+
+def test_split_uses_only_past_observations():
+    """Ключевое: ранг считается по ПРЕДШЕСТВУЮЩИМ наблюдениям.
+
+    Прежнее разделение на «спокойно/буря» делило по РЕАЛИЗОВАННОЙ
+    волатильности — величине, известной только ПОСЛЕ. В момент решения её
+    нет, и вывод опирался на заглядывание вперёд."""
+    from src.vol_premium import PremiumPoint, split_by_iv_rank
+
+    pts = [PremiumPoint(i, "BTC", implied=0.2, realized=0.2, horizon_days=30)
+           for i in range(40)]
+    pts += [PremiumPoint(40 + i, "BTC", implied=0.9, realized=0.2,
+                         horizon_days=30) for i in range(20)]
+    buckets = split_by_iv_rank(pts, lookback=365)
+    # первые наблюдения не размечены вовсе — истории под ними нет
+    assert len(buckets["high"]) + len(buckets["mid"]) + len(buckets["low"]) < len(pts)
+    # поздние, с высокой подразумеваемой, попали в верхнюю корзину
+    assert buckets["high"]
+
+
+def test_split_returns_three_buckets():
+    from src.vol_premium import PremiumPoint, split_by_iv_rank
+
+    b = split_by_iv_rank([PremiumPoint(0, "BTC", 0.3, 0.3, 30)])
+    assert set(b) == {"high", "mid", "low"}

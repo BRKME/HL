@@ -190,3 +190,62 @@ def build_history(dvol_rows: Sequence, candles: Sequence[dict],
         out.append(PremiumPoint(ts_ms=ts, asset=asset, implied=close / 100.0,
                                 realized=rv, horizon_days=horizon_days))
     return out
+
+
+# ------------------------------------------ IV Rank: режим, известный ДО
+
+def iv_rank(history: Sequence[float], current: float) -> Optional[float]:
+    """Где сегодняшняя подразумеваемая внутри диапазона истории, 0..100.
+
+    Заведено 19.09 после находки: моё разделение на «спокойно/буря» делило
+    наблюдения по РЕАЛИЗОВАННОЙ волатильности, то есть по величине,
+    известной только ПОСЛЕ. В момент решения её нет, и вывод «это плата за
+    страховку» опирался на заглядывание вперёд.
+
+    IV Rank известен в момент решения. Практики делят по нему: выше 50 —
+    продавать, ниже 30 — покупать; логика в том, что подразумеваемая
+    возвращается к среднему.
+
+    Слабость метода названа в тех же источниках: один давний всплеск
+    задаёт верх диапазона, и ранг занижается надолго. Поэтому рядом
+    считается процентиль — он от единичного выброса не зависит.
+    """
+    vals = [v for v in history if v is not None and v > 0]
+    if len(vals) < MIN_OBSERVATIONS:
+        return None
+    lo, hi = min(vals), max(vals)
+    if hi <= lo:
+        return None
+    return max(0.0, min(100.0, (current - lo) / (hi - lo) * 100))
+
+
+def iv_percentile(history: Sequence[float], current: float) -> Optional[float]:
+    """Доля дней, когда подразумеваемая была НИЖЕ сегодняшней, 0..100.
+
+    Устойчивее ранга к единичным всплескам: считает частоту, а не
+    положение в диапазоне.
+    """
+    vals = [v for v in history if v is not None and v > 0]
+    if len(vals) < MIN_OBSERVATIONS:
+        return None
+    return sum(1 for v in vals if v <= current) / len(vals) * 100
+
+
+def split_by_iv_rank(points: Sequence, lookback: int = 365,
+                     high: float = 50.0, low: float = 30.0) -> dict:
+    """Разделить наблюдения по рангу, известному В МОМЕНТ КАЖДОГО.
+
+    Ранг считается по предшествующим наблюдениям, а не по всей истории:
+    иначе в него попадёт будущее, и проверка повторит ту же ошибку, ради
+    исправления которой затевалась.
+    """
+    out = {"high": [], "mid": [], "low": []}
+    ivs = [p.implied for p in points]
+    for i, p in enumerate(points):
+        past = ivs[max(0, i - lookback):i]
+        r = iv_rank(past, p.implied)
+        if r is None:
+            continue
+        bucket = "high" if r >= high else ("low" if r <= low else "mid")
+        out[bucket].append(p)
+    return out
