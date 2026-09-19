@@ -1,0 +1,2 @@
+{"ts_ms": 1789818674563, "asset": "BTC", "instrument": "BTC-20SEP26-81500-P", "implied": 0.225908, "realized_parkinson": 0.42461159668373927, "realized_close": 0.4351946565490944, "horizon_days": 30, "suspicious": false}
+{"ts_ms": 1789818676724, "asset": "ETH", "instrument": "ETH-20SEP26-2640-P", "implied": 0.2551915, "realized_parkinson": 0.5535373060879338, "realized_close": 0.5217147449095882, "horizon_days": 30, "suspicious": false}
