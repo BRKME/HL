@@ -215,7 +215,7 @@ def test_split_uses_only_past_observations():
            for i in range(40)]
     pts += [PremiumPoint(40 + i, "BTC", implied=0.9, realized=0.2,
                          horizon_days=30) for i in range(20)]
-    buckets = split_by_iv_rank(pts, lookback=365)
+    buckets = split_by_iv_rank(pts, lookback_days=180)
     # первые наблюдения не размечены вовсе — истории под ними нет
     assert len(buckets["high"]) + len(buckets["mid"]) + len(buckets["low"]) < len(pts)
     # поздние, с высокой подразумеваемой, попали в верхнюю корзину
@@ -227,3 +227,62 @@ def test_split_returns_three_buckets():
 
     b = split_by_iv_rank([PremiumPoint(0, "BTC", 0.3, 0.3, 30)])
     assert set(b) == {"high", "mid", "low"}
+
+
+# ------------- дефекты, найденные при разборе собственной работы (19.09)
+
+def test_rank_is_computed_per_asset():
+    """Первая версия получала список, где BTC и ETH перемешаны по времени,
+    и ранг точки ETH считался по истории, наполовину состоящей из BTC.
+
+    Типичная подразумеваемая у BTC 40-60%, у ETH 50-80% — ранг мерил,
+    какой актив попался, а не режим. Сигнал уничтожался до замера."""
+    from src.vol_premium import PremiumPoint, split_by_iv_rank
+
+    pts = []
+    for i in range(400):
+        # BTC всегда низкая, ETH всегда высокая
+        pts.append(PremiumPoint(i * 2, "BTC", 0.40, 0.3, 30))
+        pts.append(PremiumPoint(i * 2 + 1, "ETH", 0.80, 0.3, 30))
+
+    b = split_by_iv_rank(pts, lookback_days=180)
+    # При правильном разделении ни один актив не уходит целиком в край:
+    # внутри своей истории обе серии ровные.
+    assets_high = {p.asset for p in b["high"]}
+    assets_low = {p.asset for p in b["low"]}
+    assert not (assets_high == {"ETH"} and assets_low == {"BTC"}), (
+        "ранг считается по смеси активов, а не внутри каждого")
+
+
+def test_lookback_is_in_days_not_observations():
+    """`lookback=365` при точках раз в 12 часов давало ПОЛГОДА вместо года;
+    стандарт для IV Rank — 52 недели."""
+    import inspect
+
+    from src import vol_premium
+
+    src = inspect.getsource(vol_premium.split_by_iv_rank)
+    assert "lookback_days" in src
+    assert "points_per_day" in src
+
+
+def test_episode_count_collapses_overlapping_windows():
+    """Окна смотрят на 30 дней вперёд и берутся дважды в сутки: один
+    провал попадает примерно в шестьдесят соседних наблюдений. «Худшее
+    −52» может описывать ОДИН месяц за пять лет."""
+    from src.vol_premium import PremiumPoint, episode_count
+
+    DAY = 86_400_000
+    cluster = [PremiumPoint(i * DAY // 2, "BTC", 0.3, 0.9, 30)
+               for i in range(60)]          # один эпизод, 60 наблюдений
+    far = [PremiumPoint((400 + i) * DAY, "BTC", 0.3, 0.9, 30)
+           for i in range(60)]              # второй эпизод через год
+
+    assert episode_count(cluster) == 1
+    assert episode_count(cluster + far) == 2
+
+
+def test_episode_count_empty():
+    from src.vol_premium import episode_count
+
+    assert episode_count([]) == 0

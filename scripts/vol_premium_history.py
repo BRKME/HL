@@ -122,8 +122,10 @@ def main() -> int:
     # Ранг считается по предшествующим наблюдениям каждой точки.
     from src.vol_premium import split_by_iv_rank
 
-    merged_sorted = sorted(merged, key=lambda p: p.ts_ms)
-    buckets = split_by_iv_rank(merged_sorted)
+    # Ранг считается ОТДЕЛЬНО по каждому активу — внутри split_by_iv_rank.
+    # Передавать перемешанный по времени список было ошибкой: ранг точки
+    # ETH считался по истории, наполовину состоящей из BTC (19.09).
+    buckets = split_by_iv_rank(merged, lookback_days=365, points_per_day=2)
     s_hi, s_mid, s_lo = (summarise(buckets["high"]), summarise(buckets["mid"]),
                          summarise(buckets["low"]))
     print("\n  по IV Rank (известен в момент решения):")
@@ -147,6 +149,18 @@ def main() -> int:
     rank_works = (s_hi["n"] >= 50 and s_lo["n"] >= 50
                   and (s_hi["mean_pp"] or 0) - (s_lo["mean_pp"] or 0) >= 5.0)
     insurance = (s_calm["mean_pp"] or 0) > 0 > (s_wild["mean_pp"] or 0)
+
+    # Сколько РАЗНЫХ эпизодов дали худшие наблюдения: окна перекрываются,
+    # и один провал попадает в ~60 соседних точек.
+    from src.vol_premium import episode_count
+
+    tail = [p for p in merged if p.premium_pp < WORST_LIMIT]
+    n_ep = episode_count(tail)
+    print(f"\n  наблюдений хуже {WORST_LIMIT:+.0f} п.п.: {len(tail)} "
+          f"в {n_ep} РАЗНЫХ эпизодах за {YEARS} лет")
+    indep = int(YEARS * 365 / HORIZON_DAYS) * len(ASSETS)
+    print(f"  независимых наблюдений всего: ~{indep} "
+          f"(заявлено {s['n']}, окна перекрываются)")
 
     if s["n"] < MIN_N:
         verdict = f"СУДИТЬ НЕЛЬЗЯ: {s['n']} наблюдений при минимуме {MIN_N}"
@@ -178,6 +192,7 @@ def main() -> int:
             f"<pre>{rows}</pre>\n"
             f"IV Rank высокий {s_hi['mean_pp']:+.1f} · низкий "
             f"{s_lo['mean_pp']:+.1f} · худшее {s['worst_pp']:+.0f}\n"
+            f"хвост: {len(tail)} набл. в {n_ep} эпизодах за {YEARS} лет\n"
             f"<b>{verdict}</b>\n"
             f"<i>подразумеваемая сегодня против реализованной в следующие "
             f"{HORIZON_DAYS} дней</i>"])

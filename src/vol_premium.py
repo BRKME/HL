@@ -231,21 +231,57 @@ def iv_percentile(history: Sequence[float], current: float) -> Optional[float]:
     return sum(1 for v in vals if v <= current) / len(vals) * 100
 
 
-def split_by_iv_rank(points: Sequence, lookback: int = 365,
+def split_by_iv_rank(points: Sequence, lookback_days: int = 365,
+                     points_per_day: int = 2,
                      high: float = 50.0, low: float = 30.0) -> dict:
     """Разделить наблюдения по рангу, известному В МОМЕНТ КАЖДОГО.
 
-    Ранг считается по предшествующим наблюдениям, а не по всей истории:
-    иначе в него попадёт будущее, и проверка повторит ту же ошибку, ради
-    исправления которой затевалась.
+    Три требования, каждое из которых я сначала нарушил (19.09):
+
+    * ранг считается по ПРЕДШЕСТВУЮЩИМ наблюдениям — иначе в него попадёт
+      будущее;
+    * ОТДЕЛЬНО ПО КАЖДОМУ АКТИВУ. Первая версия получала на вход список,
+      где BTC и ETH перемешаны по времени, и ранг точки ETH считался по
+      истории, наполовину состоящей из BTC. Типичная подразумеваемая у
+      BTC 40-60%, у ETH 50-80% — ранг мерил, какой актив попался, а не
+      режим. Сигнал уничтожался до всякого замера;
+    * окно задаётся в ДНЯХ, а не в наблюдениях. `lookback=365` при точках
+      раз в 12 часов давало полгода вместо года, тогда как стандарт для
+      IV Rank — 52 недели.
     """
     out = {"high": [], "mid": [], "low": []}
-    ivs = [p.implied for p in points]
-    for i, p in enumerate(points):
-        past = ivs[max(0, i - lookback):i]
-        r = iv_rank(past, p.implied)
-        if r is None:
-            continue
-        bucket = "high" if r >= high else ("low" if r <= low else "mid")
-        out[bucket].append(p)
+    window = max(1, int(lookback_days * points_per_day))
+
+    by_asset: dict = {}
+    for p in points:
+        by_asset.setdefault(p.asset, []).append(p)
+
+    for rows in by_asset.values():
+        rows = sorted(rows, key=lambda x: x.ts_ms)
+        ivs = [x.implied for x in rows]
+        for i, p in enumerate(rows):
+            r = iv_rank(ivs[max(0, i - window):i], p.implied)
+            if r is None:
+                continue
+            bucket = "high" if r >= high else ("low" if r <= low else "mid")
+            out[bucket].append(p)
     return out
+
+
+def episode_count(points: Sequence, gap_days: int = 30) -> int:
+    """Сколько РАЗНЫХ эпизодов, а не перекрывающихся наблюдений.
+
+    Окна смотрят на 30 дней вперёд и берутся дважды в сутки, поэтому один
+    провал попадает примерно в шестьдесят соседних наблюдений. «Худшее
+    −52» может описывать ОДИН месяц за пять лет, а не повторяющийся риск —
+    и это меняет вес вывода.
+    """
+    if not points:
+        return 0
+    stamps = sorted(p.ts_ms for p in points)
+    gap = gap_days * 86_400_000
+    episodes = 1
+    for a, b in zip(stamps, stamps[1:]):
+        if b - a > gap:
+            episodes += 1
+    return episodes
