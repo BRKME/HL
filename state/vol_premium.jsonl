@@ -2,3 +2,5 @@
 {"ts_ms": 1789818676724, "asset": "ETH", "instrument": "ETH-20SEP26-2640-P", "implied": 0.2551915, "realized_parkinson": 0.5535373060879338, "realized_close": 0.5217147449095882, "horizon_days": 30, "suspicious": false}
 {"ts_ms": 1789906139972, "asset": "BTC", "instrument": "BTC-21SEP26-80500-P", "implied": 0.23004600000000003, "realized_parkinson": 0.3858024882906556, "realized_close": 0.3650299568650319, "horizon_days": 30, "suspicious": false}
 {"ts_ms": 1789906142373, "asset": "ETH", "instrument": "ETH-21SEP26-2580-P", "implied": 0.30410899999999996, "realized_parkinson": 0.5222673043611568, "realized_close": 0.45540299570134724, "horizon_days": 30, "suspicious": false}
+{"ts_ms": 1789998436676, "asset": "BTC", "instrument": "BTC-22SEP26-85000-P", "implied": 0.4775365, "realized_parkinson": 0.39879765057574534, "realized_close": 0.39487005206678005, "horizon_days": 30, "suspicious": false}
+{"ts_ms": 1789998438437, "asset": "ETH", "instrument": "ETH-22SEP26-2720-P", "implied": 0.5882324999999999, "realized_parkinson": 0.5151299638068314, "realized_close": 0.4384732836333738, "horizon_days": 30, "suspicious": false}
