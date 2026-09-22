@@ -71,13 +71,15 @@ def compute_stance(
     out: dict[str, dict] = {
         c: {"long": 0.0, "short": 0.0, "lc": 0, "sc": 0} for c in coins
     }
-    if not path.exists():
-        return {c: WhaleStance(c, 0, 0, 0, 0) for c in coins}
 
     cutoff_ms = int((now - timedelta(days=lookback_days)).timestamp() * 1000)
     coin_set = set(coins)
     try:
-        with path.open("r", encoding="utf-8") as fh:
+        # Живой файл держит 5 дней (22.09), окно позиции — 7: без архивов
+        # два дня выпадали бы молча, и позиция китов считалась бы по пяти.
+        from src.whale_tracker import iter_fill_lines
+        fh = iter_fill_lines(path, since_ms=cutoff_ms)
+        if True:
             for line in fh:
                 line = line.strip()
                 if not line:

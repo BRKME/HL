@@ -126,21 +126,19 @@ def score_from_fills(
 # ------------------------------------------------------------------- loading
 
 def _load_jsonl_fills(path: Path) -> list[WhaleFill]:
-    """Read whale_fills.jsonl into WhaleFill objects. Corrupt lines skipped."""
-    if not path.exists():
-        return []
+    """Заполнения из живого файла и архивов. Битые строки пропускаются."""
     out: list[WhaleFill] = []
-    with path.open("r", encoding="utf-8") as fh:
-        for line in fh:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                row = _line_to_fill(line)
-            except (ValueError, KeyError, TypeError):
-                continue
-            if row is not None:
-                out.append(row)
+    from src.whale_tracker import iter_fill_lines
+    for line in iter_fill_lines(path):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            row = _line_to_fill(line)
+        except (ValueError, KeyError, TypeError):
+            continue
+        if row is not None:
+            out.append(row)
     return out
 
 

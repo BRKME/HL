@@ -196,6 +196,99 @@ def rotate_if_month_changed(path: Path, now: datetime) -> Optional[Path]:
     return archive_path
 
 
+MAX_LIVE_BYTES = 40 * 1024 * 1024     # живой файл, с запасом до предела 100 МБ
+# 5 дней ≈ 31 МБ при нынешних ~6 МБ/день. Первая версия держала 14 дней —
+# это 87 МБ СРАЗУ после ротации, почти у предела; первый всплеск торговли
+# перевалил бы его снова. Запас нужен против всплеска, а не только в среднем.
+KEEP_LIVE_DAYS = 5
+
+
+def iter_fill_lines(live_path: Path, since_ms: int = 0):
+    """Строки живого файла и помесячных архивов, НЕ старше since_ms.
+
+    ЕДИНЫЙ вход для всех, кто читает заполнения. С 22.09 живой файл держит
+    пять дней, остальное — в whale_fills_YYYY-MM.jsonl.gz. Потребителей
+    было четыре (оценка, позиция, фокус, дайджест), и каждый открывал
+    живой файл напрямую: урежь его — все четверо тихо потеряли бы данные.
+    Архивы старше since_ms не распаковываются вовсе — это дорого.
+    """
+    live_path = Path(live_path)
+    rx = re.compile(r"^whale_fills_(\d{4})-(\d{2})\.jsonl\.gz$")
+    for arch in sorted(live_path.parent.glob("whale_fills_*.jsonl.gz")):
+        m = rx.match(arch.name)
+        if not m:
+            continue
+        if since_ms:
+            y, mo = int(m.group(1)), int(m.group(2))
+            nxt = datetime(y + (mo == 12), mo % 12 + 1, 1, tzinfo=timezone.utc)
+            if nxt.timestamp() * 1000 < since_ms:
+                continue              # весь месяц раньше окна — не трогаем
+        try:
+            with gzip.open(arch, "rt", encoding="utf-8") as fh:
+                yield from fh
+        except (OSError, EOFError):
+            continue
+    if live_path.exists():
+        with live_path.open("r", encoding="utf-8") as fh:
+            yield from fh
+
+
+def rotate_by_size(path: Path, now: datetime,
+                   max_bytes: int = MAX_LIVE_BYTES,
+                   keep_days: int = KEEP_LIVE_DAYS) -> int:
+    """Вынести старые заполнения в помесячные архивы, когда файл велик.
+
+    Заведено 22.09. Живой файл дорос до 99.7 МБ при пределе GitHub в
+    100 МБ на файл. Следующая запись переваливала за предел, пуш
+    отклонялся — и НЕ сохранялось никакое состояние китов: ни заполнения,
+    ни отметка «дайджест отправлен», ни очистка буфера. Один и тот же
+    дайджест ушёл семь раз за полтора дня.
+
+    Месячная ротация `rotate_if_month_changed` не срабатывала НИ РАЗУ: она
+    смотрит на время изменения файла, а в Actions checkout выставляет его в
+    «сейчас» при каждом прогоне. Четыре месяца файл только рос.
+
+    Ротация по размеру от времени файла не зависит: она читает метки самих
+    заполнений. Старше keep_days уходит в whale_fills_YYYY-MM.jsonl.gz
+    дописыванием (gzip допускает склеенные потоки), свежее остаётся.
+    Возвращает число вынесенных строк.
+    """
+    path = Path(path)
+    if not path.exists() or path.stat().st_size < max_bytes:
+        return 0
+
+    cutoff_ms = int((now.timestamp() - keep_days * 86400) * 1000)
+    keep, by_month = [], {}
+    with path.open("r", encoding="utf-8") as fh:
+        for line in fh:
+            if not line.strip():
+                continue
+            try:
+                ts = int(json.loads(line).get("time_ms") or 0)
+            except (ValueError, TypeError):
+                keep.append(line)          # непонятное не выбрасываем
+                continue
+            if ts and ts < cutoff_ms:
+                d = datetime.fromtimestamp(ts / 1000, tz=timezone.utc)
+                by_month.setdefault(f"{d.year:04d}-{d.month:02d}", []).append(line)
+            else:
+                keep.append(line)
+
+    moved = 0
+    for month, lines in sorted(by_month.items()):
+        arch = path.parent / f"whale_fills_{month}.jsonl.gz"
+        with gzip.open(arch, "at", encoding="utf-8") as dst:
+            for ln in lines:
+                dst.write(ln if ln.endswith("\n") else ln + "\n")
+        moved += len(lines)
+
+    tmp = path.with_suffix(".jsonl.tmp")
+    with tmp.open("w", encoding="utf-8") as out:
+        out.writelines(l if l.endswith("\n") else l + "\n" for l in keep)
+    tmp.replace(path)
+    return moved
+
+
 def cleanup_old_archives(
     dir_path: Path,
     retention_days: int = 90,

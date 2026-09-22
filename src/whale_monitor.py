@@ -240,6 +240,13 @@ def run_whale_monitor(
 
     # rotate + prune old archives BEFORE writing new fills
     rotated = rotate_if_month_changed(fills_path, now=now)
+    # Ротация по РАЗМЕРУ: месячная не срабатывает в Actions (смотрит на
+    # время файла, которое checkout ставит в «сейчас»), и файл дорос до
+    # предела GitHub в 100 МБ. См. whale_tracker.rotate_by_size (22.09).
+    from src.whale_tracker import rotate_by_size
+    moved = rotate_by_size(fills_path, now=now)
+    if moved:
+        logger.info("rotated %d old fills into monthly archives", moved)
     if rotated:
         logger.info("rotated to %s", rotated.name)
     removed = cleanup_old_archives(state_dir, retention_days=90, now=now)

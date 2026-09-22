@@ -240,12 +240,13 @@ def _read_recent_whale_fills(
 ) -> list[dict]:
     """Read fills from state/whale_fills.jsonl, filter by coin + age."""
     path = Path(state_dir) / "whale_fills.jsonl"
-    if not path.exists():
-        return []
     cutoff_ms = int((now - timedelta(days=days)).timestamp() * 1000)
     out: list[dict] = []
     try:
-        with path.open("r", encoding="utf-8") as fh:
+        # Живой файл держит 5 дней (22.09): читаем и архивы в окне.
+        from src.whale_tracker import iter_fill_lines
+        fh = iter_fill_lines(path, since_ms=cutoff_ms)
+        if True:
             for line in fh:
                 line = line.strip()
                 if not line:

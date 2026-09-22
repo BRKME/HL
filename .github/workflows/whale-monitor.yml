@@ -89,11 +89,21 @@ jobs:
           git commit -m "chore(whale-monitor): state update ${TS} [skip ci]"
 
           # Retry push up to 3 times to absorb conflicts with concurrent runs
+          PUSHED=0
           for i in 1 2 3; do
             if git push; then
+              PUSHED=1
               break
             fi
             echo "push attempt $i failed, rebasing and retrying"
             git pull --rebase --autostash
             sleep $((i * 2))
           done
+          # Провал пуша обязан быть ГРОМКИМ. С 19.09 он был молчаливым:
+          # файл упёрся в предел 100 МБ, пуш отклонялся, шаг выходил без
+          # ошибки — Actions зелёный, а состояние китов не сохранялось, и
+          # один дайджест ушёл семь раз за полтора дня (22.09).
+          if [ "$PUSHED" != "1" ]; then
+            echo "::error::whale state push failed 3 times — state NOT saved"
+            exit 1
+          fi

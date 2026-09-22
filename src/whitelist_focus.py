@@ -42,12 +42,13 @@ def _read_recent_whale_fills(state_dir: Path, coin: str, days: int,
     """Read whale fills from state for ONE coin over last N days."""
     import json
     path = state_dir / "whale_fills.jsonl"
-    if not path.exists():
-        return []
     cutoff_ms = int((now - timedelta(days=days)).timestamp() * 1000)
     out = []
     try:
-        with path.open("r", encoding="utf-8") as fh:
+        # Живой файл держит 5 дней (22.09): читаем и архивы в пределах окна.
+        from src.whale_tracker import iter_fill_lines
+        fh = iter_fill_lines(path, since_ms=cutoff_ms)
+        if True:
             for line in fh:
                 line = line.strip()
                 if not line:
