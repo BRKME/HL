@@ -6,10 +6,10 @@
   "last_change_ts": "2026-09-20T04:55:59.792741+00:00"
  },
  "ETH": {
-  "last_verdict": "WAIT",
-  "last_action_verdict": null,
-  "last_alert_ts": "2026-08-31T00:40:58.489724+00:00",
-  "last_change_ts": "2026-09-20T04:55:59.792741+00:00"
+  "last_verdict": "LONG",
+  "last_action_verdict": "LONG",
+  "last_alert_ts": "2026-09-22T17:05:54.515387+00:00",
+  "last_change_ts": "2026-09-22T17:05:54.515387+00:00"
  },
  "ZEC": {
   "last_verdict": "WAIT",
@@ -24,10 +24,10 @@
   "last_change_ts": "2026-09-17T18:15:57.066296+00:00"
  },
  "HYPE": {
-  "last_verdict": "WAIT",
-  "last_action_verdict": null,
-  "last_alert_ts": "2026-08-30T21:16:30.714827+00:00",
-  "last_change_ts": "2026-09-20T04:55:59.792741+00:00"
+  "last_verdict": "LONG",
+  "last_action_verdict": "LONG",
+  "last_alert_ts": "2026-09-22T17:05:54.515387+00:00",
+  "last_change_ts": "2026-09-22T17:05:54.515387+00:00"
  },
  "ASTER": {
   "last_verdict": "WAIT",
