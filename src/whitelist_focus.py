@@ -403,11 +403,22 @@ def render_whitelist_verdicts(
     # Объявляем до условия: слой не должен зависеть от того, показываем ли
     # шапку.
     _stance_by_coin: dict = {}
+    _stance_day: dict = {}
     if show_whale_stance:
         try:
             from src.whale_stance import compute_stance, format_stance_line
             stances = compute_stance(state_dir, coins=FOCUS_COINS, now=now)
             _stance_by_coin = stances or {}
+            # Суточное окно рядом с недельным (23.09). Метка смотрела только
+            # на неделю — и молчала, когда киты развернулись сегодня: по HYPE
+            # за сутки 243 шорта против 34 лонгов, за неделю поровну; письмо
+            # предлагало HYPE вторым на покупку, пока китовый дайджест того
+            # же утра показывал три кита в шорте на $7.9M.
+            try:
+                _stance_day = compute_stance(state_dir, coins=FOCUS_COINS,
+                                             now=now, lookback_days=1) or {}
+            except Exception:  # noqa: BLE001
+                _stance_day = {}
             stance_line = format_stance_line(stances, FOCUS_COINS)
             # Монеты без данных из строки убираются (03.08): «BTC — • NEAR —
             # • HYPE —» несёт нули информации при полной строке текста.
@@ -524,11 +535,21 @@ def render_whitelist_verdicts(
         # лонг. Данные о них были в шапке, но со строками монет не связаны —
         # слои спорили молча.
         whale_note = ""
-        _st = _stance_by_coin.get(coin)
-        if _st is not None and verdict in ("LONG", "SHORT"):
-            bias = _st.bias
-            if bias and bias.upper() != verdict:
-                whale_note = f" ⚠️ киты в {'шорте' if bias == 'short' else 'лонге'}"
+        # Сутки важнее недели как раннее предупреждение: разворот китов
+        # против вердикта сегодня — повод не входить сегодня. Неделя —
+        # фон, когда за сутки картины нет. Окно названо в метке, чтобы не
+        # гадать, откуда она.
+        if verdict in ("LONG", "SHORT"):
+            for _src, _tag in ((_stance_day, "за сутки"),
+                               (_stance_by_coin, "за неделю")):
+                _st = _src.get(coin)
+                bias = _st.bias if _st is not None else None
+                if bias is None:
+                    continue
+                if bias.upper() != verdict:
+                    side = "шорте" if bias == "short" else "лонге"
+                    whale_note = f" ⚠️ киты в {side} {_tag}"
+                break
 
         novelty = _marks.get(coin)
         novelty_note = f" · {novelty}" if novelty else ""
