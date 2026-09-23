@@ -1,1 +1,22 @@
-{}
+{
+ "ETH": {
+  "verdict": "LONG",
+  "since": "2026-09-23"
+ },
+ "HYPE": {
+  "verdict": "LONG",
+  "since": "2026-09-23"
+ },
+ "ASTER": {
+  "verdict": "LONG",
+  "since": "2026-09-23"
+ },
+ "MORPHO": {
+  "verdict": "LONG",
+  "since": "2026-09-23"
+ },
+ "ONDO": {
+  "verdict": "LONG",
+  "since": "2026-09-23"
+ }
+}
