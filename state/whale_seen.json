@@ -677,6 +677,18 @@
       "whale": "0x9e2cbb5d800181c1ef21b25010dc4ea80eeb5508",
       "coin": "HYPE",
       "ts": 1790377410
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xc179e03922afe8fa9533d3f896338b9fb87ce0c8",
+      "coin": "PUMP",
+      "ts": 1790413440
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xb7e0b9fbc9479330d70bcc82a7d4325a20e8d1aa",
+      "coin": "HYPE",
+      "ts": 1790413440
     }
   ]
 }
