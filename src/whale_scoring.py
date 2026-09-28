@@ -50,6 +50,7 @@ class CoinStats:
     win_rate: float
     total_pnl: float
     avg_pnl: float
+    closures: Optional[int] = None    # закрытий позиции, не филлов
 
 
 @dataclass
@@ -64,6 +65,33 @@ class WhaleScore:
     worst_trade: float
     window_days: int
     by_coin: dict[str, CoinStats] = field(default_factory=dict)
+    closures: Optional[int] = None
+
+
+# Закрытие позиции против закрывающего филла (28.09.2026). WR выше считается
+# по филлам, а биржа дробит одно закрытие на сотни: у кита 0xdd7a37… «177
+# сделок» по BTC с WR 100% оказались ДВУМЯ закрытиями. Пересчёт WR по
+# закрытиям меняет отбор китов — это решение чекпойнта. До него число
+# закрытий только показывается рядом с WR.
+#
+# Закрывающие филлы одной монеты, идущие с разрывом не больше часа, — одно
+# закрытие. Порог по распределению разрывов в state/whale_fills.jsonl:
+# хвост выполаживается между 30 и 120 минутами, у 0xdd7a37… числа закрытий
+# при 30, 60 и 240 минутах почти совпадают.
+CLOSURE_GAP_MS = 60 * 60 * 1000
+
+
+def count_closures(fills: list[WhaleFill]) -> int:
+    """Число закрытий позиции среди закрывающих филлов (по всем монетам)."""
+    times: dict[str, list[int]] = {}
+    for f in fills:
+        if f.closed_pnl != 0.0:
+            times.setdefault(f.coin, []).append(f.time_ms)
+    total = 0
+    for ts in times.values():
+        ts.sort()
+        total += 1 + sum(1 for a, b in zip(ts, ts[1:]) if b - a > CLOSURE_GAP_MS)
+    return total
 
 
 # ----------------------------------------------------------------- scoring
@@ -113,13 +141,14 @@ def score_from_fills(
             by_coin[coin] = CoinStats(
                 coin=coin, closed_trades=cn, win_rate=cwr,
                 total_pnl=ctot, avg_pnl=cavg,
+                closures=count_closures(coin_fills),
             )
 
     return WhaleScore(
         whale=whale_lc, status=OK,
         closed_trades=n, win_rate=wr, total_pnl=tot, avg_pnl=avg,
         best_trade=best, worst_trade=worst, window_days=window_days,
-        by_coin=by_coin,
+        by_coin=by_coin, closures=count_closures(in_window),
     )
 
 

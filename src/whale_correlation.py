@@ -112,6 +112,27 @@ def _effective_winrate(scores: dict[str, WhaleScore], whale: str, coin: str) -> 
     return s.win_rate
 
 
+def _effective_closures(scores: dict[str, WhaleScore], whale: str,
+                        coin: str) -> Optional[int]:
+    """Число закрытий позиции за тем же WR, что вернул _effective_winrate."""
+    s = scores.get(whale)
+    if s is None:
+        return None
+    cs = s.by_coin.get(coin)
+    if cs is not None:
+        return cs.closures
+    return s.closures
+
+
+def fmt_wr(wr: float, closures: Optional[int]) -> str:
+    """«WR 100% · закрытий: 2». WR считан по филлам, а биржа дробит одно
+    закрытие на сотни, поэтому процент без числа закрытий врёт о выборке
+    (28.09.2026, см. whale_scoring.CLOSURE_GAP_MS)."""
+    if closures is None:
+        return f"WR {wr:.0%}"
+    return f"WR {wr:.0%} · закрытий: {closures}"
+
+
 # --------------------------------------------------------------- CLUSTER
 
 def detect_cluster(
@@ -194,17 +215,19 @@ def detect_overlap(
         wr = _effective_winrate(scores, f.whale, f.coin)
         if wr < config.overlap_min_winrate:
             continue
+        closures = _effective_closures(scores, f.whale, f.coin)
         out.append(Signal(
             rule=SIG_OVERLAP,
             severity=SEV_INFO,
             coin=f.coin,
-            message=f"{f.coin}: кит {f.whale[:10]}… подтверждает {whale_side.upper()} (WR {wr:.0%})",
+            message=f"{f.coin}: кит {f.whale[:10]}… подтверждает {whale_side.upper()} ({fmt_wr(wr, closures)})",
             details={
                 "coin": f.coin,
                 "whale": f.whale,
                 "whale_side": whale_side,
                 "user_side": user_sides[f.coin],
                 "winrate_used": wr,
+                "closures_used": closures,
                 "notional_usd": f.notional_usd,
             },
         ))
@@ -251,6 +274,7 @@ def detect_new_open(
         wr = _effective_winrate(scores, whale, coin)
         if wr < wr_threshold:
             continue
+        closures = _effective_closures(scores, whale, coin)
         severity = SEV_WARN if is_focus else SEV_INFO
         focus_marker = "🎯 " if is_focus else ""
         fills_note = f" ({len(grp)} филла/ов)" if len(grp) > 1 else ""
@@ -260,7 +284,7 @@ def detect_new_open(
             coin=coin,
             message=(
                 f"{focus_marker}{coin}: кит {whale[:10]}… открыл "
-                f"{side.upper()} ${total:,.0f}{fills_note} (WR {wr:.0%})"
+                f"{side.upper()} ${total:,.0f}{fills_note} ({fmt_wr(wr, closures)})"
             ),
             details={
                 "coin": coin,
@@ -269,6 +293,7 @@ def detect_new_open(
                 "notional_usd": total,
                 "fills_count": len(grp),
                 "winrate_used": wr,
+                "closures_used": closures,
                 "tid": grp[0].tid,
                 "focus": is_focus,
             },

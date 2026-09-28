@@ -18,6 +18,7 @@ from src.whale_correlation import (
     Signal,
     SIG_CLUSTER, SIG_OVERLAP, SIG_NEW_OPEN, SIG_FLIP,
     SEV_INFO, SEV_WARN, SEV_CRITICAL,
+    fmt_wr,
 )
 
 
@@ -122,7 +123,8 @@ def _format_focus_new_open(s: Signal) -> str:
     notional = d.get("notional_usd", 0)
     wr = d.get("winrate_used", 0)
     return (f"🎯 <b>NEW_OPEN {coin}</b> {direction} • "
-            f"<code>{whale}</code> • {_fmt_money(notional)} (WR {wr:.0%})")
+            f"<code>{whale}</code> • {_fmt_money(notional)} "
+            f"({fmt_wr(wr, d.get('closures_used'))})")
 
 
 def render_instant_alerts(signals: list[Signal], now: datetime) -> Optional[str]:
@@ -175,12 +177,16 @@ def _digest_overlap_section(signals: list[Signal]) -> Optional[str]:
     lines = ["", "<b>👥 Совпадения с твоими позициями</b>"]
     for (coin, whale), group in ranked[:_MAX_LINES_PER_SECTION]:
         n = len(group)
-        wr = max((x.details.get("winrate_used", 0) for x in group), default=0)
+        # WR и число закрытий — из одного сигнала, иначе процент окажется
+        # подписан чужой выборкой.
+        best = max(group, key=lambda x: x.details.get("winrate_used", 0))
+        wr = best.details.get("winrate_used", 0)
+        closures = best.details.get("closures_used")
         whale_short = _e(_short_whale(whale)) if whale else "?"
         suffix = f" ×{n}" if n > 1 else ""
         lines.append(
             f"• <code>{_e(coin)}</code> от <code>{whale_short}</code> "
-            f"(WR {wr:.0%}){suffix}"
+            f"({fmt_wr(wr, closures)}){suffix}"
         )
     if len(ranked) > _MAX_LINES_PER_SECTION:
         lines.append(f"  …и ещё {len(ranked) - _MAX_LINES_PER_SECTION}")
