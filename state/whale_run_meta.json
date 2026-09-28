@@ -1,8 +1,8 @@
 {
-  "last_run_ts": "2026-09-28T10:30:41.847174+00:00",
+  "last_run_ts": "2026-09-28T19:12:26.775426+00:00",
   "candidate_count": 50,
-  "new_fills": 12021,
-  "scored_whales": 15,
-  "signals_emitted": 175,
+  "new_fills": 14576,
+  "scored_whales": 20,
+  "signals_emitted": 50,
   "status": "ok"
 }
