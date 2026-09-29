@@ -2,30 +2,6 @@
   "entries": [
     {
       "rule": "WHALE_NEW_OPEN",
-      "whale": "0xc926ddba8b7617dbc65712f20cf8e1b58b8598d3",
-      "coin": "NEAR",
-      "ts": 1790549215
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0xc926ddba8b7617dbc65712f20cf8e1b58b8598d3",
-      "coin": "ZEC",
-      "ts": 1790549215
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0xc179e03922afe8fa9533d3f896338b9fb87ce0c8",
-      "coin": "PUMP",
-      "ts": 1790549215
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0xc179e03922afe8fa9533d3f896338b9fb87ce0c8",
-      "coin": "DOGE",
-      "ts": 1790549215
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
       "whale": "0x0871deb34bfd2052b1c10dc4f6c0912a2a47e927",
       "coin": "PUMP",
       "ts": 1790566248
@@ -1397,6 +1373,12 @@
       "whale": "0x668cec05549105e5b05bcc779a43186735d7ea2e",
       "coin": "ZEC",
       "ts": 1790622746
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xaf0fdd39e5d92499b0ed9f68693da99c0ec1e92e",
+      "coin": "HYPE",
+      "ts": 1790640589
     }
   ]
 }
