@@ -10,7 +10,7 @@ and use markers consistent with daily_monitor (🐋 for whale-related lines).
 from __future__ import annotations
 
 import html
-from collections import Counter, defaultdict
+from collections import defaultdict
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
@@ -160,6 +160,40 @@ def render_instant_alerts(signals: list[Signal], now: datetime) -> Optional[str]
 
 # --------------------------------------------------------------- digest
 
+def _observation_key(s: Signal) -> tuple:
+    """Одно наблюдение — кит + монета + сторона (§5 политики, 29.09).
+
+    Монитор пишет сигнал на каждый крупный филл, и «BTC ×173» было одной
+    позицией одного кита. Совпадение с позицией и вход того же кита по той
+    же монете и стороне — тоже одно решение. День в ключ не входит: окно
+    дайджеста — сутки, и полночь внутри окна разрезала бы одну позицию на
+    два наблюдения. Кластер — одно наблюдение на монету и сторону. Сигнал
+    без кита не склеивается ни с чем: неизвестное происхождение не
+    объединяется.
+    """
+    d = s.details or {}
+    side = (d.get("whale_side") or d.get("direction")
+            or d.get("to_side") or "").lower()
+    if s.rule == SIG_CLUSTER:
+        return ("cluster", s.coin, side)
+    whale = d.get("whale")
+    if not whale:
+        return ("single", id(s))
+    return ("whale", whale, s.coin, side)
+
+
+def _dedupe_observations(signals: list[Signal]) -> list[Signal]:
+    """Первая копия каждого наблюдения, порядок сохраняется."""
+    seen: set[tuple] = set()
+    out: list[Signal] = []
+    for s in signals:
+        k = _observation_key(s)
+        if k not in seen:
+            seen.add(k)
+            out.append(s)
+    return out
+
+
 def _digest_overlap_section(signals: list[Signal]) -> Optional[str]:
     if not signals:
         return None
@@ -170,23 +204,23 @@ def _digest_overlap_section(signals: list[Signal]) -> Optional[str]:
         grouped[(s.coin, whale)].append(s)
 
     # sort sections by count descending, then by max winrate
+    # Копий одного кита больше не считаем (29.09): «×173» было числом
+    # филлов одной позиции, а не силой сигнала.
     ranked = sorted(
         grouped.items(),
-        key=lambda kv: (-len(kv[1]), -max((x.details.get("winrate_used", 0) for x in kv[1]), default=0)),
+        key=lambda kv: -max((x.details.get("winrate_used", 0) for x in kv[1]), default=0),
     )
     lines = ["", "<b>👥 Совпадения с твоими позициями</b>"]
     for (coin, whale), group in ranked[:_MAX_LINES_PER_SECTION]:
-        n = len(group)
         # WR и число закрытий — из одного сигнала, иначе процент окажется
         # подписан чужой выборкой.
         best = max(group, key=lambda x: x.details.get("winrate_used", 0))
         wr = best.details.get("winrate_used", 0)
         closures = best.details.get("closures_used")
         whale_short = _e(_short_whale(whale)) if whale else "?"
-        suffix = f" ×{n}" if n > 1 else ""
         lines.append(
             f"• <code>{_e(coin)}</code> от <code>{whale_short}</code> "
-            f"({fmt_wr(wr, closures)}){suffix}"
+            f"({fmt_wr(wr, closures)})"
         )
     if len(ranked) > _MAX_LINES_PER_SECTION:
         lines.append(f"  …и ещё {len(ranked) - _MAX_LINES_PER_SECTION}")
@@ -196,25 +230,30 @@ def _digest_overlap_section(signals: list[Signal]) -> Optional[str]:
 def _digest_new_open_section(signals: list[Signal]) -> Optional[str]:
     if not signals:
         return None
-    # group by coin only — multiple whales opening same coin is the signal
-    by_coin: dict[str, list[Signal]] = defaultdict(list)
+    # Монета + сторона (29.09). До этого группировали по монете и
+    # подписывали строку направлением большинства: ZEC-лонг на $3.6M
+    # печатался внутри «ZEC SHORT». Лонги и шорты — разные строки.
+    by_coin: dict[tuple[str, str], list[Signal]] = defaultdict(list)
     for s in signals:
-        by_coin[s.coin].append(s)
+        side = str(s.details.get("direction") or "?").upper()
+        by_coin[(s.coin, side)].append(s)
 
-    # sort sections by count descending
-    ranked = sorted(by_coin.items(), key=lambda kv: -len(kv[1]))
+    # От большего объёма к меньшему (решение оператора 29.09): по числу
+    # сигналов $107M шли вторыми после $12M.
+    def _total(group: list[Signal]) -> float:
+        return sum(g.details.get("notional_usd", 0) for g in group)
+
+    ranked = sorted(by_coin.items(), key=lambda kv: -_total(kv[1]))
 
     lines = ["", "<b>🆕 Новые входы китов</b>"]
-    for coin, group in ranked[:_MAX_LINES_PER_SECTION]:
-        n = len(group)
-        total_notional = sum(g.details.get("notional_usd", 0) for g in group)
-        directions = Counter(g.details.get("direction", "?") for g in group)
-        # majority direction
-        majority_dir = directions.most_common(1)[0][0].upper() if directions else "?"
+    for (coin, side), group in ranked[:_MAX_LINES_PER_SECTION]:
+        # ×N — разные киты. Объём суммируется по всем сигналам: у каждого
+        # свои филлы, повторный вход того же кита — новые деньги.
+        n = len({g.details.get("whale") or id(g) for g in group})
         suffix = f" ×{n}" if n > 1 else ""
         lines.append(
-            f"• <code>{_e(coin)}</code> {majority_dir} • "
-            f"{_fmt_money(total_notional)}{suffix}"
+            f"• <code>{_e(coin)}</code> {_e(side)} • "
+            f"{_fmt_money(_total(group))}{suffix}"
         )
     if len(ranked) > _MAX_LINES_PER_SECTION:
         lines.append(f"  …и ещё {len(ranked) - _MAX_LINES_PER_SECTION}")
@@ -265,7 +304,7 @@ def render_digest(signals: list[Signal], now: datetime) -> Optional[str]:
     msk = now.astimezone(_MOSCOW)
     parts = [
         f"🐋 <b>Whale digest за 24ч</b> — {_ru_date(msk)}, {msk.strftime('%H:%M')} MSK",
-        f"Всего сигналов: {len(signals)}",
+        f"Всего сигналов: {len(_dedupe_observations(signals))}",
     ]
 
     block = _digest_overlap_section(overlap)
@@ -277,7 +316,8 @@ def render_digest(signals: list[Signal], now: datetime) -> Optional[str]:
     # other info-level rules — generic fallback
     # rank-churn (NEW_ENTRANT/DROP_OFF) намеренно исключён из канала —
     # ротация лидерборда не несёт торгового решения (UX-фидбек 12.06).
-    other = [s for s in signals if s.rule not in (SIG_OVERLAP, SIG_NEW_OPEN)]
+    other = _dedupe_observations(
+        [s for s in signals if s.rule not in (SIG_OVERLAP, SIG_NEW_OPEN)])
     if other:
         parts.append("\n<b>Прочее</b>")
         for s in other[:_MAX_LINES_PER_SECTION]:

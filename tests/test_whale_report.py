@@ -135,8 +135,9 @@ def test_render_digest_groups_by_rule():
     assert "NEW" in msg.upper() or "Новые" in msg or "входы" in msg.lower()
 
 
-def test_render_digest_dedups_repeat_signals_to_count():
-    """Same (rule, coin, whale) appearing multiple times shows as 'x N'."""
+def test_render_digest_collapses_repeat_signals_to_one_line():
+    """Копии одного кита — одна строка без «×N» (29.09: ×N считал филлы
+    одной позиции, см. test_whale_digest_observations)."""
     whale = "0xabc111111111111111111111111111111111aaaa"
     sigs = [
         _sig(SIG_OVERLAP, SEV_INFO, "BTC", whale=whale, whale_side="long",
@@ -147,9 +148,9 @@ def test_render_digest_dedups_repeat_signals_to_count():
              user_side="long", winrate_used=0.65, notional_usd=180_000),
     ]
     msg = render_digest(sigs, now=NOW)
-    # one line for BTC, mentions 3
     assert msg.count("BTC") == 1
-    assert "×3" in msg or "x3" in msg or "(3)" in msg
+    assert "×3" not in msg
+    assert "Всего сигналов: 1" in msg
 
 
 def test_render_digest_includes_window_label():
@@ -168,8 +169,8 @@ def test_render_digest_under_telegram_limit():
     assert len(msg) <= 4096
 
 
-def test_render_digest_sorts_by_count_descending():
-    """Most-frequent signals first in each section."""
+def test_render_digest_sorts_by_volume_descending():
+    """Входы — от большего объёма к меньшему (29.09): у ETH $500k, у BTC $200k."""
     whale = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     sigs = (
         # BTC appears twice
