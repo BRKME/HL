@@ -16,13 +16,52 @@ from typing import Optional, Sequence
 
 # Записи дайджеста приходят кортежем
 # (coin, mark, verdict, rationale, raw_verdict, raw_rationale).
-_COIN, _VERDICT = 0, 2
+_COIN, _VERDICT, _RAW = 0, 2, 4
 
 _ENTRY_VERDICTS = ("LONG", "SHORT")
 
 
+def _no_entries_reason(waits: Sequence[tuple], regime: Optional[str]) -> str:
+    """Почему входов нет — из того, что система уже посчитала (29.09).
+
+    «Входов нет (9/9)» не отвечало на вопрос оператора «а почему не
+    шорты?». Ответ лежит в самих записях: график по монете (raw) и режим,
+    который мог его погасить. Вердикты здесь не меняются.
+    """
+    def _raw(v):
+        return str(v[_RAW]).upper() if len(v) > _RAW else "WAIT"
+
+    def _list(vs):
+        return " ".join(f"<code>{v[_COIN]}</code>" for v in vs)
+
+    up = [v for v in waits if _raw(v) == "LONG"]
+    down = [v for v in waits if _raw(v) == "SHORT"]
+    flat = [v for v in waits if _raw(v) not in ("LONG", "SHORT")]
+    reg = str(regime or "").upper()
+
+    out = []
+    if up:
+        why = (f"лонги гасит режим {reg}" if reg == "BEAR"
+               else "вход отложен фильтрами графика")
+        out.append(f"   ↳ график вверх у {len(up)}: {_list(up)} — {why}")
+    if down:
+        why = (f"шорты гасит режим {reg}" if reg == "BULL"
+               else "вход отложен фильтрами графика")
+        out.append(f"   ↳ график вниз у {len(down)}: {_list(down)} — {why}")
+    if flat:
+        out.append(f"   ↳ без тренда: {_list(flat)}")
+    # Отсутствие второй стороны называется, только когда первая есть:
+    # «шортов нет» — ответ на вопрос, заданный при сплошном «вверх».
+    if up and not down:
+        out.append("   ↳ шортов нет: график ни на одной монете не вниз")
+    elif down and not up:
+        out.append("   ↳ лонгов нет: график ни на одной монете не вверх")
+    return "\n".join(out)
+
+
 def collapse_wait_verdicts(
     verdicts: Sequence[tuple],
+    regime: Optional[str] = None,
 ) -> tuple[list[tuple], Optional[str]]:
     """Схлопнуть сплошные WAIT в одну строку.
 
@@ -48,10 +87,11 @@ def collapse_wait_verdicts(
     if not waits:
         return nodata, None
 
-    # Моноширинные тикеры, как в остальном сообщении: сводка заменяет
-    # восемь строк, но не должна выглядеть чужеродной вставкой.
-    coins = " ".join(f"<code>{v[_COIN]}</code>" for v in waits)
-    summary = f"⚪ Входов нет ({len(waits)}/{len(waits)}): {coins}"
+    # Тикеры перечисляются в строках причин — каждая монета ровно один
+    # раз (§7.9): список в заголовке повторял бы их все второй раз.
+    summary = (f"⚪ <b>Сегодня ничего не делаем.</b> "
+               f"Входов нет ({len(waits)}/{len(waits)}):\n"
+               + _no_entries_reason(waits, regime))
     return nodata, summary
 
 

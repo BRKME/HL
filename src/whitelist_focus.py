@@ -440,7 +440,7 @@ def render_whitelist_verdicts(
     from src.digest_compact import (
         collapse_wait_verdicts, collapse_waits_when_entries, rank_entries,
     )
-    verdicts, wait_summary = collapse_wait_verdicts(verdicts)
+    verdicts, wait_summary = collapse_wait_verdicts(verdicts, regime=regime)
 
     # Относительная сила по каждой монете — для порядка входов и для того,
     # чтобы оператор видел, на чём этот порядок основан (30.08).
