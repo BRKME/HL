@@ -251,6 +251,13 @@ def _digest_new_open_section(signals: list[Signal]) -> Optional[str]:
         # свои филлы, повторный вход того же кита — новые деньги.
         n = len({g.details.get("whale") or id(g) for g in group})
         suffix = f" ×{n}" if n > 1 else ""
+        if n == 1 and "winrate_used" in group[0].details:
+            # Один кит — строка целиком его, и его послужной список должен
+            # быть рядом, как в мгновенном алерте (30.09: «$37.7M» стоял на
+            # ките с одним закрытием за всю историю).
+            best = max(group, key=lambda x: x.details.get("winrate_used", 0))
+            wr = best.details.get("winrate_used", 0)
+            suffix = f" ({fmt_wr(wr, best.details.get('closures_used'))})"
         lines.append(
             f"• <code>{_e(coin)}</code> {_e(side)} • "
             f"{_fmt_money(_total(group))}{suffix}"

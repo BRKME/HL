@@ -93,3 +93,21 @@ def test_new_open_does_not_mix_sides():
     msg = render_digest(sigs, NOW)
     assert "<code>ZEC</code> SHORT • $6.3M ×2" in msg
     assert "<code>ZEC</code> LONG • $3.6M" in msg
+
+
+def test_single_whale_line_shows_its_record():
+    """30.09: «BTC SHORT • $37.7M» — один кит с ОДНИМ закрытием за всю
+    историю, а строка выглядела как крупный сигнал. Когда за строкой один
+    кит, его WR и число закрытий печатаются, как в мгновенном алерте."""
+    s = _new_open("0xedcdca", "BTC", 37.7e6, "short")
+    s.details["winrate_used"] = 1.0
+    s.details["closures_used"] = 1
+    msg = render_digest([s], NOW)
+    assert "<code>BTC</code> SHORT • $37.7M (WR 100% · закрытий: 1)" in msg
+
+
+def test_multi_whale_line_has_no_single_record():
+    sigs = [_new_open("0xa", "ZEC", 1e6), _new_open("0xb", "ZEC", 1e6)]
+    msg = render_digest(sigs, NOW)
+    assert "<code>ZEC</code> LONG • $2.0M ×2" in msg
+    assert "WR" not in msg

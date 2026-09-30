@@ -41,12 +41,18 @@ def should_send_heartbeat(last_send_ts: Optional[str], now: datetime) -> bool:
 
 
 def build_heartbeat(regime: Optional[str], phase: Optional[str],
-                    has_positions: bool, now: datetime,
+                    has_positions: Optional[bool], now: datetime,
                     tactical_line: Optional[str] = None) -> str:
     """Короткий статус: жив, режим/фаза, позиции, текущие тактические вердикты."""
     reg = regime or "n/a"
     ph = phase or "n/a"
-    pos = "есть открытые позиции" if has_positions else "позиций нет (вне рынка)"
+    # None — портфель не загрузился (30.09): «позиций нет» тогда было бы
+    # незнанием, выданным за факт.
+    if has_positions is None:
+        pos = "позиции: нет данных"
+    else:
+        pos = ("есть открытые позиции" if has_positions
+               else "позиций нет (вне рынка)")
     date = now.strftime("%d.%m.%Y")
     # «Бот жив» убрано: детектор журнала кричит при молчании источника, а
     # сам факт прихода письма и есть доказательство живости. Строка про
@@ -149,7 +155,7 @@ def main() -> None:
         return
 
     regime = phase = None
-    has_positions = False
+    has_positions: Optional[bool] = None
     try:
         from src import oracai
         snap = oracai.fetch_snapshot()
@@ -185,9 +191,6 @@ def main() -> None:
     except Exception as e:  # noqa: BLE001
         print(f"[heartbeat] send failed: {e}")
 
-
-if __name__ == "__main__":
-    main()
 
 
 def scorecard(open_trades) -> Optional[str]:
@@ -243,3 +246,10 @@ def scorecard(open_trades) -> Optional[str]:
             f"в плюсе {wins} из {len(rows)} · средний результат {avg:+.1f}%\n"
             f"лучший {best[0]} {best[1]:+.1f}% · худший {worst[0]} "
             f"{worst[1]:+.1f}%")
+
+
+# Строго последним (30.09): scorecard стоял ниже этого блока, и при запуске
+# скриптом main() вызывался раньше, чем функция объявлена, — табель в
+# письмо не попадал, ошибка глоталась в лог.
+if __name__ == "__main__":
+    main()
