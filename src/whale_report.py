@@ -99,7 +99,19 @@ def _format_cluster(s: Signal) -> str:
     side = (d.get("direction") or "").upper()
     n = d.get("whale_count", 0)
     marker = "🎯⚡" if d.get("focus") else "⚡"
-    return f"{marker} <b>CLUSTER {coin}</b> {side} — {n} китов"
+    line = f"{marker} <b>CLUSTER {coin}</b> {side} — {n} китов"
+    # Состав кластера (30.09): объём, сколько китов с историей и доля
+    # крупнейшего. Сигналы, записанные до правки, полей не имеют.
+    if d.get("notional_usd"):
+        line += f" • {_fmt_money(d['notional_usd'])}"
+    if "proven_whales" not in d:
+        return line
+    bits = [f"с историей {d['proven_whales']} из {n}"]
+    top = d.get("top_share") or 0
+    if top > 0.5:
+        # Больше половины у одного — согласие китов в основном его мнение.
+        bits.append(f"один кит — {top:.0%} объёма")
+    return line + "\n   ↳ " + " · ".join(bits)
 
 
 def _format_flip(s: Signal) -> str:

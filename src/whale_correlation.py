@@ -135,6 +135,22 @@ def fmt_wr(wr: float, closures: Optional[int]) -> str:
 
 # --------------------------------------------------------------- CLUSTER
 
+# «Кит с историей» для строки кластера (30.09.2026): не меньше 5 закрытий
+# позиции и WR не ниже 60% — по тому же источнику, что _effective_winrate.
+# 5 — тот же минимум, что MIN_COIN_TRADES, но в закрытиях, а не филлах;
+# 60% — порог действия проекта (N≥30, WR≥60%). ТОЛЬКО ПОКАЗ: отбор
+# кластера по-прежнему требует лишь статуса «оценён». Предсказательной силы
+# у признака на 17 кластерах сентября не найдено — это факт о составе, не
+# оценка сигнала.
+PROVEN_MIN_CLOSURES = 5
+PROVEN_MIN_WR = 0.60
+
+
+def _is_proven(scores: dict[str, WhaleScore], whale: str, coin: str) -> bool:
+    closures = _effective_closures(scores, whale, coin)
+    return (closures is not None and closures >= PROVEN_MIN_CLOSURES
+            and _effective_winrate(scores, whale, coin) >= PROVEN_MIN_WR)
+
 def detect_cluster(
     fills: list[WhaleFill],
     scores: dict[str, WhaleScore],
@@ -144,8 +160,9 @@ def detect_cluster(
     """3+ scored whales opening the same side on the same whitelist coin.
     Focus coins (CorrelationConfig.focus_coins) need only 2 whales and
     use the relaxed notional floor; their signals are SEV_CRITICAL."""
-    # group: (coin, side) -> set of whales
-    by_coin_side: dict[tuple[str, str], set[str]] = {}
+    # group: (coin, side) -> {whale: объём открытий}. Объём по киту — для
+    # показа (30.09): «5 китов» при 67% объёма у одного — не пять мнений.
+    by_coin_side: dict[tuple[str, str], dict[str, float]] = {}
     for f in fills:
         if f.coin not in whitelist:
             continue
@@ -158,10 +175,12 @@ def detect_cluster(
         side = _side_from_direction(f.direction)
         if side is None:
             continue
-        by_coin_side.setdefault((f.coin, side), set()).add(f.whale)
+        vol = by_coin_side.setdefault((f.coin, side), {})
+        vol[f.whale] = vol.get(f.whale, 0.0) + f.notional_usd
 
     out: list[Signal] = []
-    for (coin, side), whales in by_coin_side.items():
+    for (coin, side), whale_vol in by_coin_side.items():
+        whales = set(whale_vol)
         is_focus = coin in config.focus_coins
         min_whales = (
             config.focus_cluster_min_whales if is_focus else config.cluster_min_whales
@@ -170,6 +189,7 @@ def detect_cluster(
             continue
         severity = SEV_CRITICAL if is_focus else SEV_WARN
         focus_marker = "🎯 " if is_focus else ""
+        total = sum(whale_vol.values())
         out.append(Signal(
             rule=SIG_CLUSTER,
             severity=severity,
@@ -181,6 +201,10 @@ def detect_cluster(
                 "whale_count": len(whales),
                 "whales": sorted(whales),
                 "focus": is_focus,
+                "notional_usd": total,
+                "top_share": max(whale_vol.values()) / total if total else 0.0,
+                "proven_whales": sum(1 for w in whales
+                                     if _is_proven(scores, w, coin)),
             },
         ))
     return out
