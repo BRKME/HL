@@ -101,6 +101,12 @@
       "whale": "0xec4a6f59960fb55a7fa49262e2628687b322cf62",
       "coin": "PUMP",
       "ts": 1790810751
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xc926ddba8b7617dbc65712f20cf8e1b58b8598d3",
+      "coin": "NEAR",
+      "ts": 1790827289
     }
   ]
 }
