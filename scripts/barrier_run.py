@@ -96,7 +96,8 @@ def main() -> int:
     print(f"ВЫВОД: {verdict}")
 
     try:
-        from src.telegram_sender import send_messages
+        from src.telegram_sender import muted_sender
+        send_messages = muted_sender("research")  # отчёт, не действие (01.10)
         lines = []
         for coin, rows in all_rows.items():
             for r in rows:

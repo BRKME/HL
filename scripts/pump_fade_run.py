@@ -122,7 +122,8 @@ def main() -> int:
     print(f"\nВЫВОД: {verdict}")
 
     try:
-        from src.telegram_sender import send_messages
+        from src.telegram_sender import muted_sender
+        send_messages = muted_sender("research")  # отчёт, не действие (01.10)
         shown = sorted(rows_for_best, key=lambda r: -r[8])[:10]
         table = "\n".join(
             f"{h:>2}д стоп {'нет' if stop is None else '-' + str(stop) + '%':>5} "

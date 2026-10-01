@@ -156,3 +156,30 @@ def test_commit_steps_configure_git_identity():
         text = p.read_text(encoding="utf-8")
         if "git commit" in text:
             assert "user.name" in text, f"{p.name}: git commit без identity"
+
+
+# ------------------------------- маркер отправки коммитит КАЖДЫЙ отправитель
+
+# 01.10.2026: «Итог дня» приходил каждый день вторым письмом, хотя канал уже
+# слышал утренний дайджест. daily-monitor коммитил last_channel_send.txt
+# только в отладочном шаге (`if: inputs.debug_sl`), и маркер терялся.
+# Проверка выше смотрела «коммитит ли файл хоть кто-нибудь» — и была
+# довольна. Здесь — каждый воркфлоу, шлющий в канал действия, и шаг без
+# условия. journal-health не в списке: шлёт только при отказе, а лишний
+# «Итог дня» в день отказа безвреден.
+CHANNEL_SENDERS = ("daily-monitor", "position_guard", "tactical-signals",
+                   "heartbeat")
+
+
+@pytest.mark.parametrize("name", CHANNEL_SENDERS)
+def test_channel_sender_commits_send_marker_unconditionally(name):
+    d = yaml.safe_load(
+        (ROOT / ".github" / "workflows" / f"{name}.yml").read_text(encoding="utf-8"))
+    ok = False
+    for job in (d.get("jobs") or {}).values():
+        for step in job.get("steps") or []:
+            run = step.get("run") or ""
+            if ("if" not in step and "git add" in run
+                    and "state/last_channel_send.txt" in run):
+                ok = True
+    assert ok, f"{name}: маркер отправки не коммитится в шаге без условия"

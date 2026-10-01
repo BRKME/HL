@@ -28,7 +28,7 @@ jobs:
           git config user.email "actions@github.com"
           echo "=== porcelain before add ==="
           git status --porcelain state/ || true
-          git add state/tactical_state.json state/tactical_journal.jsonl state/guard_state.json 2>/dev/null || true
+          git add state/tactical_state.json state/tactical_journal.jsonl state/guard_state.json state/last_channel_send.txt 2>/dev/null || true
           if git diff --staged --quiet; then
             echo "nothing staged — guard made no changes this run"
             exit 0

@@ -91,7 +91,8 @@ def main() -> int:
         print(f"\n{line}")
 
     try:
-        from src.telegram_sender import send_messages
+        from src.telegram_sender import muted_sender
+        send_messages = muted_sender("research")  # отчёт, не действие (01.10)
         table = "\n".join(
             f"{r.horizon_h:>2}ч задержка "
             f"{(str(r.delay_min) + 'м') if r.delay_min < 60 else str(r.delay_min // 60) + 'ч':>4}"

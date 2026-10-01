@@ -38,7 +38,12 @@ from src.leaderboard_ranks import (
     save_ranks_state,
     update_ranks_state,
 )
-from src.telegram_sender import send_messages
+from src.telegram_sender import muted_sender
+
+# Активность китов в канал не идёт (01.10.2026): оператору киты нужны лишь
+# там, где они меняют действие, — метка у входа в дайджесте. Сбор, оценка и
+# журналы работают как прежде, текст сообщений уходит в лог Actions.
+send_messages = muted_sender("whales")
 from src.whale_correlation import (
     CorrelationConfig,
     Signal,

@@ -119,7 +119,8 @@ def main() -> int:
     try:
         sys.path.insert(0, str(__import__("pathlib").Path(__file__)
                               .resolve().parents[1]))
-        from src.telegram_sender import send_messages
+        from src.telegram_sender import muted_sender
+        send_messages = muted_sender("research")  # отчёт, не действие (01.10)
         total = sum(len(v) for v in markets.values())
         send_messages([f"🔌 <b>Проверка Aevo</b>: доступ есть, "
                        f"активных опционов {total}\n"

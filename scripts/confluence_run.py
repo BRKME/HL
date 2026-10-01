@@ -79,7 +79,8 @@ def main() -> int:
     print(f"\nВЫВОД: {verdict}")
 
     try:
-        from src.telegram_sender import send_messages
+        from src.telegram_sender import muted_sender
+        send_messages = muted_sender("research")  # отчёт, не действие (01.10)
         rows = "\n".join(
             f"{o.label:20} n={o.n:>4} {o.avg_pct:+.2f}% WR {o.win_rate:.0%}"
             for o in results if o.n)

@@ -285,7 +285,8 @@ def main() -> int:
                              f"вероятно шум\n")
 
     try:
-        from src.telegram_sender import send_messages
+        from src.telegram_sender import muted_sender
+        send_messages = muted_sender("research")  # отчёт, не действие (01.10)
         rows = "\n".join(
             f"окно {p.lookback:>2}д держ {p.holding:>2}д "
             f"{'норм' if p.vol_scaled else '    '} "

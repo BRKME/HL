@@ -113,7 +113,8 @@ def main() -> int:
                        f"разница {sa - wa:+.3f} → {verdict}")
 
     try:
-        from src.telegram_sender import send_messages
+        from src.telegram_sender import muted_sender
+        send_messages = muted_sender("research")  # отчёт, не действие (01.10)
         rows = "\n".join(
             f"{m:9} n={results[m]['n']:>4} · avg R {results[m]['avg_r']:+.3f} "
             f"· WR {results[m]['wr']:.0%}"

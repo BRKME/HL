@@ -181,7 +181,8 @@ def main() -> int:
         return 0
 
     try:
-        from src.telegram_sender import send_messages
+        from src.telegram_sender import muted_sender
+        send_messages = muted_sender("research")  # отчёт, не действие (01.10)
         head = (f"\U0001F465 <b>Расстановка сил</b> \u00b7 {total_coins} монет"
                 f" \u00b7 180 дней\n"
                 f"<i>кто в лонге, кто в шорте — и что было дальше</i>\n\n")

@@ -61,7 +61,8 @@ def main() -> int:
     print(f"\nВЫВОД: {verdict(s)}")
 
     try:
-        from src.telegram_sender import send_messages
+        from src.telegram_sender import muted_sender
+        send_messages = muted_sender("research")  # отчёт, не действие (01.10)
         rows = "\n".join(f"{c:8} n={d['n']:>3} PnL ${d['pnl']:+.0f}"
                          for c, d in sorted(s["by_coin"].items(),
                                             key=lambda kv: -kv[1]["pnl"])[:8])

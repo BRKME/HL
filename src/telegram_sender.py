@@ -137,6 +137,36 @@ def send_messages(messages: list[str]) -> None:
         _mark_sent()
 
 
+# ---------------------------------------------------------- что идёт в канал
+
+# В канал — только «что делать» (01.10.2026, решение оператора: «99%
+# сообщений — шум, киты нужны только для того, что делать»). Активность
+# китов и исследовательские отчёты в канал не идут: их текст печатается в
+# лог Actions, сбор и расчёты не меняются. Вернуть вид в канал — убрать его
+# отсюда, одна строка.
+MUTED_KINDS = frozenset({"whales", "research"})
+
+
+def muted_sender(kind: str):
+    """send_messages для сообщений вида kind.
+
+    Заглушённый вид печатается в лог и НЕ обновляет маркер last-send:
+    молчаливый для оператора день должен оставаться молчаливым и для
+    heartbeat. Незаглушённый идёт в send_messages, найденный в момент
+    вызова — подмены в тестах продолжают работать.
+    """
+    def _send(messages: list[str]) -> None:
+        if kind in MUTED_KINDS:
+            for text in messages:
+                if text:
+                    print(f"[канал: «{kind}» не отправляется]\n{text}",
+                          flush=True)
+            return
+        send_messages(messages)
+    _send.kind = kind
+    return _send
+
+
 def alert_owner(html_text: str) -> None:
     """Send to the owner chat if configured, else to the main chat."""
     bot_token, chat_id, owner = _read_env()

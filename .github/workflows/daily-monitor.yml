@@ -96,6 +96,12 @@ jobs:
           if [ -f "state/digest_prev.json" ]; then
             git add state/digest_prev.json || true
           fi
+          # Маркер последней отправки в канал (01.10.2026). Без коммита
+          # heartbeat считал день молчаливым и слал «Итог дня» вторым
+          # письмом после утреннего дайджеста.
+          if [ -f "state/last_channel_send.txt" ]; then
+            git add state/last_channel_send.txt || true
+          fi
           if git diff --cached --quiet; then
             echo "no verdict journal changes to commit"
             exit 0

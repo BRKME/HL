@@ -268,7 +268,8 @@ def main() -> None:
     )
     print(msg)
     try:
-        from src.telegram_sender import send_messages
+        from src.telegram_sender import muted_sender
+        send_messages = muted_sender("research")  # отчёт, не действие (01.10)
         send_messages([msg])
     except Exception as e:  # noqa: BLE001
         print(f"[kpi] telegram send failed: {e}")

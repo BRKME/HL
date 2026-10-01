@@ -375,8 +375,9 @@ def render_whitelist_verdicts(
     coin_data: {coin: {mark, candles_closes, funding_apr_pct}}.
     Each coin gets one line: emoji COIN price - verdict (reasons).
 
-    show_whale_stance: if True, prepend a '🐋 Киты 7d: ...' line built
-    from whale_fills.jsonl. Skipped silently if no fills accumulated yet.
+    show_whale_stance: считать позицию китов по whale_fills.jsonl для меток
+    у строк входа. Отдельной строкой «🐋 Киты 7d» она с 01.10.2026 не
+    печатается — активность китов без входа действия не несёт.
 
     include_regime_line: подпись «regime X · phase Y». Выключается, когда
     дайджест встраивается в дневной отчёт — тот печатает режим в подвале, и
@@ -406,7 +407,7 @@ def render_whitelist_verdicts(
     _stance_day: dict = {}
     if show_whale_stance:
         try:
-            from src.whale_stance import compute_stance, format_stance_line
+            from src.whale_stance import compute_stance
             stances = compute_stance(state_dir, coins=FOCUS_COINS, now=now)
             _stance_by_coin = stances or {}
             # Суточное окно рядом с недельным (23.09). Метка смотрела только
@@ -419,13 +420,10 @@ def render_whitelist_verdicts(
                                              now=now, lookback_days=1) or {}
             except Exception:  # noqa: BLE001
                 _stance_day = {}
-            stance_line = format_stance_line(stances, FOCUS_COINS)
-            # Монеты без данных из строки убираются (03.08): «BTC — • NEAR —
-            # • HYPE —» несёт нули информации при полной строке текста.
-            from src.digest_compact import compact_stance_line
-            stance_line = compact_stance_line(stance_line)
-            if stance_line:
-                lines.append(stance_line)
+            # Строка «🐋 Киты 7d: …» в письмо больше не идёт (01.10.2026,
+            # решение оператора): активность китов сама по себе действия не
+            # несёт. Позиция китов считается дальше и показывается там, где
+            # меняет действие, — меткой у строки входа.
         except Exception:
             # whale stance is auxiliary — never block the main message
             pass

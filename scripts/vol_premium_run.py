@@ -186,7 +186,8 @@ def main() -> int:
     print(f"\nВЫВОД: {verdict}")
 
     try:
-        from src.telegram_sender import send_messages
+        from src.telegram_sender import muted_sender
+        send_messages = muted_sender("research")  # отчёт, не действие (01.10)
         today = "\n".join(f"{a}: {v:+.1f} п.п." for a, v in summary_rows.items())
         send_messages([
             f"📐 <b>Премия за волатильность</b> · Aevo\n"

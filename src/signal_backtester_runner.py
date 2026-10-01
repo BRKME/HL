@@ -23,7 +23,9 @@ from src.signal_backtester import (
     load_signals,
     render_comparison_report,
 )
-from src.telegram_sender import alert_owner, send_messages
+from src.telegram_sender import alert_owner, muted_sender
+
+send_messages = muted_sender("research")  # отчёт, не действие (01.10)
 
 
 logger = logging.getLogger("signal_backtester_runner")

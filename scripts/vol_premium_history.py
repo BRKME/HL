@@ -183,7 +183,8 @@ def main() -> int:
     print(f"\nВЫВОД: {verdict}")
 
     try:
-        from src.telegram_sender import send_messages
+        from src.telegram_sender import muted_sender
+        send_messages = muted_sender("research")  # отчёт, не действие (01.10)
         rows = "\n".join(
             f"{a}: {summarise(p)['mean_pp']:+.1f} п.п. (n={summarise(p)['n']})"
             for a, p in all_points.items() if summarise(p)["n"])
