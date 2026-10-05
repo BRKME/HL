@@ -35,6 +35,24 @@
       "whale": "0x0871deb34bfd2052b1c10dc4f6c0912a2a47e927",
       "coin": "TAO",
       "ts": 1791172569
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xc298efc4785f2f282838924103509156c9578a9c",
+      "coin": "HYPE",
+      "ts": 1791198722
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0x47472cd62c99b8b5ce7e84e733515133e9aec0bd",
+      "coin": "BTC",
+      "ts": 1791198722
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0x47472cd62c99b8b5ce7e84e733515133e9aec0bd",
+      "coin": "BTC",
+      "ts": 1791198722
     }
   ]
 }
