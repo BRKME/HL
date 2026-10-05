@@ -17,6 +17,24 @@
       "whale": "0xf29c6bc1147a841519b382459a6d7a373c6b9971",
       "coin": "ZEC",
       "ts": 1791153716
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0x0871deb34bfd2052b1c10dc4f6c0912a2a47e927",
+      "coin": "ZEC",
+      "ts": 1791172569
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0x0871deb34bfd2052b1c10dc4f6c0912a2a47e927",
+      "coin": "PUMP",
+      "ts": 1791172569
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0x0871deb34bfd2052b1c10dc4f6c0912a2a47e927",
+      "coin": "TAO",
+      "ts": 1791172569
     }
   ]
 }
