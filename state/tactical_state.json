@@ -1,36 +1,36 @@
 {
  "BTC": {
-  "last_verdict": "WAIT",
-  "last_action_verdict": null,
-  "last_alert_ts": "2026-09-24T18:29:36.304282+00:00",
-  "last_change_ts": "2026-09-27T08:13:09.017980+00:00"
+  "last_verdict": "LONG",
+  "last_action_verdict": "LONG",
+  "last_alert_ts": "2026-10-06T15:19:47.387550+00:00",
+  "last_change_ts": "2026-10-06T15:19:47.387550+00:00"
  },
  "ETH": {
-  "last_verdict": "WAIT",
-  "last_action_verdict": null,
-  "last_alert_ts": "2026-09-22T17:05:54.515387+00:00",
-  "last_change_ts": "2026-09-27T08:13:09.017980+00:00"
+  "last_verdict": "LONG",
+  "last_action_verdict": "LONG",
+  "last_alert_ts": "2026-10-06T15:19:47.387550+00:00",
+  "last_change_ts": "2026-10-06T15:19:47.387550+00:00"
  },
  "ZEC": {
-  "last_verdict": "WAIT",
-  "last_action_verdict": null,
-  "last_alert_ts": "2026-09-23T18:28:14.776465+00:00",
-  "last_change_ts": "2026-09-27T08:13:09.017980+00:00"
+  "last_verdict": "LONG",
+  "last_action_verdict": "LONG",
+  "last_alert_ts": "2026-10-06T15:19:47.387550+00:00",
+  "last_change_ts": "2026-10-06T15:19:47.387550+00:00"
  },
  "NEAR": {
-  "last_verdict": "WAIT",
-  "last_action_verdict": null,
-  "last_alert_ts": "2026-09-10T11:33:46.917170+00:00",
-  "last_change_ts": "2026-09-17T18:15:57.066296+00:00"
+  "last_verdict": "LONG",
+  "last_action_verdict": "LONG",
+  "last_alert_ts": "2026-10-06T15:19:47.387550+00:00",
+  "last_change_ts": "2026-10-06T15:19:47.387550+00:00"
  },
  "HYPE": {
-  "last_verdict": "WAIT",
-  "last_action_verdict": null,
-  "last_alert_ts": "2026-09-22T17:05:54.515387+00:00",
-  "last_change_ts": "2026-09-27T08:13:09.017980+00:00"
+  "last_verdict": "LONG",
+  "last_action_verdict": "LONG",
+  "last_alert_ts": "2026-10-06T15:19:47.387550+00:00",
+  "last_change_ts": "2026-10-06T15:19:47.387550+00:00"
  },
  "ASTER": {
-  "last_verdict": "WAIT",
+  "last_verdict": "LONG",
   "last_action_verdict": "LONG",
   "last_alert_ts": "2026-09-16T07:47:07.251540+00:00",
   "last_change_ts": "2026-09-16T18:15:48.985211+00:00"
@@ -48,9 +48,9 @@
   "last_change_ts": "2026-09-27T08:13:09.017980+00:00"
  },
  "ONDO": {
-  "last_verdict": "WAIT",
-  "last_action_verdict": null,
-  "last_alert_ts": "2026-09-22T21:30:56.577047+00:00",
-  "last_change_ts": "2026-09-25T00:33:58.934738+00:00"
+  "last_verdict": "LONG",
+  "last_action_verdict": "LONG",
+  "last_alert_ts": "2026-10-06T15:19:47.387550+00:00",
+  "last_change_ts": "2026-10-06T15:19:47.387550+00:00"
  }
 }
