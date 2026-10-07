@@ -1,1 +1,34 @@
-{}
+{
+ "BTC": {
+  "verdict": "LONG",
+  "since": "2026-10-07"
+ },
+ "ETH": {
+  "verdict": "LONG",
+  "since": "2026-10-07"
+ },
+ "ZEC": {
+  "verdict": "LONG",
+  "since": "2026-10-07"
+ },
+ "NEAR": {
+  "verdict": "LONG",
+  "since": "2026-10-07"
+ },
+ "HYPE": {
+  "verdict": "LONG",
+  "since": "2026-10-07"
+ },
+ "MORPHO": {
+  "verdict": "LONG",
+  "since": "2026-10-07"
+ },
+ "TAO": {
+  "verdict": "LONG",
+  "since": "2026-10-07"
+ },
+ "ONDO": {
+  "verdict": "LONG",
+  "since": "2026-10-07"
+ }
+}
