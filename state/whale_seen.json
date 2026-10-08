@@ -2,36 +2,6 @@
   "entries": [
     {
       "rule": "WHALE_NEW_OPEN",
-      "whale": "0xec4a6f59960fb55a7fa49262e2628687b322cf62",
-      "coin": "ETH",
-      "ts": 1791385362
-    },
-    {
-      "rule": "WHALE_FLIP",
-      "whale": "0xc926ddba8b7617dbc65712f20cf8e1b58b8598d3",
-      "coin": "ZEC",
-      "ts": 1791385362
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0xd1dd6d99c5fb5d31ff52eacce5046c7158859e85",
-      "coin": "NEAR",
-      "ts": 1791385362
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0x0871deb34bfd2052b1c10dc4f6c0912a2a47e927",
-      "coin": "PUMP",
-      "ts": 1791385362
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0x0871deb34bfd2052b1c10dc4f6c0912a2a47e927",
-      "coin": "NEAR",
-      "ts": 1791385362
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
       "whale": "0xbf732ea04197942783e34730ed6e0f6099575d58",
       "coin": "ZEC",
       "ts": 1791406716
@@ -83,6 +53,72 @@
       "whale": "0x59629e23c52a0d7c092436870ef2db1dc382ddf8",
       "coin": "BTC",
       "ts": 1791433423
+    },
+    {
+      "rule": "WHALE_CLUSTER",
+      "whale": "",
+      "coin": "ETH",
+      "ts": 1791472297
+    },
+    {
+      "rule": "WHALE_CLUSTER",
+      "whale": "",
+      "coin": "BTC",
+      "ts": 1791472297
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0x939f95036d2e7b6d7419ec072bf9d967352204d2",
+      "coin": "ETH",
+      "ts": 1791472297
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0xc926ddba8b7617dbc65712f20cf8e1b58b8598d3",
+      "coin": "NEAR",
+      "ts": 1791472297
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0xc926ddba8b7617dbc65712f20cf8e1b58b8598d3",
+      "coin": "BTC",
+      "ts": 1791472297
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xbf732ea04197942783e34730ed6e0f6099575d58",
+      "coin": "BTC",
+      "ts": 1791472297
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0x051c2e6d49cf82ebc47f08f9b85800f94fc9693c",
+      "coin": "BTC",
+      "ts": 1791472297
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0x936cf4fb95c30ce83f658b5bbb247e4bb381bb0f",
+      "coin": "PUMP",
+      "ts": 1791472297
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xc926ddba8b7617dbc65712f20cf8e1b58b8598d3",
+      "coin": "BTC",
+      "ts": 1791472297
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xaf0fdd39e5d92499b0ed9f68693da99c0ec1e92e",
+      "coin": "BTC",
+      "ts": 1791472297
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xec4a6f59960fb55a7fa49262e2628687b322cf62",
+      "coin": "BTC",
+      "ts": 1791472297
     }
   ]
 }
