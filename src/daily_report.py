@@ -256,7 +256,7 @@ _REGIME_ADVICE: dict[tuple[str, str], str] = {
         "⚠️ Distribution на верхах бычьего — крупные продают розничным. "
         "Фиксируй прибыль, новые лонги — с близким SL.",
     ("BULL", "EUPHORIA"):
-        "🚨 Эйфория: рынок overbought, retail в плюсе, все говорят 'to the moon'. "
+        "🔥 Эйфория: рынок overbought, retail в плюсе, все говорят 'to the moon'. "
         "Time to leave the party — фиксируй прибыль, подтяни стопы вплотную. "
         "Против бычьего режима не разворачиваемся: дождись смены режима.",
     ("TRANSITION", "EARLY_BEAR"):

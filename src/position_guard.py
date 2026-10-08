@@ -192,10 +192,50 @@ def format_exit_alert(coin: str, ex: dict, real_side=None) -> str:
     return head + tail
 
 
-def format_regime_alert(prev: Optional[str], regime: str) -> str:
-    return (f"\U0001f504 <b>РАЗВОРОТ РЕЖИМА: {prev or '—'} \u2192 {regime}</b>\n"
-            f"<i>Верхний слой иерархии сменился — все открытые и планируемые "
-            f"позиции переоцениваются относительно нового режима.</i>")
+_ALERT_RULE = "━━━━━━━━━━━━━━"
+
+
+def format_regime_alert(prev: Optional[str], regime: str,
+                        positions: Optional[dict] = None,
+                        to_close: Optional[list] = None) -> str:
+    """Смена режима — заметно и с действием (08.10.2026).
+
+    Оператор: «такое важное сообщение надо подсвечивать». Цвета в Telegram
+    нет, поэтому выделение — сигнальный заголовок и рамка, а внутри не
+    «позиции переоцениваются», а что делать по реальному портфелю.
+
+    positions: {coin: "LONG"/"SHORT"} из портфеля; None — прочитать не
+    удалось (тогда «позиций нет» не пишем: незнание не выдаётся за факт).
+    to_close: монеты, по которым гвард в этом же прогоне шлёт выход.
+    """
+    reg = (regime or "").upper()
+    lines = [f"🚨 <b>СМЕНА РЕЖИМА: {prev or '—'} → {regime}</b>", _ALERT_RULE]
+    if positions is None:
+        lines.append("⚠️ Портфель прочитать не удалось — "
+                     "проверь открытые позиции сам.")
+    else:
+        close = [c for c in (to_close or []) if c in positions]
+        against_side = {"BEAR": "LONG", "BULL": "SHORT"}.get(reg)
+        against = [c for c, side in positions.items()
+                   if side == against_side and c not in close]
+        if close:
+            lines.append("<b>Закрыть: " + ", ".join(
+                f"{c} {positions[c]}" for c in close)
+                + "</b> — выход по политике ниже")
+        if against:
+            lines.append("Против режима: " + ", ".join(
+                f"{c} {positions[c]}" for c in against)
+                + " — решение за тобой")
+        if not positions:
+            lines.append("<b>Делать ничего не нужно</b> — открытых позиций нет.")
+        elif not close and not against:
+            lines.append("Открытые позиции режиму не противоречат.")
+    rule = {"BEAR": "Новые лонги система не даёт.",
+            "BULL": "Шорты система не даёт."}.get(reg)
+    if rule:
+        lines.append(rule)
+    lines.append(_ALERT_RULE)
+    return "\n".join(lines)
 
 
 def _load(path: Path, default):
@@ -243,6 +283,22 @@ def _real_position_side(coin: str):
         return None
 
 
+def _real_positions() -> Optional[dict]:
+    """Все реальные perp-позиции {coin: 'LONG'/'SHORT'}; None при сбое."""
+    try:
+        from src.daily_monitor import load_accounts, _build_portfolio
+        from src.hl_client import HLClient
+        accounts = load_accounts(_REPO_ROOT / "whitelist.yaml")
+        if not accounts:
+            return None
+        pf = _build_portfolio(HLClient(), accounts)
+        return {p.coin: ("LONG" if p.net_size > 0 else "SHORT")
+                for p in pf.perp if abs(p.net_size) > 0}
+    except Exception as e:  # noqa: BLE001
+        print(f"[guard] portfolio n/a: {e}")
+        return None
+
+
 def _exit_already_recorded(coin: str, entry) -> bool:
     """EXIT по этой позиции (coin+entry) уже в журнале — не алертить дважды."""
     try:
@@ -280,8 +336,8 @@ def run() -> int:
         print(f"[guard] regime n/a: {e}")
 
     prev_regime = guard.get("last_regime")
-    if regime_changed(guard, regime) and prev_regime is not None:
-        alerts.append(format_regime_alert(prev_regime, regime))
+    regime_flipped = regime_changed(guard, regime) and prev_regime is not None
+    to_close: list[str] = []   # выходы этого прогона по реальным позициям
 
     for coin, st in (tactical or {}).items():
         st = st or {}
@@ -319,6 +375,8 @@ def run() -> int:
         real_side = _real_position_side(coin)
         if exit_alert_needed(real_side):
             alerts.append(format_exit_alert(coin, ex, real_side))
+        if real_side == direction:
+            to_close.append(coin)
         # фиксация выхода: журнал + state (позиция закрыта в трекинге).
         # Пишется ВСЕГДА, notified показывает, ушёл ли пуш оператору.
         rec = {"ts": now, "coin": coin, "direction": "EXIT",
@@ -333,6 +391,13 @@ def run() -> int:
         st["last_action_verdict"] = None
         st["last_change_ts"] = now
         tactical[coin] = st
+
+    if regime_flipped:
+        # Первым сообщением, перед выходами (08.10): оно говорит, что делать,
+        # а выходы ниже — подробности по каждой позиции.
+        alerts.insert(0, format_regime_alert(
+            prev_regime, regime, positions=_real_positions(),
+            to_close=to_close))
 
     TACTICAL_STATE.write_text(json.dumps(tactical, ensure_ascii=False, indent=1))
     GUARD_STATE.write_text(json.dumps(guard, ensure_ascii=False, indent=1))
