@@ -2,42 +2,6 @@
   "entries": [
     {
       "rule": "WHALE_NEW_OPEN",
-      "whale": "0xfc667adba8d4837586078f4fdcdc29804337ca06",
-      "coin": "ETH",
-      "ts": 1791661383
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0xbf732ea04197942783e34730ed6e0f6099575d58",
-      "coin": "NEAR",
-      "ts": 1791661383
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0xc926ddba8b7617dbc65712f20cf8e1b58b8598d3",
-      "coin": "NEAR",
-      "ts": 1791661383
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0x7a6d5fc57f6906f337c48fe2763c3a501304f79c",
-      "coin": "BTC",
-      "ts": 1791661383
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0x9e2cbb5d800181c1ef21b25010dc4ea80eeb5508",
-      "coin": "HYPE",
-      "ts": 1791661383
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0xec4a6f59960fb55a7fa49262e2628687b322cf62",
-      "coin": "BTC",
-      "ts": 1791673884
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
       "whale": "0x0748e296e5a350ec36c8487a1cea406e1b57d4b2",
       "coin": "PUMP",
       "ts": 1791690683
@@ -101,6 +65,18 @@
       "whale": "0xec4a6f59960fb55a7fa49262e2628687b322cf62",
       "coin": "NEAR",
       "ts": 1791739044
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xbf732ea04197942783e34730ed6e0f6099575d58",
+      "coin": "NEAR",
+      "ts": 1791761137
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xc926ddba8b7617dbc65712f20cf8e1b58b8598d3",
+      "coin": "NEAR",
+      "ts": 1791761137
     }
   ]
 }
