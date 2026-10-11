@@ -53,6 +53,12 @@
       "whale": "0xec4a6f59960fb55a7fa49262e2628687b322cf62",
       "coin": "BTC",
       "ts": 1791673884
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0x0748e296e5a350ec36c8487a1cea406e1b57d4b2",
+      "coin": "PUMP",
+      "ts": 1791690683
     }
   ]
 }
