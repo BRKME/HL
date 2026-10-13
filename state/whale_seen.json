@@ -95,6 +95,18 @@
       "whale": "0xf517639a8872e756ac98d3c65507d2ebc25cc032",
       "coin": "BTC",
       "ts": 1791856050
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xfc667adba8d4837586078f4fdcdc29804337ca06",
+      "coin": "ETH",
+      "ts": 1791890593
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0x936cf4fb95c30ce83f658b5bbb247e4bb381bb0f",
+      "coin": "BTC",
+      "ts": 1791890593
     }
   ]
 }
