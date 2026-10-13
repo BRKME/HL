@@ -71,6 +71,18 @@
       "whale": "0xfc667adba8d4837586078f4fdcdc29804337ca06",
       "coin": "ZEC",
       "ts": 1791917406
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0x936cf4fb95c30ce83f658b5bbb247e4bb381bb0f",
+      "coin": "ETH",
+      "ts": 1791934505
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xfc667adba8d4837586078f4fdcdc29804337ca06",
+      "coin": "NEAR",
+      "ts": 1791934505
     }
   ]
 }
