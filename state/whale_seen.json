@@ -1,54 +1,6 @@
 {
   "entries": [
     {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0xb83de012dba672c76a7dbbbf3e459cb59d7d6e36",
-      "coin": "DOGE",
-      "ts": 1791825567
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0xb83de012dba672c76a7dbbbf3e459cb59d7d6e36",
-      "coin": "NEAR",
-      "ts": 1791825567
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0xc926ddba8b7617dbc65712f20cf8e1b58b8598d3",
-      "coin": "ZEC",
-      "ts": 1791825567
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0x0871deb34bfd2052b1c10dc4f6c0912a2a47e927",
-      "coin": "NEAR",
-      "ts": 1791825567
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0x0871deb34bfd2052b1c10dc4f6c0912a2a47e927",
-      "coin": "ZEC",
-      "ts": 1791825567
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0x0871deb34bfd2052b1c10dc4f6c0912a2a47e927",
-      "coin": "TAO",
-      "ts": 1791825567
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0x0871deb34bfd2052b1c10dc4f6c0912a2a47e927",
-      "coin": "PUMP",
-      "ts": 1791825567
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0x59629e23c52a0d7c092436870ef2db1dc382ddf8",
-      "coin": "BTC",
-      "ts": 1791825567
-    },
-    {
       "rule": "WHALE_CLUSTER",
       "whale": "",
       "coin": "ETH",
@@ -107,6 +59,18 @@
       "whale": "0x936cf4fb95c30ce83f658b5bbb247e4bb381bb0f",
       "coin": "BTC",
       "ts": 1791890593
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0x051c2e6d49cf82ebc47f08f9b85800f94fc9693c",
+      "coin": "ZEC",
+      "ts": 1791917406
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xfc667adba8d4837586078f4fdcdc29804337ca06",
+      "coin": "ZEC",
+      "ts": 1791917406
     }
   ]
 }
