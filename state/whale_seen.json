@@ -2,18 +2,6 @@
   "entries": [
     {
       "rule": "WHALE_NEW_OPEN",
-      "whale": "0x051c2e6d49cf82ebc47f08f9b85800f94fc9693c",
-      "coin": "ZEC",
-      "ts": 1791917406
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0xfc667adba8d4837586078f4fdcdc29804337ca06",
-      "coin": "ZEC",
-      "ts": 1791917406
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
       "whale": "0x936cf4fb95c30ce83f658b5bbb247e4bb381bb0f",
       "coin": "ETH",
       "ts": 1791934505
@@ -59,6 +47,24 @@
       "whale": "0x0871deb34bfd2052b1c10dc4f6c0912a2a47e927",
       "coin": "TAO",
       "ts": 1791995319
+    },
+    {
+      "rule": "WHALE_CLUSTER",
+      "whale": "",
+      "coin": "ETH",
+      "ts": 1792018650
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xfc667adba8d4837586078f4fdcdc29804337ca06",
+      "coin": "ETH",
+      "ts": 1792018650
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xe867fbdad3291530e41530301ecb77693850c78e",
+      "coin": "HYPE",
+      "ts": 1792018650
     }
   ]
 }
