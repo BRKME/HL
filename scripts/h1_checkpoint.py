@@ -13,7 +13,8 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
 from src.h1_metrics import (  # noqa: E402
-    compute_h1, compute_h2, verdict_h1, verdict_h2,
+    H1B_MAX_HOLD_H, H1B_REGISTERED, compute_h1, compute_h1b, compute_h2,
+    verdict_h1, verdict_h1b, verdict_h2,
 )
 
 
@@ -62,6 +63,23 @@ def main() -> int:
           else "медиана R по regime_flip    : нет данных")
     print(f"смен режима за 30 дней      : {res.regime_flips_30d}")
     print(f"\nВЕРДИКТ H1: {verdict_h1(res)}")
+
+    # Действующая политика — v3 (15.10): замер по v2 предрегистрирован, но
+    # один он молчит о текущем поведении. Описательно, без вердикта.
+    v3 = compute_h1(rows, now=now, regime_changes_30d=flips, policy_version=3)
+    if v3.n_exits:
+        med3 = v3.regime_flip_median_r
+        print(f"\n(описательно, policy_version=3: выходов {v3.n_exits}, "
+              f"доля regime_flip {v3.regime_flip_share:.0%}, медиана R "
+              + (f"{med3:+.3f}" if med3 is not None else "—") + ")")
+
+    hb = compute_h1b(rows)
+    pre = compute_h1b(rows, since=None)
+    print(f"\n# H1b — короткий режим (удержание < {H1B_MAX_HOLD_H} ч)\n")
+    print(f"смен режима после {H1B_REGISTERED[:10]}: {hb.n_events} "
+          f"· суммы R: {hb.short_event_sums}")
+    print(f"(до регистрации, не в счёт: {pre.short_event_sums})")
+    print(f"\nВЕРДИКТ H1b: {verdict_h1b(hb)}")
 
     h2 = compute_h2(rows)
     print(f"\n# H2 — окупается ли тактический слой\n")

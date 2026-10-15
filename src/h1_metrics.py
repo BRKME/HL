@@ -71,9 +71,11 @@ def reentry_rate_after(rows: Sequence[dict], reason: str,
 
 
 def compute_h1(rows: Sequence[dict], now: datetime,
-               regime_changes_30d: int) -> H1Result:
+               regime_changes_30d: int, policy_version: int = 2) -> H1Result:
+    """policy_version=2 — предрегистрированный замер. Другая версия —
+    описательно (15.10: действует v3, а отчёт показывал только v2)."""
     p2 = [r for r in rows
-          if r.get("exit_reason") and r.get("policy_version") == 2]
+          if r.get("exit_reason") and r.get("policy_version") == policy_version]
     if not p2:
         return H1Result(0, 0.0, 0.0, None, regime_changes_30d)
 
@@ -207,3 +209,78 @@ def verdict_h2(res: H2Result) -> str:
 
     return (f"СЛОЙ ОКУПАЕТСЯ: avg R {res.avg_r:+.3f}, интервал "
             f"[{res.ci_low:+.3f}, {res.ci_high:+.3f}]")
+
+
+# ------------------------------------------------------------------- H1b
+
+# Зарегистрирована 15.10.2026 (docs/OPERATING_POLICY.md §3). Короткий режим:
+# тактика входит на смене режима, гвард закрывает на обратной смене. H1 этого
+# не видит — ищет повторный вход после выхода. В счёт идут ТОЛЬКО выходы
+# после регистрации: данные, на которых гипотеза родилась (08.10, −4.16R),
+# её не подтверждают.
+H1B_REGISTERED = "2026-10-15T12:00:00+00:00"
+H1B_MAX_HOLD_H = 72          # удержание короче — «вход и выход на соседних сменах»
+H1B_MIN_EVENTS = 6           # смен режима с такими выходами — независимых наблюдений
+
+
+@dataclass(frozen=True)
+class H1bResult:
+    n_events: int
+    short_event_sums: list
+    n_short_exits: int
+    n_long_exits: int
+    long_sum_r: float
+
+
+def compute_h1b(rows: Sequence[dict],
+                since: Optional[str] = H1B_REGISTERED) -> H1bResult:
+    """Выходы regime_flip, разделённые по удержанию; наблюдение — смена
+    режима (все выходы одного прогона гварда), а не отдельная позиция:
+    восемь монет закрываются одним событием и не независимы (§5)."""
+    t_since = datetime.fromisoformat(since) if since else None
+    entries = [r for r in rows
+               if not r.get("exit_reason")
+               and r.get("direction") in ("LONG", "SHORT")]
+    events: dict[str, float] = {}
+    n_short = n_long = 0
+    long_sum = 0.0
+    for e in rows:
+        if e.get("exit_reason") != "regime_flip" or e.get("pnl_r") is None:
+            continue
+        t1 = _ts(e)
+        if t1 is None or (t_since and t1 <= t_since):
+            continue
+        side = str(e.get("closed_direction", "")).upper()
+        opened = [_ts(n) for n in entries
+                  if n.get("coin") == e.get("coin")
+                  and str(n.get("direction", "")).upper() == side
+                  and n.get("entry") == e.get("entry")
+                  and _ts(n) is not None and _ts(n) < t1]
+        if not opened:
+            continue
+        hold_h = (t1 - max(opened)).total_seconds() / 3600
+        if hold_h < H1B_MAX_HOLD_H:
+            n_short += 1
+            key = e.get("ts", "")[:16]
+            events[key] = round(events.get(key, 0.0) + e["pnl_r"], 4)
+        else:
+            n_long += 1
+            long_sum += e["pnl_r"]
+    return H1bResult(n_events=len(events),
+                     short_event_sums=[events[k] for k in sorted(events)],
+                     n_short_exits=n_short, n_long_exits=n_long,
+                     long_sum_r=round(long_sum, 4))
+
+
+def verdict_h1b(res: H1bResult) -> str:
+    """Решающие правила, зафиксированные 15.10 до данных проверки."""
+    if res.n_events < H1B_MIN_EVENTS:
+        return (f"НЕДОСТАТОЧНО ДАННЫХ: {res.n_events}/{H1B_MIN_EVENTS} смен "
+                f"режима с короткими удержаниями — ждём, ничего не решаем")
+    med = statistics.median(res.short_event_sums)
+    if med < 0:
+        return (f"ПОДТВЕРЖДЕНА: медиана суммы R за смену {med:+.2f} < 0 — "
+                f"на чекпойнте: подтверждение смены режима (K=2 снимка) "
+                f"для входов и выходов")
+    return (f"НЕ ПОДТВЕРЖДЕНА: медиана суммы R за смену {med:+.2f} ≥ 0 — "
+            f"короткие удержания не стоят денег, закрываем")
