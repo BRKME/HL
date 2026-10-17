@@ -17,6 +17,18 @@
       "whale": "0xfc667adba8d4837586078f4fdcdc29804337ca06",
       "coin": "NEAR",
       "ts": 1792224844
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xfc667adba8d4837586078f4fdcdc29804337ca06",
+      "coin": "HYPE",
+      "ts": 1792248889
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0x936cf4fb95c30ce83f658b5bbb247e4bb381bb0f",
+      "coin": "PUMP",
+      "ts": 1792248889
     }
   ]
 }
