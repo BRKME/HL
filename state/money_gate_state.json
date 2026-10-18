@@ -1,0 +1,10 @@
+{
+ "alerted": true,
+ "opened_at": "2026-10-18T12:56:03.502629+00:00",
+ "snapshot": {
+  "open": true,
+  "n": 106,
+  "avg_r": 0.688,
+  "median_r": 0.526
+ }
+}
