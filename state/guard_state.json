@@ -1,9 +1,6 @@
 {
- "last_regime": "BULL",
+ "last_regime": "BEAR",
  "flip_streak": {
-  "ASTER": 1,
-  "MORPHO": 9,
-  "ONDO": 3,
-  "TAO": 1
+  "ASTER": 1
  }
 }
