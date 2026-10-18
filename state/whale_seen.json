@@ -59,6 +59,12 @@
       "whale": "0x5b5d51203a0f9079f8aeb098a6523a13f298c060",
       "coin": "ZEC",
       "ts": 1792336859
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xfc667adba8d4837586078f4fdcdc29804337ca06",
+      "coin": "HYPE",
+      "ts": 1792347970
     }
   ]
 }
