@@ -3,18 +3,6 @@
     {
       "rule": "WHALE_NEW_OPEN",
       "whale": "0xfc667adba8d4837586078f4fdcdc29804337ca06",
-      "coin": "ETH",
-      "ts": 1792336859
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0x5b5d51203a0f9079f8aeb098a6523a13f298c060",
-      "coin": "ZEC",
-      "ts": 1792336859
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0xfc667adba8d4837586078f4fdcdc29804337ca06",
       "coin": "HYPE",
       "ts": 1792347970
     },
@@ -125,6 +113,18 @@
       "whale": "0xd4c1f7e8d876c4749228d515473d36f919583d1d",
       "coin": "ZEC",
       "ts": 1792402438
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0x325edd95bb016c36027ce3b9f7595af7094a9564",
+      "coin": "PUMP",
+      "ts": 1792433865
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0x325edd95bb016c36027ce3b9f7595af7094a9564",
+      "coin": "ZEC",
+      "ts": 1792433865
     }
   ]
 }
