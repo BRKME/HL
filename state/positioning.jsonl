@@ -367,3 +367,12 @@
 {"ts_ms": 1792339200000, "coin": "MORPHO", "accounts_ratio": 0.85, "top_pos_ratio": 1.0484554735848397}
 {"ts_ms": 1792339200000, "coin": "TAO", "accounts_ratio": 2.3, "top_pos_ratio": 0.9324590659782751}
 {"ts_ms": 1792339200000, "coin": "ONDO", "accounts_ratio": 3.29, "top_pos_ratio": 0.7271467020184335}
+{"ts_ms": 1792425600000, "coin": "BTC", "accounts_ratio": 1.84, "top_pos_ratio": 0.9428378729394437}
+{"ts_ms": 1792425600000, "coin": "ETH", "accounts_ratio": 2.48, "top_pos_ratio": 0.87236522585324}
+{"ts_ms": 1792425600000, "coin": "ZEC", "accounts_ratio": 0.95, "top_pos_ratio": 1.0374976190438798}
+{"ts_ms": 1792425600000, "coin": "NEAR", "accounts_ratio": 1.48, "top_pos_ratio": 0.9599798327678359}
+{"ts_ms": 1792425600000, "coin": "HYPE", "accounts_ratio": 2.42, "top_pos_ratio": 0.8951010622529866}
+{"ts_ms": 1792425600000, "coin": "ASTER", "accounts_ratio": 2.44, "top_pos_ratio": 0.9092630291849063}
+{"ts_ms": 1792425600000, "coin": "MORPHO", "accounts_ratio": 0.91, "top_pos_ratio": 1.0078719883840686}
+{"ts_ms": 1792425600000, "coin": "TAO", "accounts_ratio": 2.39, "top_pos_ratio": 0.9034627676890779}
+{"ts_ms": 1792425600000, "coin": "ONDO", "accounts_ratio": 3.25, "top_pos_ratio": 0.7417393057063344}
