@@ -2,30 +2,6 @@
   "entries": [
     {
       "rule": "WHALE_NEW_OPEN",
-      "whale": "0x325edd95bb016c36027ce3b9f7595af7094a9564",
-      "coin": "ETH",
-      "ts": 1792451801
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0xfc27136e42af1732ddc9ce2605ea9bff1b959d9d",
-      "coin": "BTC",
-      "ts": 1792451801
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0x023a3d058020fb76cca98f01b3c48c8938a22355",
-      "coin": "PUMP",
-      "ts": 1792451801
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0xe86b057f5eb764c9738d6b0d38170befd0723664",
-      "coin": "PUMP",
-      "ts": 1792451801
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
       "whale": "0xecb63caa47c7c4e77f60f1ce858cf28dc2b82b00",
       "coin": "ETH",
       "ts": 1792466279
@@ -209,6 +185,42 @@
       "whale": "0x023a3d058020fb76cca98f01b3c48c8938a22355",
       "coin": "NEAR",
       "ts": 1792536864
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xb83de012dba672c76a7dbbbf3e459cb59d7d6e36",
+      "coin": "NEAR",
+      "ts": 1792552398
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xb83de012dba672c76a7dbbbf3e459cb59d7d6e36",
+      "coin": "ZEC",
+      "ts": 1792552398
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0x023a3d058020fb76cca98f01b3c48c8938a22355",
+      "coin": "PUMP",
+      "ts": 1792552398
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0x023a3d058020fb76cca98f01b3c48c8938a22355",
+      "coin": "HYPE",
+      "ts": 1792552398
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xd4c1f7e8d876c4749228d515473d36f919583d1d",
+      "coin": "PUMP",
+      "ts": 1792552398
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0x27c9fa86c91b84ddfa15de58c482ff662498d65d",
+      "coin": "ZEC",
+      "ts": 1792552398
     }
   ]
 }
