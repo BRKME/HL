@@ -113,6 +113,24 @@
       "whale": "0xe86b057f5eb764c9738d6b0d38170befd0723664",
       "coin": "BTC",
       "ts": 1792725451
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0x31dea2516beee92135b96f464eeec3cf292a13f2",
+      "coin": "ETH",
+      "ts": 1792746273
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0x856c35038594767646266bc7fd68dc26480e910d",
+      "coin": "BTC",
+      "ts": 1792746273
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0x31dea2516beee92135b96f464eeec3cf292a13f2",
+      "coin": "HYPE",
+      "ts": 1792746273
     }
   ]
 }
