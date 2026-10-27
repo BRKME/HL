@@ -1,0 +1,31 @@
+name: listing-fade
+
+# Шорт новых листингов Hyperliquid со второго дня. Вручную (27.10.2026).
+# Критерии записаны до прогона: docs/OPERATING_POLICY.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      lookback_days:
+        description: "Глубина истории в днях"
+        required: false
+        default: "1000"
+
+permissions:
+  contents: read
+
+jobs:
+  listing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      LISTING_LOOKBACK_DAYS: ${{ inputs.lookback_days }}
+    steps:
+      - uses: actions/checkout@v5
+        with: { fetch-depth: 1 }
+      - uses: actions/setup-python@v6
+        with: { python-version: "3.12" }
+      - run: pip install -r requirements.txt
+      - run: python scripts/listing_fade_run.py

@@ -95,3 +95,28 @@ def test_tactical_backtest_compare_top20_completes(stubbed, monkeypatch, capsys)
     out = capsys.readouterr().out
     assert "ВЕРДИКТ" in out
     assert "SOL" in out and "USDE" not in out
+
+
+def test_listing_fade_runner_completes(stubbed, monkeypatch, capsys):
+    """Шорт листингов (27.10) доходит до вердикта; свежие монеты — листинги,
+    старая — нет."""
+    import time as _t
+    mod = _load("scripts/listing_fade_run.py")
+    monkeypatch.setattr(mod, "FETCH_PAUSE_S", 0)
+    day = 86_400_000
+    now = int(_t.time() * 1000)
+
+    def fake(coin, **k):
+        cs = _fake_candles(n=120)
+        start = now - (1000 if coin == "OLD" else 300) * day
+        for i, c in enumerate(cs):
+            c["t"] = start + i * day
+        return cs
+
+    monkeypatch.setattr(mod, "fetch_candles", fake)
+    monkeypatch.setattr(mod, "fetch_meta_and_ctxs", lambda: {
+        "NEW1": {}, "NEW2": {"delisted": True}, "OLD": {}})
+    assert mod.main() == 0
+    out = capsys.readouterr().out
+    assert "листингов в окне: 2 (из них снятых с торгов: 1)" in out
+    assert "ВЕРДИКТ" in out
