@@ -122,6 +122,24 @@ def main() -> int:
                       f"{best['edge']:+.1f} п.п., худшая {best['worst']:+.0f}%"
                       if best else ""))
     print(f"\nВЕРДИКТ: {verdict}")
+
+    # Добавлено ПОСЛЕ первого прогона 27.10 как раскрытие, правило не
+    # меняется: разброс исходов огромный (почти половина сделок выбита
+    # стопом), и «обгон +4.7» без интервала не говорит, отличим ли он от нуля.
+    from src.tactical_backtest import _bootstrap_ci
+    print("\n95% интервал средней (бутстрэп) для прошедших вариантов:")
+    for r in ok:
+        evs = []
+        for coin, cs in history.items():
+            x = short_return(cs, ENTRY_IDX, r["h"], r["stop"])
+            if x is not None:
+                evs.append(x[0])
+        lo_ci, hi_ci = _bootstrap_ci(evs)
+        if lo_ci is None:
+            continue
+        lab = "нет" if r["stop"] is None else f"-{r['stop']}%"
+        print(f"  {r['h']:>2}д стоп {lab:>5}: средняя {r['avg']:+.1f}% "
+              f"[{lo_ci:+.1f}, {hi_ci:+.1f}] при контроле {r['ctrl']:+.1f}%")
     print("Без комиссий и фандинга · контроль — шорт тех же монет в случайный "
           "день после 30-го")
 
