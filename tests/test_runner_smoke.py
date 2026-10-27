@@ -79,3 +79,19 @@ def test_tactical_backtest_runner_completes(stubbed, monkeypatch):
 def test_h1_checkpoint_runner_completes():
     mod = _load("scripts/h1_checkpoint.py")
     assert mod.main() == 0
+
+
+def test_tactical_backtest_compare_top20_completes(stubbed, monkeypatch, capsys):
+    """Режим сравнения универсов (27.10) доходит до вердикта."""
+    mod = _load("scripts/tactical_backtest_run.py")
+    monkeypatch.setenv("BACKTEST_UNIVERSE", "compare_top20")
+    monkeypatch.setattr(mod, "fetch_candles",
+                        lambda *a, **k: _fake_candles(n=260))
+    monkeypatch.setattr(mod, "FOCUS_COINS", ["BTC", "ETH"])
+    monkeypatch.setattr(mod, "fetch_meta_and_ctxs", lambda: {
+        "BTC": {"day_ntl_volume": 3e9}, "ETH": {"day_ntl_volume": 2e9},
+        "SOL": {"day_ntl_volume": 1e9}, "USDE": {"day_ntl_volume": 9e9}})
+    assert mod.main() in (0, 1)
+    out = capsys.readouterr().out
+    assert "ВЕРДИКТ" in out
+    assert "SOL" in out and "USDE" not in out

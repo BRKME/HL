@@ -13,6 +13,10 @@ on:
         description: "Глубина истории в днях"
         required: false
         default: "700"
+      universe:
+        description: "focus — текущий список; compare_top20 — сравнение с топ-20 по объёму"
+        required: false
+        default: "focus"
 
 permissions:
   contents: read
@@ -25,6 +29,7 @@ jobs:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       BACKTEST_LOOKBACK_DAYS: ${{ inputs.lookback_days }}
+      BACKTEST_UNIVERSE: ${{ inputs.universe }}
 
     steps:
       - name: Checkout

@@ -68,6 +68,10 @@ def fetch_meta_and_ctxs() -> dict[str, dict[str, Any]]:
             "funding_apr_pct": funding_hourly * 24 * 365 * 100,
             "open_interest": _maybe_float(ctx.get("openInterest")),
             "day_volume": _maybe_float(ctx.get("dayBaseVlm")),
+            # В долларах (27.10): dayBaseVlm — в штуках монеты, для сравнения
+            # монет между собой непригоден.
+            "day_ntl_volume": _maybe_float(ctx.get("dayNtlVlm")),
+            "delisted": bool(asset.get("isDelisted")),
             "max_leverage": asset.get("maxLeverage"),
             "sz_decimals": asset.get("szDecimals"),
         }

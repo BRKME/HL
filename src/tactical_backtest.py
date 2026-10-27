@@ -283,3 +283,35 @@ def split_by_rs(trades) -> tuple[list, list]:
     strong = [t for t in trades if getattr(t, "rs", None) is not None and t.rs > 0]
     weak = [t for t in trades if getattr(t, "rs", None) is not None and t.rs < 0]
     return strong, weak
+
+
+# ----------------------------------------- расширение универса (27.10.2026)
+
+# Стейблкоины в перпах HL — объём без направления, тренда на них нет.
+STABLES = frozenset({"USDC", "USDT", "USDE", "FDUSD", "DAI", "USDH", "PYUSD"})
+
+
+def top_by_volume(meta: dict, n: int = 20) -> list[str]:
+    """Топ-n перпов по ДОЛЛАРОВОМУ объёму за сутки.
+
+    `day_volume` (dayBaseVlm) — в штуках монеты: у kPEPE триллионы при
+    скромных долларах. Ранжировать по нему — значит выбрать самые дешёвые
+    монеты, а не самые торгуемые.
+    """
+    rows = []
+    for sym, m in meta.items():
+        vol = (m or {}).get("day_ntl_volume")
+        if vol is None or (m or {}).get("delisted") or sym.upper() in STABLES:
+            continue
+        rows.append((float(vol), sym))
+    return [sym for _, sym in sorted(rows, reverse=True)[:n]]
+
+
+def max_drawdown_r(points) -> float:
+    """Наибольшая просадка накопленного R; points — (время выхода, R)."""
+    peak = cum = dd = 0.0
+    for _, r in sorted(points, key=lambda x: x[0]):
+        cum += r
+        peak = max(peak, cum)
+        dd = max(dd, peak - cum)
+    return dd

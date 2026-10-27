@@ -15,9 +15,10 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-from src.hl_api import fetch_candles  # noqa: E402
+from src.hl_api import fetch_candles, fetch_meta_and_ctxs  # noqa: E402
 from src.tactical_backtest import (  # noqa: E402
-    EXIT_MODES, replay, rs_at, split_by_rs, summarise,
+    EXIT_MODES, max_drawdown_r, replay, rs_at, split_by_rs, summarise,
+    top_by_volume,
 )
 from src.whitelist_focus import FOCUS_COINS  # noqa: E402
 
@@ -26,7 +27,79 @@ import os
 LOOKBACK_DAYS = int(os.environ.get("BACKTEST_LOOKBACK_DAYS") or 700)
 
 
+# Предрегистрация 27.10.2026 (docs/OPERATING_POLICY.md): сравнение
+# «текущий список» против монет, которые добавил бы топ-20 по объёму.
+MIN_NEW_TRADES = 30
+
+
+def _universe_stats(history: dict, coins: list) -> dict:
+    trades, points = [], []
+    for coin in coins:
+        candles = history.get(coin)
+        if not candles:
+            continue
+        for t in replay(coin, candles, exit_mode="baseline"):
+            trades.append(t)
+            points.append((candles[min(t.exit_idx, len(candles) - 1)]["t"],
+                           t.r))
+    s = summarise(trades)
+    s["dd100"] = (max_drawdown_r(points) / len(trades) * 100
+                  if trades else None)
+    return s
+
+
+def compare_top20() -> int:
+    """Тот же слой, те же выходы (baseline), те же 700 дней — на текущем
+    списке и на монетах, которые добавил бы топ-20 по долларовому объёму."""
+    top = top_by_volume(fetch_meta_and_ctxs(), 20)
+    focus = list(FOCUS_COINS)
+    new = [c for c in top if c not in focus]
+    print(f"# Универс: текущий {len(focus)} против топ-20 · "
+          f"{LOOKBACK_DAYS} дней\n")
+    print(f"топ-20 по объёму: {' '.join(top)}")
+    print(f"новые монеты ({len(new)}): {' '.join(new)}\n")
+
+    history = {}
+    for coin in dict.fromkeys(focus + top):
+        try:
+            c = fetch_candles(coin, interval="1d", lookback_days=LOOKBACK_DAYS)
+            if c:
+                history[coin] = c
+        except Exception as e:  # noqa: BLE001
+            print(f"  {coin:7} свечи недоступны: {e}")
+
+    rows = {"текущий": _universe_stats(history, focus),
+            "топ-20": _universe_stats(history, top),
+            "новые": _universe_stats(history, new)}
+    print(f"{'универс':9} {'n':>5} {'WR':>6} {'avg R':>8} "
+          f"{'95% интервал':>20} {'просадка R/100':>15}")
+    for name, st in rows.items():
+        if not st["n"]:
+            print(f"{name:9} нет сделок")
+            continue
+        lo, hi = st["ci"]
+        print(f"{name:9} {st['n']:>5} {st['wr']:>5.0%} {st['avg_r']:>+8.3f} "
+              f"   [{lo:+.3f}, {hi:+.3f}] {st['dd100']:>14.1f}")
+
+    a, n_ = rows["текущий"], rows["новые"]
+    if not n_["n"] or n_["n"] < MIN_NEW_TRADES or not a["n"]:
+        verdict = (f"НЕДОСТАТОЧНО ДАННЫХ: у новых монет {n_['n']} сделок "
+                   f"при минимуме {MIN_NEW_TRADES}")
+    elif n_["avg_r"] >= a["avg_r"] and n_["dd100"] <= a["dd100"]:
+        verdict = ("РАСШИРЯТЬ — кандидат на чекпойнт: новые монеты не хуже "
+                   "по avg R и просадке (с поправкой на фору выживших)")
+    else:
+        verdict = ("НЕ РАСШИРЯТЬ: новые монеты хуже текущих по avg R или "
+                   "просадке — даже с форой выживших")
+    print(f"\nВЕРДИКТ: {verdict}")
+    print("Без комиссий и фандинга. Сегодняшний топ-20 смотрит в прошлое с "
+          "форой: в нём монеты, которые выросли.")
+    return 0
+
+
 def main() -> int:
+    if os.environ.get("BACKTEST_UNIVERSE") == "compare_top20":
+        return compare_top20()
     print(f"# Бэктест тактического слоя · {LOOKBACK_DAYS} дней · "
           f"{len(FOCUS_COINS)} монет\n")
 
