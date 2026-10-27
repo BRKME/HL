@@ -253,39 +253,44 @@ def entry_score(rs_pp, accounts_ratio, top_pos_ratio, is_new,
 
 
 
-# --------------------------------- одно предложение в день (18.09.2026)
+# ------------------------- один вход на сторону (27.10.2026, было топ-3)
 
-# Сколько входов показывать подробно. Один был крайностью в другую
-# сторону: порядок строится по НЕподтверждённой оценке, и единственная
-# строка делает цену ошибки ранжирования максимальной. Три — компромисс:
-# оператор видит выбор, но не семь идей в день при недельном горизонте
-# (18.09, уточнение оператора).
-TOP_ENTRIES = 3
+_RS = 6   # индекс силы против BTC (п.п.) в записи дайджеста
 
 
-def keep_top_entry(verdicts, scores: dict = None, top: int = TOP_ENTRIES):
-    """Оставить несколько лучших входов, остальные свернуть в строку.
+def keep_best_per_side(verdicts, executable: dict = None):
+    """Один вход на сторону — самый выгодный относительно BTC.
 
-    Указание оператора: «мы смотрим рынок в среднесрочной перспективе» —
-    семь идей в день при удержании неделями это две сотни идей на горизонте
-    одной сделки. Письмо при этом противоречило себе трижды разом: «вот
-    семь входов», «это одна бета-ставка на рынок», «счёт тянет одну
-    сделку».
-
-    Остальные входы НЕ прячутся: они уходят в одну строку с монетами.
-    Скрыть их значило бы лишить оператора выбора; показать наравне —
-    вернуть ту же кашу.
+    Решение оператора 27.10, отменяет «топ-3» от 18.09: лонги по альтам
+    коррелированы около единицы — три входа есть одна ставка втрое
+    крупнее, а счёт тянет одну сделку. Для лонга выгоднее сильнейшая против
+    BTC монета, для шорта — слабейшая. Неисполнимый вход (стоп не помещается)
+    первым не становится. Сила против BTC — лучшее, что есть, но не
+    доказанное преимущество (H4: +0.128 при пороге 0.20), поэтому остальные
+    входы названы строкой, а не спрятаны.
     """
+    executable = executable or {}
     entries = [v for v in verdicts if v[_VERDICT] in _ENTRY_VERDICTS]
-    if len(entries) <= top:
+    rest = [v for v in verdicts if v[_VERDICT] not in _ENTRY_VERDICTS]
+    kept, others = [], []
+    for side in _ENTRY_VERDICTS:
+        group = [v for v in entries if v[_VERDICT] == side]
+        if not group:
+            continue
+
+        def _key(v, side=side):
+            rs = v[_RS] if len(v) > _RS else None
+            sign = -1.0 if side == "LONG" else 1.0
+            return (0 if executable.get(v[_COIN], True) else 1,
+                    0 if rs is not None else 1,
+                    sign * float(rs) if rs is not None else 0.0)
+
+        group = sorted(group, key=_key)
+        kept.append(group[0])
+        others += group[1:]
+    if not others:
         return list(verdicts), ""
-
-    rest_of_list = [v for v in verdicts if v[_VERDICT] not in _ENTRY_VERDICTS]
-    if scores:
-        entries = sorted(entries, key=lambda v: -scores.get(v[_COIN], 0.0))
-
-    shown, others = entries[:top], entries[top:]
     names = " ".join(f"<code>{v[_COIN]}</code>" for v in others)
-    line = (f"🔁 Ещё {len(others)} в ту же сторону: {names} — "
-            f"показаны {top} лучших, остальные ждут очереди.")
-    return shown + rest_of_list, line
+    line = (f"🔁 Ещё в ту же сторону: {names} — показан самый выгодный "
+            f"относительно BTC; это одна ставка на рынок, не несколько.")
+    return kept + rest, line

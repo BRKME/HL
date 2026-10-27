@@ -483,11 +483,11 @@ def render_whitelist_verdicts(
             executable=plan_ok)
     verdicts = rank_entries(verdicts, _scores)
 
-    # Одно предложение в день: недельный горизонт не требует семи идей
-    # ежедневно, а счёт тянет одну сделку. Остальные названы строкой —
-    # не спрятаны (18.09).
-    from src.digest_compact import keep_top_entry
-    verdicts, _more_line = keep_top_entry(verdicts, _scores)
+    # Один вход на сторону — самый выгодный относительно BTC (решение
+    # оператора 27.10, было топ-3 с 18.09). Остальные названы строкой.
+    from src.digest_compact import keep_best_per_side
+    verdicts, _more_line = keep_best_per_side(
+        verdicts, executable={c: sc > -100.0 for c, sc in _scores.items()})
 
 
     _n_entries = sum(1 for v in verdicts if v[2] in ("LONG", "SHORT"))
