@@ -1,0 +1,44 @@
+name: listing-shadow
+
+# Теневая проверка шорта новых листингов HL вне выборки (27.10.2026).
+# Раз в сутки: новые листинги → модельный шорт, открытые → проверка стопа
+# и срока. В канал не пишет. Правило итога — docs/OPERATING_POLICY.md.
+
+on:
+  schedule:
+    - cron: "40 7 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  shadow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with: { fetch-depth: 1 }
+      - uses: actions/setup-python@v6
+        with: { python-version: "3.12" }
+      - run: pip install -r requirements.txt
+      - run: python -m src.listing_shadow
+      - name: Commit listing shadow state
+        run: |
+          set +e
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ -f "state/listing_shadow.json" ]; then
+            git add state/listing_shadow.json || true
+          fi
+          if git diff --cached --quiet; then
+            echo "no listing-shadow changes"
+            exit 0
+          fi
+          git commit -m "state: listing shadow $(date -u +%Y-%m-%d) [skip ci]"
+          for i in 1 2 3; do
+            if git push; then exit 0; fi
+            git pull --rebase --autostash
+            sleep $((i * 2))
+          done
+          exit 1
