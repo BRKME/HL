@@ -130,7 +130,13 @@ def _whale_confirm_line(coin: str, direction: str) -> str:
         return whale_confirmation(direction, 0, None)
 
 
-FUNDING_NEUTRAL_PCT = 1.0       # |APR| ниже — фандинг считаем нейтральным
+FUNDING_NEUTRAL_PCT = 1.0       # отклонение от базы ниже — перекоса нет
+# Базовая ставка Hyperliquid (27.10.2026): фандинг = премия + 0.01% за 8 ч,
+# то есть 10.95% годовых при НУЛЕВОЙ премии. В журнале 126 записей из 182 —
+# ровно 10.95. Перекос рынка — отклонение от базы, а не знак ставки; кто
+# кому платит — знак ставки. До правки любые +11% читались как «перекошен
+# в лонги, риск long squeeze».
+FUNDING_BASELINE_APR = 0.01 / 100 * 3 * 365 * 100   # 10.95
 
 
 def signal_strength(direction: str, regime: Optional[str],
@@ -153,9 +159,11 @@ def signal_strength(direction: str, regime: Optional[str],
             score += 1
         elif (bull and reg_bear) or (not bull and reg_bull):
             score -= 2          # конфликт режима — сильный минус
-    # фандинг: положительный благоприятен шорту, отрицательный — лонгу
-    if funding_apr_pct is not None and abs(funding_apr_pct) >= 1.0:
-        f_favors_short = funding_apr_pct > 0
+    # фандинг: перекос в лонги (выше базы HL) благоприятен шорту, ниже — лонгу
+    skew = (funding_apr_pct - FUNDING_BASELINE_APR
+            if funding_apr_pct is not None else None)
+    if skew is not None and abs(skew) >= FUNDING_NEUTRAL_PCT:
+        f_favors_short = skew > 0
         if (not bull and f_favors_short) or (bull and not f_favors_short):
             score += 1
         else:
@@ -173,33 +181,39 @@ def signal_strength(direction: str, regime: Optional[str],
 
 
 def funding_comment(funding_apr_pct: Optional[float], direction: str) -> str:
-    """Человекочитаемая расшифровка фандинга: кто кому платит (для твоей
-    позиции) + что это значит про настроение рынка.
-
-    Положительный фандинг = лонги платят шортам = рынок перекошен в лонги.
-    Отрицательный = шорты платят лонгам = рынок перекошен в шорты. Для твоей
-    позиции это плюс (получаешь выплаты) или минус (платишь) в зависимости от
-    направления.
+    """Фандинг словами: кто кому платит (знак ставки — это деньги твоей
+    позиции) и есть ли перекос (отклонение от базовой ставки HL — это
+    настроение рынка). 27.10: базовые +11% читались как перекос в лонги.
     """
     if funding_apr_pct is None:
         return ""
     f = funding_apr_pct
-    if abs(f) < FUNDING_NEUTRAL_PCT:
-        return "фандинг нейтрален (около нуля) — перекоса в рынке нет"
-    if f > 0:
-        # лонги платят шортам; рынок перекошен в лонги
-        if direction == "SHORT":
-            return ("лонги платят шортам → получаешь выплаты; рынок перекошен "
-                    "в лонги (попутно шорту)")
-        return ("лонги платят шортам → платишь за позицию; рынок перекошен в "
-                "лонги ⚠️ риск long squeeze (поздний вход в лонг)")
+    if abs(f) < 0.5:
+        pay = "фандинг около нуля"
+    elif f > 0:
+        pay = ("лонги платят шортам → "
+               + ("получаешь выплаты" if direction == "SHORT"
+                  else "платишь за позицию"))
     else:
-        # шорты платят лонгам; рынок перекошен в шорты
+        pay = ("шорты платят лонгам → "
+               + ("получаешь выплаты" if direction == "LONG"
+                  else "платишь за позицию"))
+    skew = f - FUNDING_BASELINE_APR
+    if abs(skew) < FUNDING_NEUTRAL_PCT:
+        return f"{pay}; базовая ставка HL — перекоса нет"
+    if skew > 0:
+        tail = "рынок перекошен в лонги"
         if direction == "LONG":
-            return ("шорты платят лонгам → получаешь выплаты; рынок перекошен "
-                    "в шорты (попутно лонгу)")
-        return ("шорты платят лонгам → платишь за позицию; рынок перекошен в "
-                "шорты ⚠️ риск short squeeze (поздний вход в шорт)")
+            tail += " ⚠️ риск long squeeze (поздний вход в лонг)"
+        else:
+            tail += " (попутно шорту)"
+    else:
+        tail = "рынок перекошен в шорты"
+        if direction == "SHORT":
+            tail += " ⚠️ риск short squeeze (поздний вход в шорт)"
+        else:
+            tail += " (попутно лонгу)"
+    return f"{pay}; {tail}"
 
 
 def whale_confirmation(direction: str, n_events: int,

@@ -7,16 +7,18 @@ from src.tactical_signals import signal_strength
 def test_aligned_factors_strong():
     # тренд вниз + режим BEAR + фандинг подтверждает + киты согласны -> сильный
     s = signal_strength(direction="SHORT", regime="BEAR",
-                        funding_apr_pct=3.0, whale_aligned=True)
+                        funding_apr_pct=30.0, whale_aligned=True)
     assert s in ("высокая", "сильная")
 
 
 def test_funding_against_weakens():
     # фандинг ПРОТИВ (шорт в перешортованном рынке) -> слабее
+    # Отсчёт от базовой ставки HL 10.95% (27.10): −6% — перекос в шорты,
+    # +30% — в лонги. Прежние −6 против +3 оба ниже базы.
     s_against = signal_strength(direction="SHORT", regime="BEAR",
                                funding_apr_pct=-6.0, whale_aligned=None)
     s_for = signal_strength(direction="SHORT", regime="BEAR",
-                           funding_apr_pct=3.0, whale_aligned=None)
+                           funding_apr_pct=30.0, whale_aligned=None)
     order = ["низкая", "средняя", "высокая"]
     assert order.index(s_against) < order.index(s_for)
 

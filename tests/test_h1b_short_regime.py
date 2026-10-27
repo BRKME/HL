@@ -73,3 +73,12 @@ def test_h1_can_be_measured_on_current_policy():
     rows = _pair("BTC", 39, -0.85, T0)
     assert compute_h1(rows, T0, 5, policy_version=3).n_exits == 1
     assert compute_h1(rows, T0, 5).n_exits == 0          # по умолчанию v2
+
+
+def test_pre_registration_view_excludes_counted_events():
+    """«До регистрации, не в счёт» не должно включать то, что в счёт идёт
+    (27.10: строка повторяла три новых события)."""
+    old = datetime.fromisoformat(H1B_REGISTERED) - timedelta(days=7)
+    rows = _pair("BTC", 39, -0.85, old) + _pair("ETH", 30, -0.4, T0)
+    pre = compute_h1b(rows, since=None, until=H1B_REGISTERED)
+    assert pre.short_event_sums == [-0.85]

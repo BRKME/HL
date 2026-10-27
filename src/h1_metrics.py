@@ -233,11 +233,13 @@ class H1bResult:
 
 
 def compute_h1b(rows: Sequence[dict],
-                since: Optional[str] = H1B_REGISTERED) -> H1bResult:
+                since: Optional[str] = H1B_REGISTERED,
+                until: Optional[str] = None) -> H1bResult:
     """Выходы regime_flip, разделённые по удержанию; наблюдение — смена
     режима (все выходы одного прогона гварда), а не отдельная позиция:
     восемь монет закрываются одним событием и не независимы (§5)."""
     t_since = datetime.fromisoformat(since) if since else None
+    t_until = datetime.fromisoformat(until) if until else None
     entries = [r for r in rows
                if not r.get("exit_reason")
                and r.get("direction") in ("LONG", "SHORT")]
@@ -249,6 +251,8 @@ def compute_h1b(rows: Sequence[dict],
             continue
         t1 = _ts(e)
         if t1 is None or (t_since and t1 <= t_since):
+            continue
+        if t_until and t1 > t_until:
             continue
         side = str(e.get("closed_direction", "")).upper()
         opened = [_ts(n) for n in entries

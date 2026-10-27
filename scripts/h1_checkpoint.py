@@ -74,7 +74,7 @@ def main() -> int:
               + (f"{med3:+.3f}" if med3 is not None else "—") + ")")
 
     hb = compute_h1b(rows)
-    pre = compute_h1b(rows, since=None)
+    pre = compute_h1b(rows, since=None, until=H1B_REGISTERED)
     print(f"\n# H1b — короткий режим (удержание < {H1B_MAX_HOLD_H} ч)\n")
     print(f"смен режима после {H1B_REGISTERED[:10]}: {hb.n_events} "
           f"· суммы R: {hb.short_event_sums}")

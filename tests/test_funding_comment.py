@@ -33,6 +33,9 @@ def test_none_funding():
     assert funding_comment(None, "SHORT") == ""
 
 
-def test_near_zero_neutral():
-    txt = funding_comment(0.2, "SHORT")
-    assert "нейтрал" in txt.lower() or txt == "" or "близок" in txt.lower()
+def test_near_baseline_neutral():
+    """Нейтрально — у базовой ставки HL 10.95%, а не у нуля (27.10).
+    +0.2% при базе 10.95 — это заметный перекос в шорты."""
+    txt = funding_comment(10.9, "SHORT")
+    assert "перекоса нет" in txt
+    assert "перекошен в шорты" in funding_comment(0.2, "SHORT")
