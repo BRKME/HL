@@ -1,1 +1,14 @@
-{}
+{
+ "ZEC": {
+  "verdict": "LONG",
+  "since": "2026-10-27"
+ },
+ "NEAR": {
+  "verdict": "LONG",
+  "since": "2026-10-27"
+ },
+ "ASTER": {
+  "verdict": "LONG",
+  "since": "2026-10-27"
+ }
+}
