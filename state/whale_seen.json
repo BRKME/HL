@@ -1,54 +1,6 @@
 {
   "entries": [
     {
-      "rule": "WHALE_FLIP",
-      "whale": "0xe86b057f5eb764c9738d6b0d38170befd0723664",
-      "coin": "ETH",
-      "ts": 1793307021
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0xfc667adba8d4837586078f4fdcdc29804337ca06",
-      "coin": "ETH",
-      "ts": 1793307021
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0x023a3d058020fb76cca98f01b3c48c8938a22355",
-      "coin": "ETH",
-      "ts": 1793307021
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0xf517639a8872e756ac98d3c65507d2ebc25cc032",
-      "coin": "BTC",
-      "ts": 1793307021
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0x0facac3bd128fe6d799898a059d3634b877c7a0a",
-      "coin": "BNB",
-      "ts": 1793307021
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0x27c9fa86c91b84ddfa15de58c482ff662498d65d",
-      "coin": "ZEC",
-      "ts": 1793307021
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0x27c9fa86c91b84ddfa15de58c482ff662498d65d",
-      "coin": "TAO",
-      "ts": 1793307021
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0xd6e56265890b76413d1d527eb9b75e334c0c5b42",
-      "coin": "HYPE",
-      "ts": 1793307021
-    },
-    {
       "rule": "WHALE_CLUSTER",
       "whale": "",
       "coin": "ETH",
@@ -209,6 +161,30 @@
       "whale": "0x6859da14835424957a1e6b397d8026b1d9ff7e1e",
       "coin": "BTC",
       "ts": 1793391715
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0x5b5d51203a0f9079f8aeb098a6523a13f298c060",
+      "coin": "ETH",
+      "ts": 1793419039
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xb83de012dba672c76a7dbbbf3e459cb59d7d6e36",
+      "coin": "ETH",
+      "ts": 1793419039
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xd4c1f7e8d876c4749228d515473d36f919583d1d",
+      "coin": "ZEC",
+      "ts": 1793419039
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xc926ddba8b7617dbc65712f20cf8e1b58b8598d3",
+      "coin": "ZEC",
+      "ts": 1793419039
     }
   ]
 }
