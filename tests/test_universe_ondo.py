@@ -38,5 +38,11 @@ def test_ondo_is_an_alt_so_leverage_caps_at_2x():
     assert "ONDO" not in TIER1
 
 
+def test_lit_is_tracked_in_both_universes():
+    """LIT (Lighter) — 02.11.2026, решение оператора."""
+    assert "LIT" in FOCUS_COINS and "LIT" in TACTICAL_COINS
+    assert "LIT" not in TIER1          # альт: кап плеча 2×
+
+
 def test_universe_size():
-    assert len(FOCUS_COINS) == 9
+    assert len(FOCUS_COINS) == 10

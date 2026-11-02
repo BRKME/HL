@@ -94,8 +94,11 @@ def compute_indicators(candles: list[dict], swing_lookback: int = 30) -> dict:
         "rsi_d1": rsi(closes, 14),
         "ema50": e50,
         "ema200": e200,
-        "above_ema50": (last is not None and e50 is not None and last > e50),
-        "above_ema200": (last is not None and e200 is not None and last > e200),
+        # None, а не False, когда средней нет (02.11.2026): у молодой монеты
+        # меньше 200 свечей, и False читалось как «цена НИЖЕ EMA200» —
+        # модель выводила «тренд вниз» по монете без истории.
+        "above_ema50": (None if last is None or e50 is None else last > e50),
+        "above_ema200": (None if last is None or e200 is None else last > e200),
         "vs_ema50_pct": (
             round((last - e50) / e50 * 100, 2)
             if last is not None and e50 not in (None, 0)

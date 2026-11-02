@@ -17,7 +17,7 @@ def test_focus_coins_are_pinned():
     сравнивает список целиком: расширение вселенной должно быть осознанным
     решением оператора, а не побочным эффектом чужой правки."""
     assert FOCUS_COINS == ["BTC", "ETH", "ZEC", "NEAR", "HYPE",
-                           "ASTER", "MORPHO", "TAO", "ONDO"]
+                           "ASTER", "MORPHO", "TAO", "ONDO", "LIT"]
 
 
 def test_evaluate_coin_returns_wait_when_no_mark(tmp_path):
