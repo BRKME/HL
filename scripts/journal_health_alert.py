@@ -12,7 +12,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
 from src.journal_health import run_checks, worst_severity  # noqa: E402
-from src.whitelist_focus import FOCUS_COINS  # noqa: E402
+from src.whitelist_focus import COINS_ADDED, FOCUS_COINS  # noqa: E402
 
 JOURNAL = REPO_ROOT / "state" / "verdict_journal.jsonl"
 
@@ -35,7 +35,8 @@ def _load() -> list[dict]:
 
 def main() -> int:
     entries = _load()
-    issues = run_checks(entries, datetime.now(timezone.utc), FOCUS_COINS)
+    issues = run_checks(entries, datetime.now(timezone.utc), FOCUS_COINS,
+                        added=COINS_ADDED)
 
     if not issues:
         print("[journal-health] всё пишется, тревожить не о чем")

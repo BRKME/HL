@@ -24,6 +24,11 @@ FOCUS_COINS = ["BTC", "ETH", "ZEC", "NEAR", "HYPE", "ASTER", "MORPHO", "TAO",
                "ONDO",  # ONDO добавлен 08.08.2026 решением оператора
                "LIT"]   # LIT (Lighter) — 02.11.2026 решением оператора
 
+# Когда монета добавлена в список — детектор журнала не тревожит, пока по
+# ней не прошёл первый дневной сбор (journal_health.NEW_COIN_GRACE_H).
+# Добавляя монету в FOCUS_COINS, впиши её сюда.
+COINS_ADDED = {"LIT": "2026-11-02T20:03:00+00:00"}
+
 _MOSCOW = timezone(timedelta(hours=3))
 
 

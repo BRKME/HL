@@ -21,6 +21,11 @@ from typing import Iterable, Optional, Sequence
 # day, so 36h tolerates one missed run without crying wolf, and catches
 # two in a row.
 STALE_HOURS = 36
+# Отсрочка для только что добавленной монеты (03.11.2026): первый дневной
+# сбор с ней проходит на следующий день, а расписание Actions сдвигает
+# детектор на 3–7 часов. LIT добавлен 02.11 в 20:03 UTC, детектор 16:00
+# запустился в 23:19 уже с LIT — и в 02:19 МСК ушла ложная тревога.
+NEW_COIN_GRACE_H = 48
 
 # Порог свой на источник, потому что частота записи у них разная (27.08).
 # Единый порог в 36 часов был сделан под источник, пишущий каждые два часа:
@@ -139,11 +144,20 @@ def check_field_staleness(entries: Sequence[dict], now: datetime, field: str,
 
 def check_coin_coverage(entries: Sequence[dict], expected_coins: Sequence[str],
                         now: datetime,
-                        stale_hours: int = STALE_HOURS) -> list[HealthIssue]:
-    """Every coin in the universe must be represented recently."""
+                        stale_hours: int = STALE_HOURS,
+                        added: dict = None) -> list[HealthIssue]:
+    """Every coin in the universe must be represented recently.
+
+    added — {монета: ISO-время добавления}: монета без записей молчит
+    NEW_COIN_GRACE_H часов после добавления, дальше проверяется как все.
+    """
     issues: list[HealthIssue] = []
     for coin in expected_coins:
         last = _latest(entries, lambda e, c=coin: e.get("coin") == c)
+        if last is None and coin in (added or {}):
+            since = datetime.fromisoformat(added[coin])
+            if (now - since).total_seconds() / 3600 < NEW_COIN_GRACE_H:
+                continue
         if last is None:
             issues.append(HealthIssue(
                 "warn", f"монета {coin} отсутствует в журнале"))
@@ -159,7 +173,8 @@ def check_coin_coverage(entries: Sequence[dict], expected_coins: Sequence[str],
 
 def run_checks(entries: Sequence[dict], now: datetime,
                expected_coins: Sequence[str],
-               stale_hours: int = STALE_HOURS) -> list[HealthIssue]:
+               stale_hours: int = STALE_HOURS,
+               added: dict = None) -> list[HealthIssue]:
     if not entries:
         return [HealthIssue("critical", "журнал пуст — бот не пишет")]
 
@@ -179,5 +194,6 @@ def run_checks(entries: Sequence[dict], now: datetime,
     issues: list[HealthIssue] = []
     for field in TRACKED_FIELDS:
         issues += check_field_staleness(entries, now, field, stale_hours)
-    issues += check_coin_coverage(entries, expected_coins, now, stale_hours)
+    issues += check_coin_coverage(entries, expected_coins, now, stale_hours,
+                                  added=added)
     return issues
