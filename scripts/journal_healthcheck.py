@@ -168,9 +168,10 @@ def main() -> int:
     # whitelist_focus прошёл с вердиктом «OK». Теперь всё по свежести.
     sys.path.insert(0, str(repo_root))
     from src.journal_health import run_checks
-    from src.whitelist_focus import FOCUS_COINS
+    from src.whitelist_focus import COINS_ADDED, FOCUS_COINS
 
-    issues = list(run_checks(entries, datetime.now(timezone.utc), FOCUS_COINS))
+    issues = list(run_checks(entries, datetime.now(timezone.utc), FOCUS_COINS,
+                             added=COINS_ADDED))
     if len(phase_counts) == 1:
         from src.journal_health import HealthIssue
         issues.append(HealthIssue(
