@@ -1,6 +1,14 @@
 {
+ "ZEC": {
+  "verdict": "LONG",
+  "since": "2026-11-06"
+ },
  "TAO": {
   "verdict": "SHORT",
   "since": "2026-11-05"
+ },
+ "LIT": {
+  "verdict": "LONG",
+  "since": "2026-11-06"
  }
 }
