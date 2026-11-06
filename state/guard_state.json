@@ -2,6 +2,8 @@
  "last_regime": "TRANSITION",
  "flip_streak": {
   "ASTER": 1,
-  "HYPE": 2
+  "HYPE": 3,
+  "MORPHO": 1,
+  "LIT": 1
  }
 }
