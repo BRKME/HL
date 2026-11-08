@@ -47,6 +47,18 @@
       "whale": "0xceec48581b3145a575508719f45da07dc57fa7ce",
       "coin": "HYPE",
       "ts": 1794149065
+    },
+    {
+      "rule": "WHALE_CLUSTER",
+      "whale": "",
+      "coin": "ETH",
+      "ts": 1794168538
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xfc667adba8d4837586078f4fdcdc29804337ca06",
+      "coin": "ETH",
+      "ts": 1794168538
     }
   ]
 }
