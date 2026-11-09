@@ -36,7 +36,7 @@
   "last_change_ts": "2026-09-16T18:15:48.985211+00:00"
  },
  "MORPHO": {
-  "last_verdict": "WAIT",
+  "last_verdict": "SHORT",
   "last_action_verdict": "SHORT",
   "last_alert_ts": "2026-11-03T09:51:34.367877+00:00",
   "last_change_ts": "2026-11-03T09:51:34.367877+00:00"
