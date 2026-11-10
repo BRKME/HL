@@ -89,6 +89,36 @@
       "whale": "0xc926ddba8b7617dbc65712f20cf8e1b58b8598d3",
       "coin": "HYPE",
       "ts": 1794312210
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xe86b057f5eb764c9738d6b0d38170befd0723664",
+      "coin": "BTC",
+      "ts": 1794346683
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xe86b057f5eb764c9738d6b0d38170befd0723664",
+      "coin": "BTC",
+      "ts": 1794346683
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0x939f95036d2e7b6d7419ec072bf9d967352204d2",
+      "coin": "HYPE",
+      "ts": 1794346683
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0x939f95036d2e7b6d7419ec072bf9d967352204d2",
+      "coin": "BTC",
+      "ts": 1794346683
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0x27c9fa86c91b84ddfa15de58c482ff662498d65d",
+      "coin": "ZEC",
+      "ts": 1794346683
     }
   ]
 }
