@@ -18,7 +18,7 @@
   "last_change_ts": "2026-11-11T01:56:48.622884+00:00"
  },
  "NEAR": {
-  "last_verdict": "SHORT",
+  "last_verdict": "WAIT",
   "last_action_verdict": "SHORT",
   "last_alert_ts": "2026-11-11T02:01:05.165775+00:00",
   "last_change_ts": "2026-11-11T02:01:05.165775+00:00"
@@ -54,7 +54,7 @@
   "last_change_ts": "2026-11-10T12:49:33.804968+00:00"
  },
  "LIT": {
-  "last_verdict": "LONG",
+  "last_verdict": "WAIT",
   "last_action_verdict": "LONG",
   "last_alert_ts": "2026-11-06T12:18:21.223405+00:00",
   "last_change_ts": "2026-11-06T12:18:21.223405+00:00"
