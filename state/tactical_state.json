@@ -6,7 +6,7 @@
   "last_change_ts": "2026-10-08T06:08:12.060917+00:00"
  },
  "ETH": {
-  "last_verdict": "WAIT",
+  "last_verdict": "SHORT",
   "last_action_verdict": "SHORT",
   "last_alert_ts": "2026-11-09T18:57:47.531930+00:00",
   "last_change_ts": "2026-11-09T18:57:47.531930+00:00"
@@ -30,13 +30,13 @@
   "last_change_ts": "2026-11-05T21:08:08.248509+00:00"
  },
  "ASTER": {
-  "last_verdict": "WAIT",
+  "last_verdict": "SHORT",
   "last_action_verdict": "SHORT",
   "last_alert_ts": "2026-11-09T18:57:47.531930+00:00",
   "last_change_ts": "2026-11-09T18:57:47.531930+00:00"
  },
  "MORPHO": {
-  "last_verdict": "WAIT",
+  "last_verdict": "SHORT",
   "last_action_verdict": "SHORT",
   "last_alert_ts": "2026-11-03T09:51:34.367877+00:00",
   "last_change_ts": "2026-11-03T09:51:34.367877+00:00"
@@ -48,7 +48,7 @@
   "last_change_ts": "2026-11-01T06:30:02.199433+00:00"
  },
  "ONDO": {
-  "last_verdict": "SHORT",
+  "last_verdict": "WAIT",
   "last_action_verdict": "SHORT",
   "last_alert_ts": "2026-11-10T12:49:33.804968+00:00",
   "last_change_ts": "2026-11-10T12:49:33.804968+00:00"
