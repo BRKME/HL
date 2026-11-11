@@ -13,9 +13,9 @@
  },
  "ZEC": {
   "last_verdict": "WAIT",
-  "last_action_verdict": "LONG",
+  "last_action_verdict": null,
   "last_alert_ts": "2026-11-08T06:23:44.301928+00:00",
-  "last_change_ts": "2026-11-08T06:23:44.301928+00:00"
+  "last_change_ts": "2026-11-11T01:56:48.622884+00:00"
  },
  "NEAR": {
   "last_verdict": "WAIT",
