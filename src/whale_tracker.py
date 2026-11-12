@@ -30,7 +30,9 @@ from typing import Any, Optional
 
 logger = logging.getLogger("whale_tracker")
 
-_ARCHIVE_RE = re.compile(r"^whale_fills_(\d{4})-(\d{2})\.jsonl\.gz$")
+# Месяц может состоять из частей: whale_fills_2026-11.jsonl.gz, затем
+# whale_fills_2026-11.p2.jsonl.gz … (12.11.2026, см. ARCHIVE_PART_BYTES).
+_ARCHIVE_RE = re.compile(r"^whale_fills_(\d{4})-(\d{2})(?:\.p\d+)?\.jsonl\.gz$")
 
 
 # --------------------------------------------------------------- data model
@@ -201,6 +203,23 @@ MAX_LIVE_BYTES = 40 * 1024 * 1024     # живой файл, с запасом �
 # это 87 МБ СРАЗУ после ротации, почти у предела; первый всплеск торговли
 # перевалил бы его снова. Запас нужен против всплеска, а не только в среднем.
 KEEP_LIVE_DAYS = 5
+# Архив — тоже файл в репозитории под тем же пределом 100 МБ: октябрь 2026
+# занял 56 МБ в gz при росте потока втрое за месяц. Достигнув этого размера,
+# часть закрывается и заводится следующая (.p2, .p3 …).
+ARCHIVE_PART_BYTES = 60 * 1024 * 1024
+_ARCHIVE_CHUNK_LINES = 20_000
+
+
+def _archive_part(dir_path: Path, month: str, part_bytes: int) -> Path:
+    """Часть месячного архива, в которую ещё можно дописывать."""
+    n = 1
+    while True:
+        name = (f"whale_fills_{month}.jsonl.gz" if n == 1
+                else f"whale_fills_{month}.p{n}.jsonl.gz")
+        path = dir_path / name
+        if not path.exists() or path.stat().st_size < part_bytes:
+            return path
+        n += 1
 
 
 def iter_fill_lines(live_path: Path, since_ms: int = 0):
@@ -213,7 +232,7 @@ def iter_fill_lines(live_path: Path, since_ms: int = 0):
     Архивы старше since_ms не распаковываются вовсе — это дорого.
     """
     live_path = Path(live_path)
-    rx = re.compile(r"^whale_fills_(\d{4})-(\d{2})\.jsonl\.gz$")
+    rx = _ARCHIVE_RE
     for arch in sorted(live_path.parent.glob("whale_fills_*.jsonl.gz")):
         m = rx.match(arch.name)
         if not m:
@@ -235,7 +254,9 @@ def iter_fill_lines(live_path: Path, since_ms: int = 0):
 
 def rotate_by_size(path: Path, now: datetime,
                    max_bytes: int = MAX_LIVE_BYTES,
-                   keep_days: int = KEEP_LIVE_DAYS) -> int:
+                   keep_days: int = KEEP_LIVE_DAYS,
+                   part_bytes: int = ARCHIVE_PART_BYTES,
+                   cap_bytes: int = MAX_LIVE_BYTES) -> int:
     """Вынести старые заполнения в помесячные архивы, когда файл велик.
 
     Заведено 22.09. Живой файл дорос до 99.7 МБ при пределе GitHub в
@@ -258,7 +279,13 @@ def rotate_by_size(path: Path, now: datetime,
         return 0
 
     cutoff_ms = int((now.timestamp() - keep_days * 86400) * 1000)
-    keep, by_month = [], {}
+    keep: list[tuple[int, str]] = []       # (метка времени или 0, строка)
+    by_month: dict[str, list[str]] = {}
+
+    def _to_archive(ts: int, line: str) -> None:
+        d = datetime.fromtimestamp(ts / 1000, tz=timezone.utc)
+        by_month.setdefault(f"{d.year:04d}-{d.month:02d}", []).append(line)
+
     with path.open("r", encoding="utf-8") as fh:
         for line in fh:
             if not line.strip():
@@ -266,25 +293,45 @@ def rotate_by_size(path: Path, now: datetime,
             try:
                 ts = int(json.loads(line).get("time_ms") or 0)
             except (ValueError, TypeError):
-                keep.append(line)          # непонятное не выбрасываем
+                keep.append((0, line))     # непонятное не выбрасываем
                 continue
             if ts and ts < cutoff_ms:
-                d = datetime.fromtimestamp(ts / 1000, tz=timezone.utc)
-                by_month.setdefault(f"{d.year:04d}-{d.month:02d}", []).append(line)
+                _to_archive(ts, line)
             else:
-                keep.append(line)
+                keep.append((ts, line))
+
+    # Предел по БАЙТАМ, а не только по дням (12.11.2026). «5 дней ≈ 31 МБ»
+    # перестало быть правдой при 17.6 МБ/день: пять свежих дней не влезали
+    # в 100 МБ, убирать было нечего, и пуш отклонялся десять раз за
+    # 21.10–01.11. Старейшее из свежего уходит в архив, пока файл не влезет;
+    # читатели идут через iter_fill_lines и видят архив наравне с живым.
+    size = sum(len(l.encode("utf-8")) + (0 if l.endswith("\n") else 1)
+               for _, l in keep)
+    if size > cap_bytes:
+        order = sorted((i for i, (ts, _) in enumerate(keep) if ts),
+                       key=lambda i: keep[i][0])
+        drop = set()
+        for i in order:
+            if size <= cap_bytes:
+                break
+            ts, line = keep[i]
+            _to_archive(ts, line)
+            size -= len(line.encode("utf-8")) + (0 if line.endswith("\n") else 1)
+            drop.add(i)
+        keep = [x for i, x in enumerate(keep) if i not in drop]
 
     moved = 0
     for month, lines in sorted(by_month.items()):
-        arch = path.parent / f"whale_fills_{month}.jsonl.gz"
-        with gzip.open(arch, "at", encoding="utf-8") as dst:
-            for ln in lines:
-                dst.write(ln if ln.endswith("\n") else ln + "\n")
+        for k in range(0, len(lines), _ARCHIVE_CHUNK_LINES):
+            arch = _archive_part(path.parent, month, part_bytes)
+            with gzip.open(arch, "at", encoding="utf-8") as dst:
+                for ln in lines[k:k + _ARCHIVE_CHUNK_LINES]:
+                    dst.write(ln if ln.endswith("\n") else ln + "\n")
         moved += len(lines)
 
     tmp = path.with_suffix(".jsonl.tmp")
     with tmp.open("w", encoding="utf-8") as out:
-        out.writelines(l if l.endswith("\n") else l + "\n" for l in keep)
+        out.writelines(l if l.endswith("\n") else l + "\n" for _, l in keep)
     tmp.replace(path)
     return moved
 

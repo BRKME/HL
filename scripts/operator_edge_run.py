@@ -20,15 +20,21 @@ from src.operator_edge import pair_fills, summarise, verdict  # noqa: E402
 LOOKBACK_DAYS = int(os.environ.get("EDGE_LOOKBACK_DAYS") or 180)
 
 
-def _addresses() -> list[str]:
+def _addresses(whitelist: Path = REPO / "whitelist.yaml") -> list[str]:
     raw = os.environ.get("HL_ACCOUNTS") or os.environ.get("HL_ADDRESS") or ""
-    return [a.strip() for a in raw.replace(";", ",").split(",") if a.strip()]
+    env = [a.strip() for a in raw.replace(";", ",").split(",") if a.strip()]
+    if env:
+        return env
+    # Секрета HL_ACCOUNTS в репозитории нет (12.11.2026): прогон падал
+    # девять воскресений подряд. Адреса берём там же, где все остальные.
+    from src.daily_monitor import load_accounts
+    return [a["address"] for a in load_accounts(whitelist)]
 
 
 def main() -> int:
     addrs = _addresses()
     if not addrs:
-        print("адреса не заданы (HL_ACCOUNTS)")
+        print("адреса не заданы (HL_ACCOUNTS или accounts в whitelist.yaml)")
         return 1
 
     start = int((datetime.now(timezone.utc)

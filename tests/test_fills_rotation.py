@@ -159,3 +159,55 @@ def test_iterator_skips_archives_outside_window(tmp_path):
     rotate_by_size(p, NOW, max_bytes=1, keep_days=5)
     since = int((NOW - timedelta(days=7)).timestamp() * 1000)
     assert len([l for l in iter_fill_lines(p, since) if l.strip()]) == 1
+
+
+# ---------------------------------------------------------------------------
+# 12.11.2026 — аудит: предел 100 МБ пробит снова, 10 раз за 21.10–01.11
+# ---------------------------------------------------------------------------
+# Ротация убирала только то, что старше keep_days, и считала «5 дней ≈ 31 МБ
+# при 6 МБ/день». Поток вырос до 17.6 МБ/день: пять дней — 88–101 МБ, убирать
+# было нечего, пуш отклонялся («whale_fills.jsonl is 100.63 MB»), состояние
+# китов не сохранялось. Число дней — не ограничение размера.
+
+def test_busy_week_is_capped_by_bytes_not_days(tmp_path):
+    """Всё свежее keep_days, но файл больше предела — старейшее уходит в
+    архив, пока живой файл не влезет. Ни одна строка не теряется."""
+    p = tmp_path / "whale_fills.jsonl"
+    days = [i / 100 for i in range(400)]          # 400 строк за 4 дня
+    _write(p, days)
+    size = p.stat().st_size
+    cap = size // 4
+    moved = rotate_by_size(p, NOW, max_bytes=cap, cap_bytes=cap, keep_days=5)
+    assert p.stat().st_size <= cap
+    kept = _lines_in(p)
+    assert moved + len(kept) == 400
+    assert len(_arch_lines(tmp_path)) == moved
+    # остались самые СВЕЖИЕ
+    cutoff = min(json.loads(l)["time_ms"] for l in kept)
+    assert all(json.loads(l)["time_ms"] <= cutoff
+               for l in _arch_lines(tmp_path))
+
+
+def test_archive_rolls_over_to_parts_before_github_limit(tmp_path):
+    """Месячный архив тоже файл в репозитории: октябрь — 56 МБ в gz. Новая
+    часть заводится, когда текущая достигла предела."""
+    from src.whale_tracker import iter_fill_lines
+    p = tmp_path / "whale_fills.jsonl"
+    _write(p, [40 + i / 100 for i in range(50)])
+    rotate_by_size(p, NOW, max_bytes=1, part_bytes=1)
+    _write(p, [41 + i / 100 for i in range(50)])
+    rotate_by_size(p, NOW, max_bytes=1, part_bytes=1)
+    parts = sorted(a.name for a in tmp_path.glob("whale_fills_2026-08*.gz"))
+    assert len(parts) >= 2, parts
+    assert len([l for l in iter_fill_lines(p) if l.strip()]) == 100
+
+
+def test_parts_respect_since_filter(tmp_path):
+    from src.whale_tracker import iter_fill_lines
+    p = tmp_path / "whale_fills.jsonl"
+    _write(p, [80, 81])                    # начало июля
+    rotate_by_size(p, NOW, max_bytes=1, part_bytes=1)
+    _write(p, [82])
+    rotate_by_size(p, NOW, max_bytes=1, part_bytes=1)
+    since = int((NOW - timedelta(days=10)).timestamp() * 1000)
+    assert [l for l in iter_fill_lines(p, since_ms=since) if l.strip()] == []

@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: read
+  actions: read      # список упавших прогонов для actions_health_alert
 
 concurrency:
   group: hl-journal-health
@@ -41,3 +42,12 @@ jobs:
 
       - name: Run healthcheck and alert
         run: python scripts/journal_health_alert.py
+
+      # Упавшие прогоны по расписанию — в канал (12.11.2026): за два месяца
+      # их было 20, и ни об одном канал не узнал. always(): проверка нужна
+      # и тогда, когда шаг выше завершился с ошибкой.
+      - name: Report failed scheduled runs
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python scripts/actions_health_alert.py
