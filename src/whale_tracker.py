@@ -341,21 +341,26 @@ def cleanup_old_archives(
     retention_days: int = 90,
     now: Optional[datetime] = None,
 ) -> list[Path]:
-    """Remove whale_fills_YYYY-MM.jsonl.gz archives older than retention_days.
+    """Удалить архивы, чей месяц целиком старше retention_days.
 
-    Uses the file's mtime, not the YYYY-MM in the name, for safety against
-    misnamed files.
+    Возраст — по месяцу В ИМЕНИ файла (12.11.2026). Прежняя версия смотрела
+    на время изменения, а checkout в Actions ставит его в «сейчас»: очистка
+    не сработала ни разу, майский архив лежал в ноябре. Месяц удаляется,
+    когда даже последняя его запись (начало следующего месяца) старше
+    срока; части (.p2 …) — вместе с ним.
     """
     now = now or datetime.now(timezone.utc)
     cutoff = now - timedelta(days=retention_days)
     removed: list[Path] = []
     if not dir_path.exists():
         return removed
-    for child in dir_path.iterdir():
-        if not child.is_file() or not _ARCHIVE_RE.match(child.name):
+    for child in sorted(dir_path.iterdir()):
+        m = _ARCHIVE_RE.match(child.name) if child.is_file() else None
+        if not m:
             continue
-        mtime = datetime.fromtimestamp(child.stat().st_mtime, tz=timezone.utc)
-        if mtime < cutoff:
+        y, mo = int(m.group(1)), int(m.group(2))
+        month_end = datetime(y + (mo == 12), mo % 12 + 1, 1, tzinfo=timezone.utc)
+        if month_end < cutoff:
             try:
                 child.unlink()
                 removed.append(child)

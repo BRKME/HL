@@ -79,6 +79,11 @@ jobs:
             fi
           done
 
+          # Удалённые архивы (очистка старше 90 дней, 12.11.2026): цикл выше
+          # добавляет только существующие файлы, и удаление не попало бы в
+          # коммит — архив воскресал бы на следующем checkout.
+          git add -A -- 'state/whale_fills_*.jsonl.gz' || true
+
           if git diff --cached --quiet; then
             echo "no whale-state changes to commit"
             exit 0

@@ -194,16 +194,12 @@ def test_rotate_noop_when_file_missing(tmp_path):
 # ---------- cleanup old archives ----------
 
 def test_cleanup_removes_archives_older_than_retention(tmp_path):
-    """Default retention 90 days — anything older deleted."""
+    """Срок 90 дней — по месяцу в имени, не по времени файла (12.11.2026:
+    в Actions время файла всегда «сейчас», см. test_fills_rotation)."""
     old = tmp_path / "whale_fills_2026-01.jsonl.gz"
     recent = tmp_path / "whale_fills_2026-04.jsonl.gz"
     old.write_bytes(b"")
     recent.write_bytes(b"")
-    import os
-    jan_ts = datetime(2026, 1, 31, tzinfo=timezone.utc).timestamp()
-    apr_ts = datetime(2026, 4, 30, tzinfo=timezone.utc).timestamp()
-    os.utime(old, (jan_ts, jan_ts))
-    os.utime(recent, (apr_ts, apr_ts))
 
     removed = cleanup_old_archives(tmp_path, retention_days=90, now=NOW)
     assert len(removed) == 1

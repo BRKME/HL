@@ -211,3 +211,46 @@ def test_parts_respect_since_filter(tmp_path):
     rotate_by_size(p, NOW, max_bytes=1, part_bytes=1)
     since = int((NOW - timedelta(days=10)).timestamp() * 1000)
     assert [l for l in iter_fill_lines(p, since_ms=since) if l.strip()] == []
+
+
+# ---------------------------------------------------------------------------
+# 12.11.2026 — очистка архивов по дате из имени (решение оператора: удалять)
+# ---------------------------------------------------------------------------
+# cleanup_old_archives смотрела на время изменения файла, а checkout в Actions
+# ставит его в «сейчас»: очистка не сработала ни разу, майский архив лежал
+# в ноябре. Та же ошибка, что у месячной ротации.
+
+def test_cleanup_goes_by_month_in_name_not_mtime(tmp_path):
+    from src.whale_tracker import cleanup_old_archives
+    now = datetime(2026, 11, 12, tzinfo=timezone.utc)
+    names = ["whale_fills_2026-05.jsonl.gz", "whale_fills_2026-07.jsonl.gz",
+             "whale_fills_2026-07.p2.jsonl.gz",
+             "whale_fills_2026-08.jsonl.gz", "whale_fills_2026-11.jsonl.gz"]
+    for n in names:
+        (tmp_path / n).write_bytes(b"")          # mtime = сейчас, как в Actions
+    removed = {p.name for p in cleanup_old_archives(tmp_path, 90, now=now)}
+    # Июль кончился 01.08 — старше 90 дней (граница 14.08); август — нет.
+    assert removed == {"whale_fills_2026-05.jsonl.gz",
+                       "whale_fills_2026-07.jsonl.gz",
+                       "whale_fills_2026-07.p2.jsonl.gz"}
+    assert (tmp_path / "whale_fills_2026-08.jsonl.gz").exists()
+    assert (tmp_path / "whale_fills_2026-11.jsonl.gz").exists()
+
+
+def test_cleanup_handles_december_rollover(tmp_path):
+    from src.whale_tracker import cleanup_old_archives
+    now = datetime(2027, 4, 15, tzinfo=timezone.utc)
+    (tmp_path / "whale_fills_2026-12.jsonl.gz").write_bytes(b"")
+    (tmp_path / "whale_fills_2027-01.jsonl.gz").write_bytes(b"")
+    removed = {p.name for p in cleanup_old_archives(tmp_path, 90, now=now)}
+    assert removed == {"whale_fills_2026-12.jsonl.gz"}
+
+
+def test_workflow_stages_archive_deletions():
+    """Удалённый архив должен уйти из репозитория: `git add файл` для
+    несуществующего файла ничего не делает, и архив воскресал бы на
+    следующем checkout."""
+    import pathlib
+    wf = (pathlib.Path(__file__).resolve().parents[1]
+          / ".github" / "workflows" / "whale-monitor.yml").read_text()
+    assert "git add -A -- 'state/whale_fills_*.jsonl.gz'" in wf
