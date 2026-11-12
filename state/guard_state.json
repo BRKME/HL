@@ -1,9 +1,11 @@
 {
  "last_regime": "TRANSITION",
  "flip_streak": {
-  "HYPE": 21,
-  "NEAR": 2,
-  "LIT": 2,
-  "ONDO": 1
+  "HYPE": 22,
+  "NEAR": 3,
+  "LIT": 3,
+  "ETH": 1,
+  "MORPHO": 1,
+  "TAO": 1
  }
 }
