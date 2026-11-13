@@ -1,8 +1,9 @@
 {
  "last_regime": "TRANSITION",
  "flip_streak": {
-  "NEAR": 6,
-  "LIT": 6,
-  "ETH": 4
+  "NEAR": 7,
+  "LIT": 7,
+  "ETH": 5,
+  "MORPHO": 1
  }
 }
