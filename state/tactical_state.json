@@ -1,57 +1,57 @@
 {
  "BTC": {
-  "last_verdict": "WAIT",
+  "last_verdict": "LONG",
   "last_action_verdict": null,
   "last_alert_ts": "2026-10-06T15:19:47.387550+00:00",
   "last_change_ts": "2026-10-08T06:08:12.060917+00:00"
  },
  "ETH": {
-  "last_verdict": "WAIT",
-  "last_action_verdict": "SHORT",
+  "last_verdict": "LONG",
+  "last_action_verdict": "LONG",
   "last_alert_ts": "2026-11-09T18:57:47.531930+00:00",
-  "last_change_ts": "2026-11-09T18:57:47.531930+00:00"
+  "last_change_ts": "2026-11-14T15:13:47.655480+00:00"
  },
  "ZEC": {
-  "last_verdict": "WAIT",
-  "last_action_verdict": null,
-  "last_alert_ts": "2026-11-08T06:23:44.301928+00:00",
-  "last_change_ts": "2026-11-11T01:56:48.622884+00:00"
+  "last_verdict": "LONG",
+  "last_action_verdict": "LONG",
+  "last_alert_ts": "2026-11-14T15:13:47.655480+00:00",
+  "last_change_ts": "2026-11-14T15:13:47.655480+00:00"
  },
  "NEAR": {
-  "last_verdict": "WAIT",
-  "last_action_verdict": "SHORT",
-  "last_alert_ts": "2026-11-11T02:01:05.165775+00:00",
-  "last_change_ts": "2026-11-11T02:01:05.165775+00:00"
+  "last_verdict": "LONG",
+  "last_action_verdict": "LONG",
+  "last_alert_ts": "2026-11-14T15:13:47.655480+00:00",
+  "last_change_ts": "2026-11-14T15:13:47.655480+00:00"
  },
  "HYPE": {
-  "last_verdict": "WAIT",
-  "last_action_verdict": null,
-  "last_alert_ts": "2026-11-05T21:08:08.248509+00:00",
-  "last_change_ts": "2026-11-13T01:05:44.136150+00:00"
+  "last_verdict": "LONG",
+  "last_action_verdict": "LONG",
+  "last_alert_ts": "2026-11-14T15:13:47.655480+00:00",
+  "last_change_ts": "2026-11-14T15:13:47.655480+00:00"
  },
  "ASTER": {
-  "last_verdict": "SHORT",
-  "last_action_verdict": "SHORT",
-  "last_alert_ts": "2026-11-09T18:57:47.531930+00:00",
-  "last_change_ts": "2026-11-09T18:57:47.531930+00:00"
+  "last_verdict": "LONG",
+  "last_action_verdict": "LONG",
+  "last_alert_ts": "2026-11-14T15:13:47.655480+00:00",
+  "last_change_ts": "2026-11-14T15:13:47.655480+00:00"
  },
  "MORPHO": {
-  "last_verdict": "WAIT",
-  "last_action_verdict": "SHORT",
-  "last_alert_ts": "2026-11-03T09:51:34.367877+00:00",
-  "last_change_ts": "2026-11-03T09:51:34.367877+00:00"
+  "last_verdict": "LONG",
+  "last_action_verdict": "LONG",
+  "last_alert_ts": "2026-11-14T15:13:47.655480+00:00",
+  "last_change_ts": "2026-11-14T15:13:47.655480+00:00"
  },
  "TAO": {
-  "last_verdict": "SHORT",
-  "last_action_verdict": "SHORT",
-  "last_alert_ts": "2026-11-01T06:30:02.199433+00:00",
-  "last_change_ts": "2026-11-01T06:30:02.199433+00:00"
+  "last_verdict": "LONG",
+  "last_action_verdict": "LONG",
+  "last_alert_ts": "2026-11-14T15:13:47.655480+00:00",
+  "last_change_ts": "2026-11-14T15:13:47.655480+00:00"
  },
  "ONDO": {
-  "last_verdict": "WAIT",
-  "last_action_verdict": "SHORT",
-  "last_alert_ts": "2026-11-10T12:49:33.804968+00:00",
-  "last_change_ts": "2026-11-10T12:49:33.804968+00:00"
+  "last_verdict": "LONG",
+  "last_action_verdict": "LONG",
+  "last_alert_ts": "2026-11-14T15:13:47.655480+00:00",
+  "last_change_ts": "2026-11-14T15:13:47.655480+00:00"
  },
  "LIT": {
   "last_verdict": "WAIT",
