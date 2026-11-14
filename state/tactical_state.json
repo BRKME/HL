@@ -13,45 +13,45 @@
  },
  "ZEC": {
   "last_verdict": "LONG",
-  "last_action_verdict": "LONG",
+  "last_action_verdict": null,
   "last_alert_ts": "2026-11-14T15:13:47.655480+00:00",
-  "last_change_ts": "2026-11-14T15:13:47.655480+00:00"
+  "last_change_ts": "2026-11-14T20:43:52.025290+00:00"
  },
  "NEAR": {
   "last_verdict": "LONG",
-  "last_action_verdict": "LONG",
+  "last_action_verdict": null,
   "last_alert_ts": "2026-11-14T15:13:47.655480+00:00",
-  "last_change_ts": "2026-11-14T15:13:47.655480+00:00"
+  "last_change_ts": "2026-11-14T20:43:52.025290+00:00"
  },
  "HYPE": {
   "last_verdict": "LONG",
-  "last_action_verdict": "LONG",
+  "last_action_verdict": null,
   "last_alert_ts": "2026-11-14T15:13:47.655480+00:00",
-  "last_change_ts": "2026-11-14T15:13:47.655480+00:00"
+  "last_change_ts": "2026-11-14T20:43:52.025290+00:00"
  },
  "ASTER": {
   "last_verdict": "LONG",
-  "last_action_verdict": "LONG",
+  "last_action_verdict": null,
   "last_alert_ts": "2026-11-14T15:13:47.655480+00:00",
-  "last_change_ts": "2026-11-14T15:13:47.655480+00:00"
+  "last_change_ts": "2026-11-14T20:43:52.025290+00:00"
  },
  "MORPHO": {
   "last_verdict": "LONG",
-  "last_action_verdict": "LONG",
+  "last_action_verdict": null,
   "last_alert_ts": "2026-11-14T15:13:47.655480+00:00",
-  "last_change_ts": "2026-11-14T15:13:47.655480+00:00"
+  "last_change_ts": "2026-11-14T20:43:52.025290+00:00"
  },
  "TAO": {
   "last_verdict": "LONG",
-  "last_action_verdict": "LONG",
+  "last_action_verdict": null,
   "last_alert_ts": "2026-11-14T15:13:47.655480+00:00",
-  "last_change_ts": "2026-11-14T15:13:47.655480+00:00"
+  "last_change_ts": "2026-11-14T20:43:52.025290+00:00"
  },
  "ONDO": {
   "last_verdict": "LONG",
-  "last_action_verdict": "LONG",
+  "last_action_verdict": null,
   "last_alert_ts": "2026-11-14T15:13:47.655480+00:00",
-  "last_change_ts": "2026-11-14T15:13:47.655480+00:00"
+  "last_change_ts": "2026-11-14T20:43:52.025290+00:00"
  },
  "LIT": {
   "last_verdict": "WAIT",
