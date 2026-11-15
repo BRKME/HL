@@ -1,9 +1,9 @@
 {
  "BTC": {
   "last_verdict": "LONG",
-  "last_action_verdict": null,
-  "last_alert_ts": "2026-10-06T15:19:47.387550+00:00",
-  "last_change_ts": "2026-10-08T06:08:12.060917+00:00"
+  "last_action_verdict": "LONG",
+  "last_alert_ts": "2026-11-15T17:17:50.808760+00:00",
+  "last_change_ts": "2026-11-15T17:17:50.808760+00:00"
  },
  "ETH": {
   "last_verdict": "LONG",
@@ -36,16 +36,16 @@
   "last_change_ts": "2026-11-15T09:39:31.716313+00:00"
  },
  "MORPHO": {
-  "last_verdict": "SHORT",
-  "last_action_verdict": "SHORT",
-  "last_alert_ts": "2026-11-15T09:39:31.716313+00:00",
-  "last_change_ts": "2026-11-15T09:39:31.716313+00:00"
- },
- "TAO": {
   "last_verdict": "LONG",
   "last_action_verdict": "LONG",
   "last_alert_ts": "2026-11-15T09:39:31.716313+00:00",
-  "last_change_ts": "2026-11-15T09:39:31.716313+00:00"
+  "last_change_ts": "2026-11-15T17:17:50.808760+00:00"
+ },
+ "TAO": {
+  "last_verdict": "SHORT",
+  "last_action_verdict": "SHORT",
+  "last_alert_ts": "2026-11-15T09:39:31.716313+00:00",
+  "last_change_ts": "2026-11-15T17:17:50.808760+00:00"
  },
  "ONDO": {
   "last_verdict": "SHORT",
@@ -54,7 +54,7 @@
   "last_change_ts": "2026-11-15T09:39:31.716313+00:00"
  },
  "LIT": {
-  "last_verdict": "WAIT",
+  "last_verdict": "LONG",
   "last_action_verdict": "LONG",
   "last_alert_ts": "2026-11-06T12:18:21.223405+00:00",
   "last_change_ts": "2026-11-06T12:18:21.223405+00:00"
