@@ -24,22 +24,22 @@
   "last_change_ts": "2026-11-14T20:43:52.025290+00:00"
  },
  "HYPE": {
-  "last_verdict": "WAIT",
+  "last_verdict": "SHORT",
   "last_action_verdict": "SHORT",
   "last_alert_ts": "2026-11-15T09:39:31.716313+00:00",
   "last_change_ts": "2026-11-15T09:39:31.716313+00:00"
  },
  "ASTER": {
-  "last_verdict": "LONG",
-  "last_action_verdict": "LONG",
-  "last_alert_ts": "2026-11-15T09:39:31.716313+00:00",
-  "last_change_ts": "2026-11-15T09:39:31.716313+00:00"
- },
- "MORPHO": {
   "last_verdict": "SHORT",
   "last_action_verdict": "SHORT",
+  "last_alert_ts": "2026-11-16T06:54:17.438033+00:00",
+  "last_change_ts": "2026-11-16T06:54:17.438033+00:00"
+ },
+ "MORPHO": {
+  "last_verdict": "LONG",
+  "last_action_verdict": "LONG",
   "last_alert_ts": "2026-11-15T23:01:17.466605+00:00",
-  "last_change_ts": "2026-11-15T23:01:17.466605+00:00"
+  "last_change_ts": "2026-11-16T06:54:17.438033+00:00"
  },
  "TAO": {
   "last_verdict": "SHORT",
@@ -54,9 +54,9 @@
   "last_change_ts": "2026-11-15T09:39:31.716313+00:00"
  },
  "LIT": {
-  "last_verdict": "WAIT",
-  "last_action_verdict": null,
-  "last_alert_ts": "2026-11-06T12:18:21.223405+00:00",
-  "last_change_ts": "2026-11-16T06:33:30.333360+00:00"
+  "last_verdict": "LONG",
+  "last_action_verdict": "LONG",
+  "last_alert_ts": "2026-11-16T06:54:17.438033+00:00",
+  "last_change_ts": "2026-11-16T06:54:17.438033+00:00"
  }
 }
