@@ -7,14 +7,6 @@
   "verdict": "LONG",
   "since": "2026-11-15"
  },
- "ZEC": {
-  "verdict": "LONG",
-  "since": "2026-11-16"
- },
- "HYPE": {
-  "verdict": "LONG",
-  "since": "2026-11-16"
- },
  "ASTER": {
   "verdict": "SHORT",
   "since": "2026-11-16"
@@ -24,15 +16,11 @@
   "since": "2026-11-15"
  },
  "TAO": {
-  "verdict": "LONG",
-  "since": "2026-11-16"
+  "verdict": "SHORT",
+  "since": "2026-11-17"
  },
  "ONDO": {
-  "verdict": "LONG",
-  "since": "2026-11-16"
- },
- "LIT": {
-  "verdict": "LONG",
-  "since": "2026-11-16"
+  "verdict": "SHORT",
+  "since": "2026-11-17"
  }
 }
