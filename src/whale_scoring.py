@@ -154,8 +154,42 @@ def score_from_fills(
 
 # ------------------------------------------------------------------- loading
 
+# Кэш разбора (17.11.2026): живой файл + архивы — ~3 млн строк, ~30 с, а
+# whale-monitor звал разбор на каждого кита и падал по таймауту. Ключ —
+# (имя, размер, mtime) каждого файла: любое изменение — перечитывание.
+_FILLS_CACHE: dict[str, tuple[tuple, list]] = {}
+
+
+def _fills_signature(path: Path) -> tuple:
+    files = sorted(Path(path).parent.glob("whale_fills_*.jsonl.gz"))
+    files.append(Path(path))
+    sig = []
+    for f in files:
+        try:
+            st = f.stat()
+        except OSError:
+            continue
+        sig.append((f.name, st.st_size, st.st_mtime_ns))
+    return tuple(sig)
+
+
 def _load_jsonl_fills(path: Path) -> list[WhaleFill]:
-    """Заполнения из живого файла и архивов. Битые строки пропускаются."""
+    """Заполнения из живого файла и архивов. Битые строки пропускаются.
+
+    Разбор кэшируется до изменения любого из файлов; WhaleFill неизменяем,
+    вызывающий получает свою копию списка."""
+    key = str(Path(path).resolve())
+    sig = _fills_signature(path)
+    hit = _FILLS_CACHE.get(key)
+    if hit is not None and hit[0] == sig:
+        return list(hit[1])
+    out = _parse_fills(path)
+    _FILLS_CACHE.clear()          # держим в памяти один набор, не копим
+    _FILLS_CACHE[key] = (sig, out)
+    return list(out)
+
+
+def _parse_fills(path: Path) -> list[WhaleFill]:
     out: list[WhaleFill] = []
     from src.whale_tracker import iter_fill_lines
     for line in iter_fill_lines(path):

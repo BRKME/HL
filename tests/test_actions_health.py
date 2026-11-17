@@ -64,3 +64,12 @@ def test_run_without_any_jobs_is_infra_too():
 
 def test_runs_after_now_are_outside_window():
     assert failed_runs([_run("whale-monitor", -5, 1)], _jobs(5), NOW) == {}
+
+
+def test_timeout_cancel_is_a_failure():
+    """17.11: whale-monitor упирался в timeout-minutes, GitHub помечает это
+    «cancelled», и детектор неделю не видел половину прогонов. Ни один
+    воркфлоу не отменяет прогоны сам (cancel-in-progress: false везде)."""
+    runs = [_run("whale-monitor", 3, 1, conclusion="cancelled"),
+            _run("whale-monitor", 8, 2, conclusion="timed_out")]
+    assert failed_runs(runs, _jobs(5), NOW) == {"whale-monitor": 2}

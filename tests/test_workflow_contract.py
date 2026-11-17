@@ -183,3 +183,11 @@ def test_channel_sender_commits_send_marker_unconditionally(name):
                     and "state/last_channel_send.txt" in run):
                 ok = True
     assert ok, f"{name}: маркер отправки не коммитится в шаге без условия"
+
+
+@pytest.mark.parametrize("wf", WORKFLOWS, ids=lambda p: p.name)
+def test_no_workflow_cancels_itself(wf):
+    """actions_health считает «cancelled» по расписанию таймаутом (17.11).
+    Воркфлоу с cancel-in-progress: true сделал бы это ложной тревогой."""
+    assert not re.search(r"cancel-in-progress:\s*true", wf.read_text()), \
+        "cancel-in-progress: true ломает src/actions_health.FAILED_CONCLUSIONS"

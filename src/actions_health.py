@@ -18,6 +18,10 @@ from typing import Callable, Optional, Sequence
 # 24 ч оставляло бы дыры между соседними прогонами.
 WINDOW_H = 30
 OWN_WORKFLOW = "journal-health"     # своё падение не пересказываем эхом
+# timeout-minutes GitHub помечает «cancelled», не «failure» (17.11: половина
+# прогонов whale-monitor неделю не была видна). Сами себя воркфлоу не
+# отменяют — cancel-in-progress: false везде.
+FAILED_CONCLUSIONS = {"failure", "cancelled", "timed_out"}
 
 
 def failed_runs(runs: Sequence[dict], jobs_of: Callable[[int], list],
@@ -26,7 +30,7 @@ def failed_runs(runs: Sequence[dict], jobs_of: Callable[[int], list],
     since = now - timedelta(hours=window_h)
     out: dict[str, int] = {}
     for r in runs:
-        if r.get("conclusion") != "failure" or r.get("event") != "schedule":
+        if r.get("conclusion") not in FAILED_CONCLUSIONS or r.get("event") != "schedule":
             continue
         if r.get("name") == OWN_WORKFLOW:
             continue
@@ -53,5 +57,5 @@ def render(failed: dict[str, int]) -> Optional[str]:
     for name, n in sorted(failed.items(), key=lambda kv: (-kv[1], kv[0])):
         lines.append(f"🔴 {name}" + (f" ×{n}" if n > 1 else ""))
     lines += ["", "<i>Данные этих прогонов не сохранены. Причина — в логах "
-                  "GitHub Actions, вкладка Actions → фильтр «failure».</i>"]
+                  "GitHub Actions, вкладка Actions.</i>"]
     return "\n".join(lines)
