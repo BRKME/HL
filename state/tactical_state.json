@@ -55,8 +55,8 @@
  },
  "LIT": {
   "last_verdict": "LONG",
-  "last_action_verdict": "LONG",
+  "last_action_verdict": null,
   "last_alert_ts": "2026-11-16T06:54:17.438033+00:00",
-  "last_change_ts": "2026-11-16T06:54:17.438033+00:00"
+  "last_change_ts": "2026-11-17T13:29:30.405216+00:00"
  }
 }
