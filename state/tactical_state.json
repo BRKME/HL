@@ -19,15 +19,15 @@
  },
  "NEAR": {
   "last_verdict": "LONG",
-  "last_action_verdict": "LONG",
+  "last_action_verdict": null,
   "last_alert_ts": "2026-11-20T21:53:21.892879+00:00",
-  "last_change_ts": "2026-11-20T21:53:21.892879+00:00"
+  "last_change_ts": "2026-11-21T03:13:53.226985+00:00"
  },
  "HYPE": {
   "last_verdict": "LONG",
-  "last_action_verdict": "LONG",
+  "last_action_verdict": null,
   "last_alert_ts": "2026-11-20T21:53:21.892879+00:00",
-  "last_change_ts": "2026-11-20T21:53:21.892879+00:00"
+  "last_change_ts": "2026-11-21T03:13:53.226985+00:00"
  },
  "ASTER": {
   "last_verdict": "SHORT",
