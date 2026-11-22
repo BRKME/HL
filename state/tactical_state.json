@@ -37,9 +37,9 @@
  },
  "MORPHO": {
   "last_verdict": "LONG",
-  "last_action_verdict": "LONG",
+  "last_action_verdict": null,
   "last_alert_ts": "2026-11-21T20:36:44.483043+00:00",
-  "last_change_ts": "2026-11-21T20:36:44.483043+00:00"
+  "last_change_ts": "2026-11-22T02:15:52.440783+00:00"
  },
  "TAO": {
   "last_verdict": "LONG",
