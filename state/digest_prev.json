@@ -8,16 +8,12 @@
   "since": "2026-11-15"
  },
  "ZEC": {
-  "verdict": "LONG",
-  "since": "2026-11-20"
- },
- "NEAR": {
-  "verdict": "LONG",
-  "since": "2026-11-20"
+  "verdict": "SHORT",
+  "since": "2026-11-22"
  },
  "HYPE": {
-  "verdict": "LONG",
-  "since": "2026-11-20"
+  "verdict": "SHORT",
+  "since": "2026-11-22"
  },
  "ASTER": {
   "verdict": "LONG",
@@ -28,8 +24,8 @@
   "since": "2026-11-15"
  },
  "TAO": {
-  "verdict": "LONG",
-  "since": "2026-11-20"
+  "verdict": "SHORT",
+  "since": "2026-11-22"
  },
  "ONDO": {
   "verdict": "LONG",
