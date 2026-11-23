@@ -1,36 +1,6 @@
 {
   "entries": [
     {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0xfc667adba8d4837586078f4fdcdc29804337ca06",
-      "coin": "ETH",
-      "ts": 1795362857
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0x7fdafde5cfb5465924316eced2d3715494c517d1",
-      "coin": "BTC",
-      "ts": 1795362857
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0xd4c1f7e8d876c4749228d515473d36f919583d1d",
-      "coin": "BTC",
-      "ts": 1795362857
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0x023a3d058020fb76cca98f01b3c48c8938a22355",
-      "coin": "NEAR",
-      "ts": 1795362857
-    },
-    {
-      "rule": "WHALE_NEW_OPEN",
-      "whale": "0xe86b057f5eb764c9738d6b0d38170befd0723664",
-      "coin": "BTC",
-      "ts": 1795362857
-    },
-    {
       "rule": "WHALE_CLUSTER",
       "whale": "",
       "coin": "BTC",
@@ -65,6 +35,66 @@
       "whale": "0xd4c1f7e8d876c4749228d515473d36f919583d1d",
       "coin": "ETH",
       "ts": 1795412374
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0xc926ddba8b7617dbc65712f20cf8e1b58b8598d3",
+      "coin": "BTC",
+      "ts": 1795463264
+    },
+    {
+      "rule": "WHALE_FLIP",
+      "whale": "0xc926ddba8b7617dbc65712f20cf8e1b58b8598d3",
+      "coin": "HYPE",
+      "ts": 1795463264
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xecb63caa47c7c4e77f60f1ce858cf28dc2b82b00",
+      "coin": "PUMP",
+      "ts": 1795463264
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xecb63caa47c7c4e77f60f1ce858cf28dc2b82b00",
+      "coin": "HYPE",
+      "ts": 1795463264
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xc926ddba8b7617dbc65712f20cf8e1b58b8598d3",
+      "coin": "HYPE",
+      "ts": 1795463264
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xc926ddba8b7617dbc65712f20cf8e1b58b8598d3",
+      "coin": "BTC",
+      "ts": 1795463264
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xc926ddba8b7617dbc65712f20cf8e1b58b8598d3",
+      "coin": "HYPE",
+      "ts": 1795463264
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xc926ddba8b7617dbc65712f20cf8e1b58b8598d3",
+      "coin": "BTC",
+      "ts": 1795463264
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xc926ddba8b7617dbc65712f20cf8e1b58b8598d3",
+      "coin": "NEAR",
+      "ts": 1795463264
+    },
+    {
+      "rule": "WHALE_NEW_OPEN",
+      "whale": "0xe86b057f5eb764c9738d6b0d38170befd0723664",
+      "coin": "BTC",
+      "ts": 1795463264
     }
   ]
 }
