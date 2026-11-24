@@ -12,13 +12,13 @@
   "last_change_ts": "2026-11-14T15:13:47.655480+00:00"
  },
  "ZEC": {
-  "last_verdict": "WAIT",
+  "last_verdict": "SHORT",
   "last_action_verdict": "SHORT",
   "last_alert_ts": "2026-11-21T12:51:44.824390+00:00",
   "last_change_ts": "2026-11-21T12:51:44.824390+00:00"
  },
  "NEAR": {
-  "last_verdict": "LONG",
+  "last_verdict": "WAIT",
   "last_action_verdict": "LONG",
   "last_alert_ts": "2026-11-23T20:24:31.681315+00:00",
   "last_change_ts": "2026-11-23T20:24:31.681315+00:00"
@@ -36,10 +36,10 @@
   "last_change_ts": "2026-11-22T09:58:41.443053+00:00"
  },
  "MORPHO": {
-  "last_verdict": "LONG",
-  "last_action_verdict": "LONG",
-  "last_alert_ts": "2026-11-22T09:58:41.443053+00:00",
-  "last_change_ts": "2026-11-22T09:58:41.443053+00:00"
+  "last_verdict": "SHORT",
+  "last_action_verdict": "SHORT",
+  "last_alert_ts": "2026-11-24T04:52:30.582960+00:00",
+  "last_change_ts": "2026-11-24T04:52:30.582960+00:00"
  },
  "TAO": {
   "last_verdict": "SHORT",
