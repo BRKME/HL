@@ -1,26 +1,42 @@
 {
  "BTC": {
-  "verdict": "SHORT",
-  "since": "2026-11-23"
+  "verdict": "LONG",
+  "since": "2026-11-24"
  },
  "ETH": {
-  "verdict": "SHORT",
-  "since": "2026-11-23"
+  "verdict": "LONG",
+  "since": "2026-11-24"
+ },
+ "ZEC": {
+  "verdict": "LONG",
+  "since": "2026-11-24"
+ },
+ "NEAR": {
+  "verdict": "LONG",
+  "since": "2026-11-24"
+ },
+ "HYPE": {
+  "verdict": "LONG",
+  "since": "2026-11-24"
  },
  "ASTER": {
-  "verdict": "SHORT",
-  "since": "2026-11-23"
+  "verdict": "LONG",
+  "since": "2026-11-24"
  },
  "MORPHO": {
-  "verdict": "SHORT",
-  "since": "2026-11-23"
+  "verdict": "LONG",
+  "since": "2026-11-24"
  },
  "TAO": {
-  "verdict": "SHORT",
-  "since": "2026-11-22"
+  "verdict": "LONG",
+  "since": "2026-11-24"
  },
  "ONDO": {
-  "verdict": "SHORT",
-  "since": "2026-11-23"
+  "verdict": "LONG",
+  "since": "2026-11-24"
+ },
+ "LIT": {
+  "verdict": "LONG",
+  "since": "2026-11-24"
  }
 }
