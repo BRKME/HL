@@ -6,16 +6,16 @@
   "last_change_ts": "2026-11-23T20:24:31.681315+00:00"
  },
  "ETH": {
-  "last_verdict": "LONG",
-  "last_action_verdict": "LONG",
-  "last_alert_ts": "2026-11-09T18:57:47.531930+00:00",
-  "last_change_ts": "2026-11-14T15:13:47.655480+00:00"
+  "last_verdict": "SHORT",
+  "last_action_verdict": "SHORT",
+  "last_alert_ts": "2026-11-26T00:32:52.080665+00:00",
+  "last_change_ts": "2026-11-26T00:32:52.080665+00:00"
  },
  "ZEC": {
-  "last_verdict": "LONG",
-  "last_action_verdict": "LONG",
-  "last_alert_ts": "2026-11-24T17:59:47.795186+00:00",
-  "last_change_ts": "2026-11-24T17:59:47.795186+00:00"
+  "last_verdict": "SHORT",
+  "last_action_verdict": "SHORT",
+  "last_alert_ts": "2026-11-26T00:32:52.080665+00:00",
+  "last_change_ts": "2026-11-26T00:32:52.080665+00:00"
  },
  "NEAR": {
   "last_verdict": "WAIT",
@@ -24,37 +24,37 @@
   "last_change_ts": "2026-11-23T20:24:31.681315+00:00"
  },
  "HYPE": {
-  "last_verdict": "LONG",
-  "last_action_verdict": "LONG",
-  "last_alert_ts": "2026-11-23T20:24:31.681315+00:00",
-  "last_change_ts": "2026-11-25T02:39:34.386900+00:00"
+  "last_verdict": "SHORT",
+  "last_action_verdict": "SHORT",
+  "last_alert_ts": "2026-11-26T00:32:52.080665+00:00",
+  "last_change_ts": "2026-11-26T00:32:52.080665+00:00"
  },
  "ASTER": {
-  "last_verdict": "LONG",
-  "last_action_verdict": "LONG",
-  "last_alert_ts": "2026-11-25T02:39:34.386900+00:00",
-  "last_change_ts": "2026-11-25T02:39:34.386900+00:00"
+  "last_verdict": "SHORT",
+  "last_action_verdict": "SHORT",
+  "last_alert_ts": "2026-11-26T00:32:52.080665+00:00",
+  "last_change_ts": "2026-11-26T00:32:52.080665+00:00"
  },
  "MORPHO": {
-  "last_verdict": "LONG",
-  "last_action_verdict": "LONG",
-  "last_alert_ts": "2026-11-25T02:39:34.386900+00:00",
-  "last_change_ts": "2026-11-25T02:39:34.386900+00:00"
+  "last_verdict": "SHORT",
+  "last_action_verdict": "SHORT",
+  "last_alert_ts": "2026-11-26T00:32:52.080665+00:00",
+  "last_change_ts": "2026-11-26T00:32:52.080665+00:00"
  },
  "TAO": {
-  "last_verdict": "LONG",
+  "last_verdict": "SHORT",
   "last_action_verdict": null,
   "last_alert_ts": "2026-11-25T14:42:49.537971+00:00",
   "last_change_ts": "2026-11-25T21:43:56.045162+00:00"
  },
  "ONDO": {
-  "last_verdict": "LONG",
-  "last_action_verdict": "LONG",
-  "last_alert_ts": "2026-11-25T02:39:34.386900+00:00",
-  "last_change_ts": "2026-11-25T02:39:34.386900+00:00"
+  "last_verdict": "SHORT",
+  "last_action_verdict": "SHORT",
+  "last_alert_ts": "2026-11-26T00:32:52.080665+00:00",
+  "last_change_ts": "2026-11-26T00:32:52.080665+00:00"
  },
  "LIT": {
-  "last_verdict": "LONG",
+  "last_verdict": "SHORT",
   "last_action_verdict": null,
   "last_alert_ts": "2026-11-25T14:42:49.537971+00:00",
   "last_change_ts": "2026-11-25T21:43:56.045162+00:00"
