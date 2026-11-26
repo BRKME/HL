@@ -4,15 +4,15 @@
   "since": "2026-11-24"
  },
  "ETH": {
-  "verdict": "LONG",
-  "since": "2026-11-24"
- },
- "ZEC": {
   "verdict": "SHORT",
   "since": "2026-11-26"
  },
+ "ZEC": {
+  "verdict": "LONG",
+  "since": "2026-11-26"
+ },
  "HYPE": {
-  "verdict": "SHORT",
+  "verdict": "LONG",
   "since": "2026-11-26"
  },
  "ASTER": {
