@@ -6,10 +6,10 @@
   "last_change_ts": "2026-11-23T20:24:31.681315+00:00"
  },
  "ETH": {
-  "last_verdict": "LONG",
-  "last_action_verdict": "LONG",
+  "last_verdict": "SHORT",
+  "last_action_verdict": "SHORT",
   "last_alert_ts": "2026-11-26T00:32:52.080665+00:00",
-  "last_change_ts": "2026-11-26T11:11:40.036653+00:00"
+  "last_change_ts": "2026-11-26T21:46:25.254701+00:00"
  },
  "ZEC": {
   "last_verdict": "SHORT",
@@ -18,7 +18,7 @@
   "last_change_ts": "2026-11-26T00:32:52.080665+00:00"
  },
  "NEAR": {
-  "last_verdict": "LONG",
+  "last_verdict": "WAIT",
   "last_action_verdict": "LONG",
   "last_alert_ts": "2026-11-23T20:24:31.681315+00:00",
   "last_change_ts": "2026-11-23T20:24:31.681315+00:00"
